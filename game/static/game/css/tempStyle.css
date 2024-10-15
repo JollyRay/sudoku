@@ -1,0 +1,547 @@
+/************************ * * * INIT VAR * * * *************************/
+:root {
+    --light-blue: #40ffff;
+    --select-blue: #a0ffff;
+    --main-backround: white;
+    --main-card-shadow-color: #67cd9f;
+}
+/************************ * * * ANIMETE * * * *************************/
+@keyframes swing {
+    20% {
+        transform: rotate(15deg);
+   }
+    40% {
+        transform: rotate(-10deg);
+   }
+    60% {
+        transform: rotate(5deg);
+   }
+    80% {
+        transform: rotate(-5deg);
+   }
+    100% {
+        transform: rotate(0deg);
+   }
+}
+@keyframes glare-hidden-option {
+    0% {
+        background-color: var(--bs-gray-400);
+   }
+    20% {
+        background-color: var(--bs-gray-200);
+   }
+    40% {
+        background-color: var(--bs-gray-400);
+   }
+    60% {
+        background-color: var(--bs-gray-800);
+   }
+    80% {
+        background-color: var(--bs-gray-400);
+   }
+    100% {
+        background-color: black;
+   }
+}
+/************************ * * * START PARAM * * * *************************/
+html, body {
+    min-height: 100vh;
+    width: 100%;
+    padding: 0;
+    margin: 0;
+    border: 0;
+}
+p, button {
+    margin: 0;
+    padding: 0;
+    border: 0;
+}
+a {
+    text-decoration: none;
+}
+a:visited {
+    color: blue;
+}
+footer {
+    height: 4vh;
+}
+@media screen and (min-width: 1858px) {
+    main {
+        display: flex;
+        justify-content: center;
+   }
+    main > * {
+        align-self: center;
+   }
+    ::-webkit-scrollbar {
+        display: none;
+   }
+}
+main {
+    min-height: 96vh;
+}
+header {
+    height: 9vh;
+    display: none;
+}
+/************************ * * * START PAGE * * * *************************/
+.mini-menu-container{
+    height: 200px;
+    width: 400px;
+    padding: 20px;
+    background-color: #000000;
+    clip-path: polygon(20px 0, 0 100%, calc(100% - 20px) 100%, 100% 0);
+    color: white;
+}
+.create-lobby-form {
+    height: 100%;
+    display: flex;
+    justify-content: space-around;
+    flex-direction: column;
+}
+.create-lobby-form > div {
+    width: 300px;
+    display: flex;
+    justify-content: space-around;
+}
+.not-found-page{
+    width: 100%;
+    height: 100%;
+    width: 100%;
+    height: 100%;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    font-size: 33px;
+}
+/************************ * * * SELF SUDOKU * * * *************************/
+.game-field-container {
+    height: 993px;
+    width: 1858px;
+}
+.game-field {
+    display: flex;
+    flex-direction: row;
+    background-color: transparent;
+    height: 993px;
+    width: 1858px;
+}
+.game-field-background-container {
+    z-index: -2;
+    position: relative;
+    filter: drop-shadow(0 0 10px var(--main-card-shadow-color));
+}
+.game-field-background {
+    width: 1858px;
+    height: 993px;
+    top: -993px;
+    position: absolute;
+    background-color: black;
+    clip-path: polygon(calc(38px + 40px) 0, 38px 38px, 38px calc(911px - 38px), 0 911px, 0 993px, calc(2 * 100px + 750px) 993px, calc(2 * 100px + 750px) calc(993px / 2), calc(2 * 100px + 750px + 548px / 3) calc(993px / 2 - 548px / 3), calc(1858px - 100px) calc(993px / 2 - 548px / 3), calc(1858px - 100px) 993px, calc(1858px - 38px) 993px, 1858px calc(993px - 38px), 1858px 719px, calc(1858px - 38px) calc(719px - 38px), calc(1858px - 38px) 0, calc(474px + 1008px) 0, calc(474px + 1008px - 38px) 38px, 474px 38px, 474px 0);
+}
+.sudoku-field {
+    position: relative;
+    height: 548px;
+    width: 548px;
+    color: blue;
+}
+.resolved-sudoku-field .sudoku-big-cell {
+    filter: blur(5px);
+}
+.resolved-sudoku-field .extra-sudoku-message {
+    display: block;
+    opacity: 1;
+}
+.nick-field {
+    height: 60px;
+    margin: 0;
+    font-family: BLACKPASTDEMO;
+}
+.extra-big-cell-message {
+    position: absolute;
+    font-size: 60px;
+    width: calc(100% + 2px);
+    height: calc(100% + 2px);
+    text-align: center;
+    z-index: -1;
+    line-height: 180px;
+    user-select: none;
+}
+.extra-sudoku-message {
+    position: absolute;
+    z-index: 2;
+    user-select: none;
+    top: calc(548px / 2 - 72px);
+    font-size: 72px;
+    width: 100%;
+    text-align: center;
+    opacity: 0;
+    display: none;
+    transition-duration: 1000ms;
+    transition-property: opacity;
+}
+.shadow-square {
+    filter: blur(10px);
+}
+.sudoku-big-cell {
+    transition: top 1000ms, left 1000ms, background 1000ms, -webkit-filter 2000ms, transform 5000ms linear;
+    position: absolute;
+    height: 180px;
+    width: 180px;
+}
+.sudoku-big-cell-0 {
+    top: 0px;
+    left: 0px;
+}
+.sudoku-big-cell-1 {
+    top: 0px;
+    left: 180px;
+}
+.sudoku-big-cell-2 {
+    top: 0px;
+    left: 360px;
+}
+.sudoku-big-cell-3 {
+    top: 180px;
+    left: 0px;
+}
+.sudoku-big-cell-4 {
+    top: 180px;
+    left: 180px;
+}
+.sudoku-big-cell-5 {
+    top: 180px;
+    left: 360px;
+}
+.sudoku-big-cell-6 {
+    top: 360px;
+    left: 0px;
+}
+.sudoku-big-cell-7 {
+    top: 360px;
+    left: 180px;
+}
+.sudoku-big-cell-8 {
+    top: 360px;
+    left: 360px;
+}
+.sudoku-cell {
+    transition-duration: 1000ms;
+    transition-property: top, left;
+    position: absolute;
+    text-align: center;
+    font-size: 35px;
+    user-select: none;
+    width: 60px;
+    height: 60px;
+    background-size: 100%;
+}
+.sudoku-cell-0 {
+    top: 0px;
+    left: 0px;
+}
+.sudoku-cell-1 {
+    top: 0px;
+    left: 59px;
+}
+.sudoku-cell-2 {
+    top: 0px;
+    left: 118px;
+}
+.sudoku-cell-3 {
+    top: 59px;
+    left: 0px;
+}
+.sudoku-cell-4 {
+    top: 59px;
+    left: 59px;
+}
+.sudoku-cell-5 {
+    top: 59px;
+    left: 118px;
+}
+.sudoku-cell-6 {
+    top: 118px;
+    left: 0px;
+}
+.sudoku-cell-7 {
+    top: 118px;
+    left: 59px;
+}
+.sudoku-cell-8 {
+    top: 118px;
+    left: 118px;
+}
+.bonus-cell {
+    position: absolute;
+    width: 20px;
+    height: 20px;
+    font-size: 15px;
+    top: 0;
+    left: 0;
+}
+.cell-notes {
+    width: 100%;
+    height: 100%;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: repeat(3, 1fr);
+    position: absolute;
+    top: 0;
+    left: 0;
+}
+.cell-notes > div {
+    color: white;
+    -webkit-text-stroke: 2px blue;
+    font-size: small;
+    background-size: 100%;
+}
+.user-option .sudoku-big-cell .sudoku-cell-select {
+    background-color: var(--select-blue);
+}
+.sudoku-big-cell .sudoku-cell-equal-select {
+    background-color: var(--light-blue);
+}
+.sudoku-big-cell .sudoku-cell-equal-select p {
+    font-weight: bold;
+}
+.show-wrong .wrong-answer {
+    color: red;
+    border: 2px red solid;
+}
+.self-options {
+    margin-left: 100px;
+    margin-top: 100px;
+}
+.self-options .extra-sudoku-message {
+    color: black;
+}
+.visible-option {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    width: 750px;
+}
+.visible-option .nick-field {
+    color: white;
+}
+.visible-option .sudoku-big-cell {
+    border: 2px black solid;
+}
+.visible-option .sudoku-cell {
+    border: black solid 1px;
+}
+.visible-option .sudoku-cell:not(.static-answer, .sudoku-cell-select) {
+    background-color: white;
+}
+.visible-option .static-answer {
+    color: black;
+    background-color: var(--bs-gray-400);
+}
+.backcground-value-mode .sudoku-cell > p {
+    color: rgba(0, 0, 0, 0);
+}
+.button-container {
+    text-align: center;
+}
+.genereate-button {
+    margin-top: 30px;
+    background-color: white;
+    clip-path: polygon(0 0, 0 100%, 90% 100%, 100% 0);
+    width: 80%;
+    min-width: 200px;
+    font-family: BLACKPASTDEMO;
+    color: black;
+    font-weight: bold;
+    font-size: 25px;
+}
+.genereate-button:hover {
+    background-color: var(--light-blue);
+}
+.self-interface {
+    padding-top: 40px;
+}
+.number-board {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: repeat(3, 1fr);
+    width: 155px;
+    height: 155px;
+}
+.numbers-button {
+    height: 45px;
+    width: 45px;
+    background-size: 100%;
+    border-radius: 5px;
+    margin: 2px;
+    text-align: center;
+    user-select: none;
+    background-color: white;
+    line-height: 100%;
+    font-size: 40px;
+    transition-duration: 1000ms;
+    transition-property: transform, background;
+}
+.numbers-button:hover {
+    background-color: var(--light-blue);
+    transform: scale(1.2);
+}
+.number-as-img {
+    color: rgba(0, 0, 0, 0);
+}
+.mode-button {
+    font-family: BLACKPASTDEMO;
+    border: none;
+    background: transparent;
+    font-weight: bold;
+    font-size: 25px;
+}
+.mode-button:hover {
+    color: var(--light-blue);
+}
+.mode-button:not(.mode-button-active, .mode-button:hover) {
+    color: white;
+}
+.mode-button-active {
+    color: var(--select-blue);
+}
+.hidden-option {
+    position: absolute;
+    bottom: 0;
+    transition-duration: 1000ms;
+    transition-property: bottom;
+}
+.hidden-option.show-hidden-option {
+    bottom: 100px;
+}
+.hidden-option.show-hidden-option .hidden-tongue {
+    background-color: var(--bs-gray-800);
+}
+.hidden-option.show-hidden-option .hidden-items {
+    height: 100px;
+}
+.hidden-option.show-hidden-option .hidden-items * {
+    height: 40px;
+    opacity: 1;
+}
+.hidden-tongue {
+    animation: glare-hidden-option 10000ms;
+    height: 30px;
+    width: 150px;
+    background-color: black;
+    border-radius: 10px 10px 0 0;
+    transition-duration: 1000ms;
+    transition-property: height, background;
+}
+.hidden-tongue:hover {
+    height: 50px;
+    background-color: var(--bs-gray-400);
+}
+.hidden-items {
+    position: absolute;
+    top: 30px;
+    width: 400px;
+    display: grid;
+    grid-template-columns: 1fr 3fr;
+    background-color: white;
+    height: 0;
+    transition-duration: 1000ms;
+    transition-property: height, opacity;
+}
+.hidden-items * {
+    height: 0;
+    opacity: 0;
+    transition-duration: 1000ms;
+    transition-property: height, opacity;
+}
+/************************ * * * ENEMY SUDOKU * * * *************************/
+.enemy-data {
+    display: flex;
+    flex-direction: row;
+    padding: 0 0 20px 120px;
+}
+.enemy-score {
+    width: 180px;
+    height: 498px;
+    display: flex;
+    flex-direction: column;
+    align-self: flex-end;
+}
+.score-user-height {
+    height: 40px;
+}
+.user-score-container {
+    position: absolute;
+    height: 30px;
+}
+.user-score-container:hover {
+    animation: swing 1000ms;
+}
+.user-score-container:hover .score-owner-name {
+    text-shadow: 1px 1px 20px var(--light-blue);
+}
+.score-owner-name {
+    position: absolute;
+    top: 0;
+    text-shadow: 1px 1px 2px white;
+    color: black;
+    width: 100%;
+    text-align: center;
+    user-select: none;
+    transition-duration: 1000ms;
+    transition-property: text-shadow;
+}
+.score-progress {
+    --w: 170px;
+    --color: linear-gradient(#fff 8, #fff 0), repeating-linear-gradient(135deg, #000 F 0 10px, #000 0 0 20px), grey;
+    --background: lightgrey;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    border: none;
+    width: var(--w);
+    height: 30px;
+    background: var(--background);
+}
+.score-progress::-webkit-progress-bar {
+    background: var(--background);
+}
+.score-progress::-webkit-progress-value {
+    background: var(--color);
+}
+.score-progress::-moz-progress-bar {
+    background: var(--color);
+}
+.enemy-option {
+    display: flex;
+    flex-wrap: wrap;
+    align-content: flex-end;
+    margin-bottom: 30px;
+}
+.enemy-option .nick-field {
+    color: black;
+}
+.enemy-option .sudoku-big-cell {
+    border: 2px solid lightgray;
+}
+.enemy-option .sudoku-cell {
+    border: 1px solid lightgray;
+}
+.enemy-option .sudoku-cell:not(.static-answer, .sudoku-cell-select) {
+    background-color: black;
+}
+.enemy-option .static-answer {
+    color: white;
+    background-color: var(--bs-gray-800);
+}
+.enemy-option .extra-sudoku-message {
+    color: white;
+}
+.hidden {
+    display: none;
+}
+/************************ * * * FOOTER DATA * * * *************************/
+.footer-container span {
+    padding-left: 40px;
+}

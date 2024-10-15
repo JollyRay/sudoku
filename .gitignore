@@ -1,0 +1,7 @@
+**/migrations
+**/__pycache__
+.venv
+requirements old.txt
+.env
+db.sqlite3
+TODO

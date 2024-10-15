@@ -1,0 +1,14 @@
+services:
+    redis:
+        image: "redis:7"
+    web:
+        build: .
+        ports:
+          - "5678:5678"
+        environment:
+          - REDIS_HOST=redis
+        develop:
+            watch:
+              - action: sync
+                path: .
+                target: /usr/src/app

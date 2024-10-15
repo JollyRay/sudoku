@@ -1,0 +1,105 @@
+{% extends "game/base.html" %}
+{% load static %}
+{% load sudoku_tags %}
+
+
+{% block content %}
+<div class="game-field-container">
+    <div class="game-field">
+        <div class="self-options">
+            <div class="visible-option">
+                <div>
+                    <div id="self-sudoku"></div>
+                    <div class="button-container">
+                        <button id="generate-sudoku" class="genereate-button">Generate</button>
+                    </div>
+                </div>
+                <div class="self-interface">
+                    <div class="number-board">
+                    {% for index in 9|range %}
+                        <div class="numbers-button"><p>{{index|add:"1"}}</p></div>
+                    {% endfor %}
+                    </div>
+                    <div class="button-container">
+                        <button id="note-mode-button" class="mode-button">note mode</button>
+                    </div>
+                    <div class="button-container">
+                        <button id="digit-first-mode-button" class="mode-button">Digit first</button>
+                    </div>
+                    <div class="button-container">
+                        <button id="toggle-mistake-button" class="mode-button">Show miss</button>
+                    </div>
+                </div>
+            </div>
+            <div class="hidden-option">
+                <div class="hidden-tongue" id="hidden-tongue"></div>
+                <div class="hidden-items">
+                    <div>Стиль:</div>
+                    <select id="sudoku-mode">
+                        <option value="digit">Цифры</option>
+                        <option value="schepka">Шпека</option>
+                        <option value="holo">Hololive</option>
+                        <option value="torry">Torry</option>
+                    </select>
+                    {% if is_first %}
+                    <div>Канал: </div>
+                    <div>
+                        <input type="text" id="twitch-channel">
+                        <button id="add-twitch-channel">Add</button>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="enemy-data">
+            <div class="enemy-score">
+                <h2>Счёт</h2>
+                <div id="score-container"></div>
+            </div>
+            <div class="enemy-option"></div>
+        </div>
+    </div>
+    <div class="game-field-background-container">
+        <div class="game-field-background"></div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_script %}
+<template id="user-optrion-template">
+    <div class="user-option">
+        <h1 class="nick-field"></h1>
+        <div class="sudoku-field">
+            <div class="sudoku-big-cell-0 sudoku-big-cell" big-cell-index="0">
+            {% for indexs in 81|range_sudoku %}
+                <div class="sudoku-cell-{{ indexs.cell_in_big_cell_index }} sudoku-cell" number="{{ indexs.finish_index }}" now="{{ indexs.finish_index }}">
+                    <p></p>
+                    <div class="cell-notes">
+                        {% for index in 9|range %}
+                        <div></div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% if not forloop.last and forloop.counter|divisibleby:"9" %}
+                <div class="extra-big-cell-message"></div></div><div class="sudoku-big-cell-{{ indexs.big_cell_number }} sudoku-big-cell" big-cell-index="{{ indexs.big_cell_number }}">
+                {% endif %}
+
+            {% endfor %}
+            <div class="extra-big-cell-message"></div>
+            </div>
+            <div class="extra-sudoku-message">Победютьканье</div>
+
+        </div>
+    </div>
+</template>
+<template id="score-template">
+    <div class="score-user-height">
+        <div class="user-score-container">
+            <progress class="score-progress" max="81" value="0"></progress>
+            <p class="score-owner-name"></p>
+        </div>
+    </div>
+</template>
+{{ room_code|json_script:"room-code" }}
+<script src="{% static 'game/js/sudokuWebsocket.js' %}"></script>
+{% endblock %}

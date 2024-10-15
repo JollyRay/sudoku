@@ -1,0 +1,12 @@
+{% extends "game/base.html" %}
+
+{% block content %}
+
+<div class="mini-menu-container">
+    <div class="not-found-page">
+        <p>Упс, кто-то заблудился?</p>
+        <a href="{% url 'create_lobby' %}"><<< Create Lobby</a>
+    </div>
+</div>
+
+{% endblock %}
