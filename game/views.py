@@ -9,9 +9,6 @@ from .forms import ConncetLobbyForm
 
 # Create your views here.
 
-def test(r):
-    return render(r, '404.html')
-
 def lobby(request: HttpRequest):
     nick = request.COOKIES.get('nick')
     if nick:

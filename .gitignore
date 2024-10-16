@@ -5,3 +5,4 @@ requirements old.txt
 .env
 db.sqlite3
 TODO
+style.scss
