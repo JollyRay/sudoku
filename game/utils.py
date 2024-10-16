@@ -203,28 +203,32 @@ def _generate_full_board(base = 3):
 
     return board
 
-def _clean_border(board, side = 9, empties = 60):
-    squares = side*side
-    for p in random.sample(range(squares),empties):
-        board[p//side][p%side] = 0
+def _clean_board(board, max_empties = 60, side = 9, attempts = 9):
+    cell_order = list(range(side * side))
+    random.shuffle(cell_order)
+    empty_cell = 0
 
-    return board
+    while attempts > 0 and len(cell_order) > 0 and max_empties > empty_cell:
 
-def _prepare_for_one_solution(clean_board, solution_board) -> list[list[int]]:
+        pos = cell_order.pop()
+        row, col = (pos // side), (pos % side)
 
-    while True:
-        solved  = [*islice(shortSudokuSolve(clean_board),2)]
-        if len(solved)==1: return clean_board
-        diffPos = [(r,c) for r in range(9) for c in range(9)
-                if solved[0][r][c] != solved[1][r][c] ] 
-        r,c = random.choice(diffPos)
-        clean_board[r][c] = solution_board[r][c]
+        backup = board[row][col]
+        board[row][col]=0
 
-def generate_sudoku(base = 3, empties = 60) -> tuple[list[list[int]]]:
+        solved  = [*islice(shortSudokuSolve(board),2)]
+        if len(solved)>1:
+            board[row][col]=backup
+            attempts -= 1
+        else:
+            empty_cell += 1
+    
+    return empty_cell
+
+def generate_sudoku(base = 3) -> tuple[list[list[int]]]:
     solution_board = _generate_full_board(base)
     clean_board = deepcopy(solution_board)
-    _clean_border(clean_board, base * base, empties)
-    clean_board = _prepare_for_one_solution(clean_board, solution_board)
+    _clean_board(clean_board)
 
     return (solution_board, clean_board)
 
