@@ -233,7 +233,7 @@ def generate_sudoku_with_setting(base, limit_reqest):
                 break
     
     if select_difficult is not None:
-        if select_difficult[2] >= empty_quantity:
+        if select_difficult[2] < empty_quantity:
             _fill_up(clean_board, solution_board, select_difficult[2], empty_quantity, side)
 
         return clean_board, solution_board, select_difficult[0], select_difficult[3]
@@ -243,13 +243,13 @@ def generate_sudoku_with_setting(base, limit_reqest):
 def _fill_up(clean_board: list[list[int]], solution_board: list[list[int]], need_empty, have_empty, side = 9):
     order_fill = list(range(81))
     random.shuffle(order_fill)
-    while need_empty >= have_empty:
+    while need_empty < have_empty:
 
         pos = order_fill.pop()
         row, col = pos // side, pos % side
         if clean_board[row][col] == 0:
             clean_board[row][col] = solution_board[row][col]
-            have_empty += 1
+            have_empty -= 1
 
 
 def convert_clean_board_to_map(clean_board: list[list[int]]) -> dict[int, int]|None:

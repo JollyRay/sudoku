@@ -15,7 +15,7 @@ class Command(BaseCommand):
 
         # Init settings
 
-        difficulty_info = Difficulty.objects.values('name', 'top_limit', 'pk').annotate(count = Count('sudokuboard'))
+        difficulty_info = Difficulty.objects.values('name', 'top_limit', 'pk').order_by('top_limit').annotate(count = Count('sudokuboard'))
         limit_reqest = []
         for difficulty in difficulty_info:
             limit_reqest.append([
