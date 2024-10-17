@@ -38,9 +38,11 @@ class UserSetting(Model):
         return f'Lobby: {self.lobby.code} - {self.nick}'
 
 class SudokuBoardManager(Manager):
-    def random(self, **kwargs):
-        query = self.filter(**kwargs).values('id')
+    def random(self, filter: dict = {}, exclude: dict = {}):
+        query = self.filter(**filter).exclude(**exclude).values('id')
         count = query.aggregate(count=Count('id'))['count']
+        if count == 0:
+            return None
         random_index = randint(0, count - 1)
         id = query[random_index]['id']
         return SudokuCell.objects.filter(board__id = id)
