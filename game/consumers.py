@@ -138,7 +138,7 @@ class SudokuConsumer(AsyncWebsocketConsumer):
     @userRequestHandler('set_value')
     async def set_sudoku_value(self, cell_number: int, value: int, *args, **kwargs):
 
-        is_equal = SudokuMap.equival(self.room_code, self.nick, value, cell_number)
+        is_equal = await database_sync_to_async(SudokuMap.equival)(self.room_code, self.nick, value, cell_number)
 
         if is_equal is None:
             return
@@ -271,12 +271,10 @@ class SudokuConsumer(AsyncWebsocketConsumer):
 
     @database_sync_to_async
     def get_random_board(self, difficulty):
-        board: QuerySet[SudokuCell] = SudokuBoard.objects.random(difficulty__name = difficulty)
+        solution_board: QuerySet[SudokuCell] = SudokuBoard.objects.random(difficulty__name = difficulty)
         clean_board = [[0 for _ in range(9)] for _ in range(9)]
-        solution_board = [[0 for _ in range(9)] for _ in range(9)]
-        for cell in board:
+        for cell in solution_board:
             row, col = cell.number // 9 , cell.number % 9
-            solution_board[row][col] = cell.value
             if not cell.is_empty:
                 clean_board[row][col] = cell.value
 

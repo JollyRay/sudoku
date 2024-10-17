@@ -4,23 +4,7 @@ import random
 from itertools import islice
 from copy import deepcopy
 
-##############################
-#                            #
-# Websocket Consumer Manager #
-#                            #
-##############################
-
-# class AddHandler:
-#     reqest_type_map = dict()
-
-#     def __init__(self, selector):
-#         self.selector = selector
-
-#     def __call__(self, func):
-#         async def wrapper(*args, **kargs):
-#             return await func(*args, **kargs)
-#         self.reqest_type_map[self.selector] = wrapper
-#         return wrapper
+from .models import *
 
 class AddHandler:
 
@@ -56,7 +40,7 @@ class SudokuMap:
         return wrapper
 
     @classmethod
-    def set(cls, room_code: str, nick: str, clean_board: list[list[int]]|None = None, solution_board: list[list[int]]|None = None, bonus_map: dict[int, str]|None = None) -> bool:
+    def set(cls, room_code: str, nick: str, clean_board: list[list[int]]|None = None, solution_board: QuerySet[SudokuCell]|None = None, bonus_map: dict[int, str]|None = None) -> bool:
         room = cls._sudoku_map.get(room_code, False)
         if not room:
             room = dict()
@@ -152,16 +136,14 @@ class SudokuMap:
     @__check_exist_user
     def equival(cls, code: str, nick: str, value: int, cell_number: int, save: bool = True) -> bool:
         
-        row = cell_number // cls.SIDE_SIZE
-        column = cell_number % cls.SIDE_SIZE
-
-        is_equel = nick[cls.SOLUTION_BOARD][row][column] == value
+        is_equel = nick[cls.SOLUTION_BOARD].filter(value = value, number = cell_number).exists()
 
         if save:
+            row = cell_number // cls.SIDE_SIZE
+            column = cell_number % cls.SIDE_SIZE
             nick[cls.CLEAN_BOARD][row][column] = value
 
         return is_equel
-
 
 ##############################
 #                            #
