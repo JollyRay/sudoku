@@ -494,7 +494,7 @@ header {
 }
 .score-progress {
     --w: 170px;
-    --color: linear-gradient(#fff 8, #fff 0), repeating-linear-gradient(135deg, #000 F 0 10px, #000 0 0 20px), grey;
+    --color: linear-gradient(#fff8, #fff0), repeating-linear-gradient(135deg, #000F 0 10px, #0000 0 20px), grey;
     --background: lightgrey;
     -webkit-appearance: none;
     -moz-appearance: none;
