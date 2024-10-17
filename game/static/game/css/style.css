@@ -413,13 +413,13 @@ header {
     transition-property: bottom;
 }
 .hidden-option.show-hidden-option {
-    bottom: 100px;
+    bottom: 150px;
 }
 .hidden-option.show-hidden-option .hidden-tongue {
     background-color: var(--bs-gray-800);
 }
 .hidden-option.show-hidden-option .hidden-items {
-    height: 100px;
+    height: 150px;
 }
 .hidden-option.show-hidden-option .hidden-items * {
     height: 40px;
@@ -433,6 +433,9 @@ header {
     border-radius: 10px 10px 0 0;
     transition-duration: 1000ms;
     transition-property: height, background;
+}
+.show-hidden-option .hidden-tongue:hover{
+    height: 30px;
 }
 .hidden-tongue:hover {
     height: 50px;
@@ -450,10 +453,14 @@ header {
     transition-property: height, opacity;
 }
 .hidden-items * {
+    pointer-events:none;
     height: 0;
     opacity: 0;
     transition-duration: 1000ms;
     transition-property: height, opacity;
+}
+.show-hidden-option .hidden-items *{
+    pointer-events: auto;
 }
 /************************ * * * ENEMY SUDOKU * * * *************************/
 .enemy-data {

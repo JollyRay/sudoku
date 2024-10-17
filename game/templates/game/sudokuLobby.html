@@ -48,6 +48,13 @@
                         <button id="add-twitch-channel">Add</button>
                     </div>
                     {% endif %}
+                    <div>Сложность:</div>
+                    <select id="sudoku-difficulty">
+                        <option value="" selected="selected">---</option>
+                        {% for difficulty_name in difficulty_names%}
+                            <option value="{{ difficulty_name }}">{{ difficulty_name }}</option>
+                        {% endfor %}
+                    </select>
                 </div>
             </div>
         </div>

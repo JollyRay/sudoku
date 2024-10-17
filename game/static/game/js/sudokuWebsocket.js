@@ -295,9 +295,16 @@ function fillOtherBoard(boardsInfo){
 }
 
 function requestGenerateSudoku(){
-    chatSocket.send(JSON.stringify({
+    let dataForSend = {
         "kind": "generate"
-    }));
+    };
+
+    let selectDifficulty = document.getElementById('sudoku-difficulty');
+    if (selectDifficulty?.value){
+        dataForSend.difficulty = selectDifficulty.value;
+    }
+
+    chatSocket.send(JSON.stringify(dataForSend));
 }
 
 function requestSetValue(value, cellNumebr){

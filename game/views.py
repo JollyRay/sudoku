@@ -3,7 +3,7 @@ from django.urls import reverse_lazy
 from django.views.generic.edit import FormView
 from django.shortcuts import redirect, render
 
-from .models import LobbySetting, UserSetting
+from .models import Difficulty, LobbySetting, UserSetting
 
 from .forms import ConncetLobbyForm
 
@@ -16,8 +16,9 @@ def lobby(request: HttpRequest):
         if room_code:
             if not UserSetting.objects.filter(nick = nick, lobby__code = room_code).exists():
                 is_first = request.session.get('is_first', False)
+                difficulty_names = (difficulty['name'] for difficulty in Difficulty.objects.all().order_by('top_limit').values('name'))
 
-                return render(request, 'game/sudokuLobby.html', context = {'room_code': room_code, 'is_first': is_first})
+                return render(request, 'game/sudokuLobby.html', context = {'room_code': room_code, 'is_first': is_first, 'difficulty_names': difficulty_names})
     return redirect('create_lobby')
 
 class CreateLobby(FormView):
