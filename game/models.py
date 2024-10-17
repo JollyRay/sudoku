@@ -36,3 +36,56 @@ class UserSetting(Model):
 
     def __str__(self):
         return f'Lobby: {self.lobby.code} - {self.nick}'
+
+class SudokuBoardManager(Manager):
+    def random(self, **kwargs):
+        query = self.filter(**kwargs).values('id')
+        count = query.aggregate(count=Count('id'))['count']
+        random_index = randint(0, count - 1)
+        id = query[random_index]['id']
+        return SudokuCell.objects.filter(board__id = id)
+
+class SudokuBoard(Model):
+    objects = SudokuBoardManager()
+    difficulty = ForeignKey('Difficulty', on_delete = CASCADE, blank = False, null = False)
+
+    class Meta:
+        verbose_name = 'Доска'
+        verbose_name_plural = 'Доски'
+
+    def __str__(self) -> str:
+        return f'Доска: {self.difficulty.name}'
+
+class Difficulty(Model):
+
+    class DifficultyName(TextChoices):
+        EASY = 'easy'
+        MEDIUM = 'medium'
+        HARD = 'hard'
+
+    name = CharField(
+        max_length = 32,
+        blank = False,
+        null = False,
+        choices = DifficultyName,
+    )
+    top_limit = IntegerField(blank = False, null = False)
+
+    class Meta:
+        unique_together = ('name',)
+        verbose_name = 'Сложность'
+        verbose_name_plural = 'Сложности'
+
+    def __str__(self) -> str:
+        return f'{self.name} limit - {self.top_limit}'
+
+class SudokuCell(Model):
+    board = ForeignKey('SudokuBoard', on_delete = CASCADE, blank = False, null = False)
+    number = IntegerField(blank = False, null = False)
+    value = IntegerField(blank = False, null = False)
+    is_empty = BooleanField(blank = False, null = False, default = False)
+
+    class Meta:
+        unique_together = ('board', 'number')
+        verbose_name = 'Ячейка'
+        verbose_name_plural = 'Ячейки'

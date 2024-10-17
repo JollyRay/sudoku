@@ -1,4 +1,5 @@
 import itertools
+import pickle
 import random
 from itertools import islice
 from copy import deepcopy
@@ -231,6 +232,43 @@ def generate_sudoku(base = 3) -> tuple[list[list[int]]]:
     _clean_board(clean_board)
 
     return (solution_board, clean_board)
+
+def generate_sudoku_with_setting(base, limit_reqest):
+    side = base * base
+    solution_board = _generate_full_board(base)
+    clean_board = pickle.loads(pickle.dumps(solution_board, -1))
+
+    empty_quantity = -1
+    select_difficult = None
+    for difficult_index in range(len(limit_reqest) - 1, -1, -1):
+        if limit_reqest[difficult_index][1] > 0 and empty_quantity == -1:
+            empty_quantity = _clean_board(clean_board, max_empties = limit_reqest[difficult_index][2], side = side)
+
+        if empty_quantity != -1:
+            if (difficult_index == 0 or limit_reqest[difficult_index - 1][2] < empty_quantity) and limit_reqest[difficult_index][1] > 0:
+                select_difficult = limit_reqest[difficult_index]
+                select_difficult[1] -= 1
+                break
+    
+    if select_difficult is not None:
+        if select_difficult[2] >= empty_quantity:
+            _fill_up(clean_board, solution_board, select_difficult[2], empty_quantity, side)
+
+        return clean_board, solution_board, select_difficult[0], select_difficult[3]
+    
+    return generate_sudoku_with_setting(base, limit_reqest)
+
+def _fill_up(clean_board: list[list[int]], solution_board: list[list[int]], need_empty, have_empty, side = 9):
+    order_fill = list(range(81))
+    random.shuffle(order_fill)
+    while need_empty >= have_empty:
+
+        pos = order_fill.pop()
+        row, col = pos // side, pos % side
+        if clean_board[row][col] == 0:
+            clean_board[row][col] = solution_board[row][col]
+            have_empty += 1
+
 
 def convert_clean_board_to_map(clean_board: list[list[int]]) -> dict[int, int]|None:
     board_info: dict = dict()

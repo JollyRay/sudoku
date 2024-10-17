@@ -5,3 +5,6 @@ from .models import *
 
 admin.site.register(LobbySetting)
 admin.site.register(UserSetting)
+admin.site.register(SudokuBoard)
+admin.site.register(SudokuCell)
+admin.site.register(Difficulty)

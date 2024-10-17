@@ -124,9 +124,9 @@ class SudokuConsumer(AsyncWebsocketConsumer):
     #############################
 
     @userRequestHandler('generate')
-    async def generate_sudoku(self, *args, **kwargs):
+    async def generate_sudoku(self, difficulty = 'medium', *args, **kwargs):
 
-        solution_board, clean_board = generate_sudoku()
+        solution_board, clean_board = await self.get_random_board(difficulty)
         bonus_map = create_bonus_map(clean_board, [*bonusHandler.reqest_type_map])
 
         SudokuMap.set(self.room_code, self.nick, clean_board, solution_board, bonus_map)
@@ -268,3 +268,16 @@ class SudokuConsumer(AsyncWebsocketConsumer):
             return False
         except (UserSetting.DoesNotExist, LobbySetting.DoesNotExist):
             return False
+
+    @database_sync_to_async
+    def get_random_board(self, difficulty):
+        board: QuerySet[SudokuCell] = SudokuBoard.objects.random(difficulty__name = difficulty)
+        clean_board = [[0 for _ in range(9)] for _ in range(9)]
+        solution_board = [[0 for _ in range(9)] for _ in range(9)]
+        for cell in board:
+            row, col = cell.number // 9 , cell.number % 9
+            solution_board[row][col] = cell.value
+            if not cell.is_empty:
+                clean_board[row][col] = cell.value
+
+        return solution_board, clean_board
