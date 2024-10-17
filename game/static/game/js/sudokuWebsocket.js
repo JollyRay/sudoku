@@ -12,6 +12,10 @@ let isGenereate = false;
 let isNoteMode = false;
 let isDigitMode = false;
 
+let selectedCellNode = undefined;
+let lastDigitSelect = undefined;
+let selectEnemyBoder = undefined;
+
 const chatSocket = new WebSocket(
     'ws://'
     + window.location.host
@@ -73,7 +77,6 @@ chatSocket.onmessage = function(e) {
 
     switch (data.kind) {
         case 'first_data':
-            createBorder(selfnick, true);
             fillOtherBoard(data.data);
             break;
         case 'board':
@@ -143,6 +146,7 @@ function updateValueFromServer(nick, cellNumber, value, isRight){
 
     if (isFinish(userOptionNode)){
         userOptionNode.classList.add('resolved-sudoku-field');
+        isGenereate = false;
     }
 }
 
@@ -322,6 +326,8 @@ function requestAddTwitchChannel(channelName){
     }));
 }
 
+createBorder(selfnick, true);
+
 /****************************
 *                           *
 *       USER INTERFACE      *
@@ -417,7 +423,6 @@ function selectEqualCell(newValue){
     }
 }
 
-let selectedCellNode = undefined;
 function selectNewCell(event){
     if (selectedCellNode != undefined){
         selectedCellNode.classList.remove('sudoku-cell-select');
@@ -436,7 +441,6 @@ function selectNewCell(event){
     selectEqualCell(selectedCellNode.querySelector('p').innerText);
 }
 
-let lastDigitSelect = undefined;
 function toggleFirstDigitMode(event){
     isDigitMode = !isDigitMode;
     event.currentTarget.classList.toggle('mode-button-active');
@@ -669,7 +673,6 @@ function setCellValueAndSend(cellNode, value){
     setCellValue(cellNode, value);
 }
 
-let selectEnemyBoder = undefined;
 function selectEnemy(event){
     const mainContainer = event.currentTarget;
     const nick = mainContainer.getAttribute('name');
@@ -719,14 +722,3 @@ function isFinish(userOptionNode, count = CELL_QUANTITY){
         null
     ).snapshotLength >= count;
 }
-
-/****************************
-*                           *
-*          STYLE            *
-*                           *
-*****************************/
-
-var root = document.documentElement;
-root.style.setProperty('--screen-x', window.innerWidth + 'px');
-root.style.setProperty('--screen-y', window.innerHeight + 'px');
-root = undefined;
