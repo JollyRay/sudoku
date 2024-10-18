@@ -431,7 +431,7 @@ function selectNewCell(event){
     selectedCellNode.classList.add('sudoku-cell-select');
 
     let cellValue = selectedCellNode.querySelector('p').innerText;
-    if (isDigitMode && lastDigitSelect && ( cellValue === '' || selectedCellNode.classList.contains('wrong-answer'))){
+    if (isDigitMode && lastDigitSelect && !selectedCellNode.classList.contains('static-answer')){
         let value = Number(lastDigitSelect.innerText);
         if (cellValue != value){
             setCellValueAndSend(selectedCellNode, value);

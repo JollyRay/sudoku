@@ -1,4 +1,5 @@
 from django.apps import AppConfig
+from django.db.utils import OperationalError
 
 class GameConfig(AppConfig):
     default_auto_field = 'django.db.models.BigAutoField'
@@ -6,6 +7,8 @@ class GameConfig(AppConfig):
 
     def ready(self) -> None:
 
-        LobbySetting = self.get_model('LobbySetting')
-        LobbySetting.objects.all().delete()
+        try: 
+            LobbySetting = self.get_model('LobbySetting')
+            LobbySetting.objects.all().delete()
+        except OperationalError: ...
 
