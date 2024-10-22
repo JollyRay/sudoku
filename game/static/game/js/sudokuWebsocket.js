@@ -55,8 +55,8 @@ const IMAGE_MAP ={
         5: 'https://cdn.7tv.app/emote/66b26be7bb3411bd939a56d1/4x.webp',
         6: 'https://cdn.7tv.app/emote/666c9be6a4cae22f82d9f318/4x.webp',
         7: 'https://static-cdn.jtvnw.net/emoticons/v2/emotesv2_756ba1d6603741f2b1e7c3f3c09ca759/default/dark/3.0',
-        8: 'https://cdn.7tv.app/emote/66abfbf0e0109125ee25e3fd/4x.webp',
-        9: 'https://cdn.7tv.app/emote/66abfbf0e0109125ee25e3fd/4x.webp',
+        8: 'https://cdn.7tv.app/emote/670102cfdaf243ce8c7a0686/4x.webp',
+        9: 'https://cdn.7tv.app/emote/60ae7316f7c927fad14e6ca2/4x.webp',
     }
 }
 
@@ -337,7 +337,7 @@ createBorder(selfnick, true);
 function startEventListener(){
     /* Key board event */
     document.addEventListener('keydown', (e) => {
-        if (e.key > '0' && e.key <= '9'){
+        if (e.key >= '0' && e.key <= '9'){
 
             let value = Number(e.key);
 
@@ -615,9 +615,11 @@ function rerenderSudoku(){
             numberButton.classList.remove('number-as-img');
             numberButton.style.backgroundImage = '';
         } else {
-            numberButton.classList.add('number-as-img');
-            let tempValue = numberButton.textContent;  
-            setCellValue(numberButton, tempValue);
+            let tempValue = numberButton.textContent.trim();
+            if (tempValue > 0 && tempValue <= 9){
+                numberButton.classList.add('number-as-img');
+                setCellValue(numberButton, tempValue);
+            }
         }
     });
 
@@ -631,7 +633,7 @@ function rerenderSudoku(){
         }
 
         nodeOption.querySelectorAll('.sudoku-cell').forEach(cellNode => {
-            value = cellNode.querySelector('p').innerText;
+            value = cellNode.querySelector('p').innerText.trim();
             setCellValue(cellNode, value);
         });
     });
@@ -646,13 +648,21 @@ function setCellValue(cellNode, value){
         }
         fieldForValue.innerText = '';
         cellNode.style.backgroundImage = '';
-        noteCells[value - 1].innerText = '■';
+        if (noteCells[value - 1].innerText){
+            noteCells[value - 1].innerText = '';
+        } else {
+            noteCells[value - 1].innerText = '■';
+        }
 
         return 0;
         
     }
 
-    fieldForValue.innerText = value ? value : '';
+    if (value || (fieldForValue.innerText != value && value > 0 && value <= 9)){
+        fieldForValue.innerText = value;
+    } else {
+        fieldForValue.innerText = '';
+    }
 
     if (sudokuMode == 'digit'){
         cellNode.style.backgroundImage = '';
@@ -666,7 +676,7 @@ function setCellValue(cellNode, value){
 }
 
 function setCellValueAndSend(cellNode, value){
-    if (isEqualValue(selfnick, cellNode.getAttribute('number'), value)) return;
+    if (!isNoteMode && isEqualValue(selfnick, cellNode.getAttribute('number'), value)) return;
     if (!isNoteMode){
         requestSetValue(value, Number(cellNode.getAttribute('number')));
     }

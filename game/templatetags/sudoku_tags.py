@@ -6,6 +6,11 @@ register = template.Library()
 def range_filter(value):
     return range(value)
 
+@register.filter(name="mod")
+def mod_filter(value, args):
+    divider = int(args)
+    return value % divider
+
 @register.filter(name="range_sudoku")
 def range_sudoku_filter(value):
     def temp_gen():

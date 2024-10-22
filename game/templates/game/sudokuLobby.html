@@ -16,8 +16,14 @@
                 </div>
                 <div class="self-interface">
                     <div class="number-board">
-                    {% for index in 9|range %}
-                        <div class="numbers-button"><p>{{index|add:"1"}}</p></div>
+                    {% for index in 10|range %}
+                        <div class="numbers-button"><p>
+                            {% if index != 9 %}
+                                {{index|add:"1"}}
+                            {% else %}
+                                C
+                            {% endif %}
+                        </p></div>
                     {% endfor %}
                     </div>
                     <div class="button-container">

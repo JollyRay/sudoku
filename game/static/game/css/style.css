@@ -366,8 +366,8 @@ header {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     grid-template-rows: repeat(3, 1fr);
-    width: 155px;
-    height: 155px;
+    width: 153px;
+    height: 204px;
 }
 .numbers-button {
     height: 45px;
@@ -382,6 +382,9 @@ header {
     font-size: 40px;
     transition-duration: 1000ms;
     transition-property: transform, background;
+}
+.numbers-button:last-child{
+    grid-column: 2;
 }
 .numbers-button:hover {
     background-color: var(--light-blue);

@@ -136,7 +136,7 @@ class SudokuMap:
     @__check_exist_user
     def equival(cls, code: str, nick: str, value: int, cell_number: int, save: bool = True) -> bool:
         
-        is_equel = nick[cls.SOLUTION_BOARD].filter(value = value, number = cell_number).exists()
+        is_equel = value == 0 or nick[cls.SOLUTION_BOARD].filter(value = value, number = cell_number).exists()
 
         if save:
             row = cell_number // cls.SIDE_SIZE
