@@ -390,6 +390,15 @@ header {
     background-color: var(--light-blue);
     transform: scale(1.2);
 }
+.numbers-button.number-button-ended{
+    background: lightgray;
+    color: grey;
+    filter: grayscale(100%);
+}
+.numbers-button.number-button-ended:hover{
+    background-color: white;
+    transform: none;
+}
 .number-as-img {
     color: rgba(0, 0, 0, 0);
 }

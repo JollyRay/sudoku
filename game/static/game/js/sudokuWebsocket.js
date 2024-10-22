@@ -225,6 +225,8 @@ function fillBoard(userOptionNode, boardValues, bonusMap){
         userOptionNode.querySelector(`div[number="${cellIndex}"`).appendChild(bonusDiv);
     }
 
+    document.querySelectorAll('.numbers-button').forEach(el => el.classList.remove('number-button-ended'));
+
     const nick = userOptionNode.getAttribute('name');
     
     updateProcessBar(nick, fillCellQuantity);
@@ -676,11 +678,30 @@ function setCellValue(cellNode, value){
 }
 
 function setCellValueAndSend(cellNode, value){
-    if (!isNoteMode && isEqualValue(selfnick, cellNode.getAttribute('number'), value)) return;
-    if (!isNoteMode){
-        requestSetValue(value, Number(cellNode.getAttribute('number')));
+    if (isNoteMode || !isEqualValue(selfnick, cellNode.getAttribute('number'), value)){
+        const userOptionNode = findBoard(selfnick);
+        let oldValue = cellNode.textContent.trim();
+        let oldQuantity = document.evaluate(`.//div[contains(@class,'sudoku-cell')]/p[text() = '${oldValue}']`, userOptionNode, null, XPathResult.UNORDERED_NODE_SNAPSHOT_TYPE).snapshotLength;
+        
+        if (!isNoteMode){
+            requestSetValue(value, Number(cellNode.getAttribute('number')));
+        }
+        setCellValue(cellNode, value);
+
+        
+    
+        if (oldQuantity == SIDE_SIZE){
+            const oldNumberNode = document.evaluate(`//div[contains(@class,'numbers-button')]/p[contains(., '${oldValue}')]/..`, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE).singleNodeValue;
+            oldNumberNode.classList.remove('number-button-ended');
+        }
+    
+        let nowQuantity = document.evaluate(`.//div[contains(@class,'sudoku-cell')]/p[text() = '${value}']`, userOptionNode, null, XPathResult.UNORDERED_NODE_SNAPSHOT_TYPE).snapshotLength;
+
+        if (nowQuantity == SIDE_SIZE){
+            const newNumberNode = document.evaluate(`//div[contains(@class,'numbers-button')]/p[contains(., '${value}')]/..`, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE).singleNodeValue;
+            newNumberNode.classList.add('number-button-ended');
+        }
     }
-    setCellValue(cellNode, value);
 }
 
 function selectEnemy(event){
