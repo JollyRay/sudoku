@@ -680,7 +680,7 @@ function setCellValue(cellNode, value){
 function setCellValueAndSend(cellNode, value){
     if (isNoteMode || !isEqualValue(selfnick, cellNode.getAttribute('number'), value)){
         const userOptionNode = findBoard(selfnick);
-        let oldValue = cellNode.textContent.trim();
+        let oldValue = cellNode.querySelector('p').textContent.trim();
         let oldQuantity = document.evaluate(`.//div[contains(@class,'sudoku-cell')]/p[text() = '${oldValue}']`, userOptionNode, null, XPathResult.UNORDERED_NODE_SNAPSHOT_TYPE).snapshotLength;
         
         if (!isNoteMode){
