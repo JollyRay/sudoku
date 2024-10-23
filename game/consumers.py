@@ -144,6 +144,10 @@ class SudokuConsumer(AsyncWebsocketConsumer):
     @userRequestHandler('set_value')
     async def set_sudoku_value(self, cell_number: int, value: int, *args, **kwargs):
 
+        # Protect if send None or empty string
+        if not value:
+            value = 0
+
         is_equal = await database_sync_to_async(SudokuMap.equival)(self.room_code, self.nick, value, cell_number)
 
         if is_equal is None:

@@ -362,7 +362,7 @@ function startEventListener(){
             return;
         }
 
-        let value = Number(event.currentTarget.innerText);
+        let value = Number(event.currentTarget.innerText) || 0;
 
         if (isGenereate && selectedCellNode != undefined && !selectedCellNode.classList.contains('static-answer')){
             setCellValueAndSend(selectedCellNode, value);
