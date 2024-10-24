@@ -189,20 +189,25 @@ function bonusExecute(nick, bonusType, detale, isInvert){
     }
 }
 
+const sudokuCellReg = new RegExp('^sudoku-cell(-[0-9])?$');
 function fillBoard(userOptionNode, boardValues, bonusMap){
 
     userOptionNode.classList.remove('resolved-sudoku-field');
 
+    selectedCellNode = undefined;
     let fillCellQuantity = 0;
     for (let index = 0; index < CELL_QUANTITY; index++){
         const cellNode = userOptionNode.querySelector(`div.sudoku-cell[number="${index}"]`);
+        Array.from(cellNode.classList).forEach(className => {
+            console.log(index);
+            if (!sudokuCellReg.test(className)){
+                cellNode.classList.remove(className);
+                console.log(className)
+            }
+        });
         if (boardValues[index]){
             cellNode.classList.add('static-answer');
-            cellNode.classList.remove('wrong-answer');
             fillCellQuantity++;
-        } else {
-            cellNode.classList.remove('static-answer');
-            cellNode.classList.remove('wrong-answer');
         }
         setCellValue(cellNode, boardValues[index]);
     }
