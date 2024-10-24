@@ -2,7 +2,17 @@
 
 server {
     listen 80;
-    server_name 185.125.218.31;
+    server_name www.schepka26.ru;
+    return 301 https://schepka26.ru$request_uri;
+}
+
+server {
+    listen 443 ssl;
+    ssl on;
+    server_name schepka26.ru;
+
+    ssl_certificate     /etc/letsencrypt/live/schepka26.ru/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/schepka26.ru/privkey.pem;
     access_log  /var/log/nginx/example.log;
 
     location /static/ {

@@ -16,13 +16,25 @@ let selectedCellNode = undefined;
 let lastDigitSelect = undefined;
 let selectEnemyBoder = undefined;
 
-const chatSocket = new WebSocket(
-    'ws://'
-    + window.location.host
-    + '/ws/sudoku/'
-    + roomName
-    + '/'
-);
+var chatSocket;
+
+if (location.protocol == 'https:'){
+    chatSocket = new WebSocket(
+        'wss://'
+        + window.location.host
+        + '/ws/sudoku/'
+        + roomName
+        + '/'
+    );
+} else {
+    chatSocket = new WebSocket(
+        'ws://'
+        + window.location.host
+        + '/ws/sudoku/'
+        + roomName
+        + '/'
+    );
+}
 
 const IMAGE_MAP ={
     'holo': {
