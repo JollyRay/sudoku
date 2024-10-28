@@ -211,10 +211,8 @@ function fillBoard(userOptionNode, boardValues, bonusMap){
     for (let index = 0; index < CELL_QUANTITY; index++){
         const cellNode = userOptionNode.querySelector(`div.sudoku-cell[number="${index}"]`);
         Array.from(cellNode.classList).forEach(className => {
-            console.log(index);
             if (!sudokuCellReg.test(className)){
                 cellNode.classList.remove(className);
-                console.log(className)
             }
         });
         if (boardValues[index]){
