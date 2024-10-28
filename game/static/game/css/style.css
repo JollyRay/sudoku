@@ -303,6 +303,9 @@ header {
 .sudoku-big-cell .sudoku-cell-equal-select {
     background-color: var(--light-blue);
 }
+.visible-option .sudoku-big-cell .sudoku-cell-equal-select:not(.sudoku-cell-select) {
+    background-color: goldenrod;
+}
 .sudoku-big-cell .sudoku-cell-equal-select p {
     font-weight: bold;
 }
@@ -313,6 +316,7 @@ header {
 .self-options {
     margin-left: 100px;
     margin-top: 100px;
+    height: calc(100vw - 100px);
 }
 .self-options .extra-sudoku-message {
     color: black;
