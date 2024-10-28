@@ -30,7 +30,7 @@ SECRET_KEY = os.getenv('SECRET_KEY')
 DEBUG = os.getenv('DEBUG') == 'True'
 
 ALLOWED_HOSTS = os.getenv('HOST_NAME').split(' ')
-
+CSRF_TRUSTED_ORIGINS = map(lambda url: 'https://' + url, ALLOWED_HOSTS)
 
 # Application definition
 
