@@ -47,13 +47,16 @@
                         <option value="holo">Hololive</option>
                         <option value="torry">Torry</option>
                     </select>
-                    {% if is_first %}
-                    <div>Канал: </div>
+                    <div>Канал:</div>
                     <div>
-                        <input type="text" id="twitch-channel">
-                        <button id="add-twitch-channel">Add</button>
+                        <span>twitch.tv/{{nick}}</span>
+                        <span>
+                            <button id="add-twitch-channel">Add</button>
+                            <p class="icon-after-add">
+                                <i class="fa-solid fa-check"></i>
+                            </p>
+                        </span>
                     </div>
-                    {% endif %}
                     <div>Сложность:</div>
                     <select id="sudoku-difficulty">
                         <option value="" selected="selected">---</option>

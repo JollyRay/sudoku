@@ -50,6 +50,7 @@ class SudokuConsumer(AsyncWebsocketConsumer):
         
         self.is_first = self.scope['session'].get('is_first')
         self.solution_id = []
+        self.is_twtich_channel = False
 
         # Accept and add to group
 
@@ -177,22 +178,23 @@ class SudokuConsumer(AsyncWebsocketConsumer):
         )
 
     @userRequestHandler('add_twitch_channel')
-    async def add_twitch_channel(self, channel_name: str, *args, **kwargs):
+    async def add_twitch_channel(self, *args, **kwargs):
         if not self.is_first: return
-        tempThread = Thread(target = asyncio.run, args = (self._add_twitch_channel(channel_name),))
+        tempThread = Thread(target = asyncio.run, args = (self._add_twitch_channel(),))
 
         tempThread.start()
     
-    async def _add_twitch_channel(self, channel_name: str, *args, **kwargs):
+    async def _add_twitch_channel(self, *args, **kwargs):
         host = os.getenv('TWITCH_BOT_HOST')
         port = os.getenv('TWITCH_BOT_PORT')
         payload = {
             "is_add": True,
-            "channel_name": channel_name,
+            "channel_name": self.nick,
             "room_code": self.room_code
         }
         try:
             respond = requests.post(f'http://{host}:{port}', json = payload)
+            self.is_twtich_channel = True
             await self.send(text_data = json.dumps({'kind': 'is_add_twitch', 'ok': respond.status_code == 200}))
         except requests.exceptions.ConnectionError:
             print(f'Connectiob error {host}:{port}')

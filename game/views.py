@@ -15,10 +15,9 @@ def lobby(request: HttpRequest):
         room_code = request.session.get('room_code', False)
         if room_code:
             if not UserSetting.objects.filter(nick = nick, lobby__code = room_code).exists():
-                is_first = request.session.get('is_first', False)
                 difficulty_names = (difficulty['name'] for difficulty in Difficulty.objects.all().order_by('top_limit').values('name'))
 
-                return render(request, 'game/sudokuLobby.html', context = {'room_code': room_code, 'is_first': is_first, 'difficulty_names': difficulty_names})
+                return render(request, 'game/sudokuLobby.html', context = {'room_code': room_code, 'difficulty_names': difficulty_names, 'nick': nick})
     return redirect('create_lobby')
 
 class CreateLobby(FormView):
@@ -38,9 +37,7 @@ class CreateLobby(FormView):
 
         if form.is_valid():
 
-            is_first = not LobbySetting.objects.filter(code = form.cleaned_data['code']).exists()
-
-            request.session.update({'room_code': form.cleaned_data['code'], 'is_first': is_first})
+            request.session.update({'room_code': form.cleaned_data['code']})
             response.set_cookie('nick', request.POST['nick'], max_age = 3600)
 
         return response

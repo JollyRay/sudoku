@@ -478,6 +478,19 @@ header {
 .show-hidden-option .hidden-items *{
     pointer-events: auto;
 }
+.twitch-is-add > #add-twitch-channel{
+    display: none;
+}
+.icon-after-add{
+    display: none;
+    color: green;
+    transition-property: display;
+    transition-duration: 1s;
+}
+.twitch-is-add > .icon-after-add{
+    display: inline;
+}
+
 /************************ * * * ENEMY SUDOKU * * * *************************/
 .enemy-data {
     display: flex;

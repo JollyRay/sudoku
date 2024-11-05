@@ -112,6 +112,11 @@ chatSocket.onmessage = function(e) {
             bonusExecute(data.to, data.bonus_type, data.detale, data.to != '__all__');
             break;
         case 'is_add_twitch':
+            if (data.ok){
+                acceptTwitchChannel();
+            } else {
+                rejectTwitchChannel();
+            }
             break;
         default:
             console.log('Server send uncorrect message');
@@ -336,10 +341,10 @@ function requestSetValue(value, cellNumebr){
     }));
 }
 
-function requestAddTwitchChannel(channelName){
+function requestAddTwitchChannel(event){
     chatSocket.send(JSON.stringify({
         "kind": "add_twitch_channel",
-        "channel_name": channelName,
+        "channel_name": selfnick,
     }));
 }
 
@@ -411,11 +416,7 @@ function startEventListener(){
 
     const addTwitchChannelButton = document.getElementById('add-twitch-channel');
     if (addTwitchChannelButton)
-        addTwitchChannelButton.addEventListener('click', (e) => {
-            const channelName = document.getElementById('twitch-channel');
-            requestAddTwitchChannel(channelName.value);
-            channelName.value
-        });
+        addTwitchChannelButton.addEventListener('click', requestAddTwitchChannel);
 
     const hiddenTongue = document.getElementById('hidden-tongue');
     hiddenTongue.addEventListener('click', toggleVisibleAddOption);
@@ -738,6 +739,22 @@ function selectEnemy(event){
     selectEnemyBoder.classList.remove('hidden');
 
     
+}
+
+function acceptTwitchChannel(){
+    const addTwitchChannelButton = document.getElementById('add-twitch-channel');
+    if (addTwitchChannelButton){
+        addTwitchChannelButton.removeEventListener('click', requestAddTwitchChannel);
+        addTwitchChannelButton.parentElement.classList.add('twitch-is-add');
+    }
+}
+
+function rejectTwitchChannel(){
+    const addTwitchChannelButton = document.getElementById('add-twitch-channel');
+    if (addTwitchChannelButton){
+        addTwitchChannelButton.addEventListener('click', requestAddTwitchChannel);
+        addTwitchChannelButton.parentElement.classList.remove('twitch-is-add');
+    }
 }
 
 /****************************
