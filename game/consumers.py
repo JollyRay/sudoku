@@ -75,7 +75,9 @@ class SudokuConsumer(AsyncWebsocketConsumer):
                 if not is_remove_lobby:
                     await self.send_full_data(kind = 'disconection', nick = self.nick)
                 else:
-                    await self.send_full_data(kind = 'lobby_remove')
+                    await self.channel_layer.group_send(
+                        self.room_code, {'type': 'disconnect_lobby'}
+                    )
 
             await self.channel_layer.group_discard(self.room_code, self.channel_name)
 
@@ -117,6 +119,10 @@ class SudokuConsumer(AsyncWebsocketConsumer):
     async def send_message(self, data):
         if self.is_admin: return
         await self.send(text_data = json.dumps(data.get('data')))
+
+    async def disconnect_lobby(self, _):
+        await self.send(text_data = json.dumps({'kind': 'lobby_remove'}))
+        await self.close()
 
     #############################
     #                           #
