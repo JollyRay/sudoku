@@ -1,7 +1,7 @@
 from django.core.management.base import BaseCommand
 from django.db.models import Count
 
-from game.utils import generate_sudoku_with_setting
+from game.utils import Sudoku
 from game.models import Difficulty, SudokuBoard, SudokuCell
 
 class Command(BaseCommand):
@@ -30,7 +30,7 @@ class Command(BaseCommand):
 
         while (limit_reqest[0][1] or limit_reqest[1][1] or limit_reqest[2][1]):
 
-            data = generate_sudoku_with_setting(base, limit_reqest)
+            data = Sudoku.generate_sudoku_with_setting(base, limit_reqest)
             self._add_board(*data, limit_reqest, size = base * base)
 
     def _add_board(self, clean_board, solution_board, difficulty, difficulty_id, limit_reqest, size):

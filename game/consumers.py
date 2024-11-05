@@ -12,7 +12,7 @@ from django.db.utils import IntegrityError
 from .models import *
 from sudoku.settings import SECRET_WEBSOCKET_ADMIN_KEY_VALUE_BYTE, SECRET_WEBSOCKET_ADMIN_KEY_HEADER_BYTE
 
-from .utils import AddHandler, convert_clean_board_to_map, create_bonus_map, generate_sudoku, SudokuMap
+from .utils import AddHandler, convert_clean_board_to_map, create_bonus_map, SudokuMap
 
 userRequestHandler = AddHandler()
 bonusHandler = AddHandler()

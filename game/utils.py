@@ -3,6 +3,7 @@ import pickle
 import random
 from itertools import islice
 from copy import deepcopy
+from math import sqrt
 
 from .models import *
 
@@ -152,105 +153,167 @@ class SudokuMap:
 ##############################
 # https://stackoverflow.com/a/56581709/19375794
 
-def shortSudokuSolve(board):
-    side   = len(board)
-    base   = int(side**0.5)
-    board  = [n for row in board for n in row ]
-    blanks = [i for i,n in enumerate(board) if n==0 ]
-    cover  = { (n,p):{*zip([2*side+r, side+c, r//base*base+c//base],[n]*(n and 3))}
-                for p in range(side*side) for r,c in [divmod(p,side)] for n in range(side+1) }
-    used   = set().union(*(cover[n,p] for p,n in enumerate(board) if n))
-    placed = 0
-    while placed>=0 and placed<len(blanks):
-        pos        = blanks[placed]
-        used      -= cover[board[pos],pos]
-        board[pos] = next((n for n in range(board[pos]+1,side+1) if not cover[n,pos]&used),0)
-        used      |= cover[board[pos],pos]
-        placed    += 1 if board[pos] else -1
-        if placed == len(blanks):
-            solution = [board[r:r+side] for r in range(0,side*side,side)]
-            yield solution
-            placed -= 1
+class Sudoku:
+    def __init__(self, side: int, max_empties = 60):
+        self.side = side
+        self.max_empties = max_empties
+        self.empty_cell = 0
 
-def _generate_full_board(base = 3):
-    side = base*base
-    def pattern(r,c): return (base*(r%base)+r//base+c)%side
-    def shuffle(s): return random.sample(s,len(s)) 
+        self.base = int(sqrt(side))
+        self.board = [[0 for _ in range(side)] for _ in range(side)]
 
-    rBase = range(base) 
-    rows  = [ g*base + r for g in shuffle(rBase) for r in shuffle(rBase) ] 
-    cols  = [ g*base + c for g in shuffle(rBase) for c in shuffle(rBase) ]
-    nums  = shuffle(range(1,base*base+1))
+        self._fill_values()
 
-    board = [ [nums[pattern(r,c)] for c in cols] for r in rows ]
-
-    return board
-
-def _clean_board(board, max_empties = 60, side = 9, attempts = 9):
-    cell_order = list(range(side * side))
-    random.shuffle(cell_order)
-    empty_cell = 0
-
-    while attempts > 0 and len(cell_order) > 0 and max_empties > empty_cell:
-
-        pos = cell_order.pop()
-        row, col = (pos // side), (pos % side)
-
-        backup = board[row][col]
-        board[row][col]=0
-
-        solved  = [*islice(shortSudokuSolve(board),2)]
-        if len(solved)>1:
-            board[row][col]=backup
-            attempts -= 1
-        else:
-            empty_cell += 1
+        self._clean_board = None
     
-    return empty_cell
+    def _fill_values(self):
+        self._fill_remaining(0, 0)
 
-def generate_sudoku(base = 3) -> tuple[list[list[int]]]:
-    solution_board = _generate_full_board(base)
-    clean_board = deepcopy(solution_board)
-    _clean_board(clean_board)
-
-    return (solution_board, clean_board)
-
-def generate_sudoku_with_setting(base, limit_reqest):
-    side = base * base
-    solution_board = _generate_full_board(base)
-    clean_board = pickle.loads(pickle.dumps(solution_board, -1))
-
-    empty_quantity = -1
-    select_difficult = None
-    for difficult_index in range(len(limit_reqest) - 1, -1, -1):
-        if limit_reqest[difficult_index][1] > 0 and empty_quantity == -1:
-            empty_quantity = _clean_board(clean_board, max_empties = limit_reqest[difficult_index][2], side = side)
-
-        if empty_quantity != -1:
-            if (difficult_index == 0 or limit_reqest[difficult_index - 1][2] < empty_quantity) and limit_reqest[difficult_index][1] > 0:
-                select_difficult = limit_reqest[difficult_index]
-                select_difficult[1] -= 1
-                break
+    def _is_safe(self, row, col, num):
+        return (self._is_use_in_row(row, num) and self._is_use_in_col(col, num) and self._is_use_un_box(row - row % self.base, col - col % self.base, num))
     
-    if select_difficult is not None:
-        if select_difficult[2] < empty_quantity:
-            _fill_up(clean_board, solution_board, select_difficult[2], empty_quantity, side)
-
-        return clean_board, solution_board, select_difficult[0], select_difficult[3]
+    def _is_use_in_row(self, row, num):
+        for col in range(self.side):
+            if self.board[row][col] == num:
+                return False
+        return True
     
-    return generate_sudoku_with_setting(base, limit_reqest)
+    def _is_use_in_col(self, col, num):
+        for row in range(self.side):
+            if self.board[row][col] == num:
+                return False
+        return True
+        
+    def _is_use_un_box(self, row, col, num):
+        for row_inner in range(self.base):
+            for col_inner in range(self.base):
+                if self.board[row + row_inner][col + col_inner] == num:
+                    return False
+        return True
+   
+    def _fill_remaining(self, i, j):
+        # Check if we have reached the end of the matrix
+        if i == self.side - 1 and j == self.side:
+            return True
+    
+        # Move to the next row if we have reached the end of the current row
+        if j == self.side:
+            i += 1
+            j = 0
+    
+        # Skip cells that are already filled
+        if self.board[i][j] != 0:
+            return self._fill_remaining(i, j + 1)
+    
+        # Try filling the current cell with a valid value
+        posible_value = list(range(1, self.side + 1))
+        random.shuffle(posible_value)
+        for num in posible_value:
+            if self._is_safe(i, j, num):
+                self.board[i][j] = num
+                if self._fill_remaining(i, j + 1):
+                    return True
+                self.board[i][j] = 0
+        
+        # No valid value was found, so backtrack
+        return False
 
-def _fill_up(clean_board: list[list[int]], solution_board: list[list[int]], need_empty, have_empty, side = 9):
-    order_fill = list(range(81))
-    random.shuffle(order_fill)
-    while need_empty < have_empty:
+    @property
+    def clean_board(self):
+        if self._clean_board is None:
+            self.clear_board()
+        return self._clean_board
+    
+    def clear_board(self, max_empties = None, attempts = 9):
+        self._clean_board = deepcopy(self.board)
+        self.max_empties = max_empties or self.max_empties
 
-        pos = order_fill.pop()
-        row, col = pos // side, pos % side
-        if clean_board[row][col] == 0:
-            clean_board[row][col] = solution_board[row][col]
-            have_empty -= 1
+        cell_order = list(range(self.side ** 2))
+        random.shuffle(cell_order)
 
+        while attempts > 0 and len(cell_order) > 0 and self.max_empties > self.empty_cell:
+
+            pos = cell_order.pop()
+            row, col = (pos // self.side), (pos % self.side)
+
+            backup = self._clean_board[row][col]
+            self._clean_board[row][col]=0
+
+            solved  = [*islice(self.short_sudoku_solve(self._clean_board),2)]
+            if len(solved)>1:
+                self._clean_board[row][col]=backup
+                attempts -= 1
+            else:
+                self.empty_cell += 1
+        
+        return self.empty_cell
+    
+    def fill_up(self, need_empty):
+        order_fill = list(range(self.side ** 2))
+        random.shuffle(order_fill)
+        while need_empty < self.empty_cell:
+
+            pos = order_fill.pop()
+            row, col = pos // self.side, pos % self.side
+            if self.clean_board[row][col] == 0:
+                self.clean_board[row][col] = self.board[row][col]
+                self.empty_cell -= 1
+
+    @classmethod
+    def short_sudoku_solve(cls, board):
+        side   = len(board)
+        base   = int(side**0.5)
+        board  = [n for row in board for n in row ]
+        blanks = [i for i,n in enumerate(board) if n==0 ]
+        cover  = { (n,p):{*zip([2*side+r, side+c, r//base*base+c//base],[n]*(n and 3))}
+                    for p in range(side*side) for r,c in [divmod(p,side)] for n in range(side+1) }
+        used   = set().union(*(cover[n,p] for p,n in enumerate(board) if n))
+        placed = 0
+        while placed>=0 and placed<len(blanks):
+            pos        = blanks[placed]
+            used      -= cover[board[pos],pos]
+            board[pos] = next((n for n in range(board[pos]+1,side+1) if not cover[n,pos]&used),0)
+            used      |= cover[board[pos],pos]
+            placed    += 1 if board[pos] else -1
+            if placed == len(blanks):
+                solution = [board[r:r+side] for r in range(0,side*side,side)]
+                yield solution
+                placed -= 1
+
+    @classmethod
+    def generate_sudoku_with_setting(cls, base, limit_reqest):
+        """
+        Generate one board on request setting
+
+        :param base: inner box side
+        :param limit_reqest: array of difficulties
+            difficult[0] - difficulty name
+            difficult[1] - required number of tables
+            difficult[2] - min empty limit
+            difficult[3] - pk in Difficulty table 
+        :return: list[list[int]] Sudoku board (base**2)x(base**2) size with empty cell by one request
+        """
+        side = base * base
+        sudoku = cls(side)
+
+        select_difficult = None
+        for difficult_index in range(len(limit_reqest) - 1, -1, -1):
+            if limit_reqest[difficult_index][1] > 0 and sudoku.empty_cell == 0:
+                sudoku.clear_board(limit_reqest[difficult_index][2])
+
+            if sudoku.empty_cell != 0:
+                if (difficult_index == 0 or limit_reqest[difficult_index - 1][2] < sudoku.empty_cell) and limit_reqest[difficult_index][1] > 0:
+                    select_difficult = limit_reqest[difficult_index]
+                    select_difficult[1] -= 1
+                    break
+        
+        if select_difficult is not None:
+            if select_difficult[2] < sudoku.empty_cell:
+                sudoku.fill_up(select_difficult[2])
+
+            return sudoku.clean_board, sudoku.board, select_difficult[0], select_difficult[3]
+        
+        return cls.generate_sudoku_with_setting(base, limit_reqest)
 
 def convert_clean_board_to_map(clean_board: list[list[int]]) -> dict[int, int]|None:
     board_info: dict = dict()
