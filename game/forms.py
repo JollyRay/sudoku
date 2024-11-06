@@ -2,7 +2,14 @@ from django.forms import *
 from .models import UserSetting
 
 class ConncetLobbyForm(Form):
-    nick = CharField()
+    nick = CharField(
+        max_length = 32,
+        widget = TextInput(
+            attrs = {
+                'onkeydown': "return /[a-z0-9]/i.test(event.key)"
+            }
+        )
+    )
     code = CharField(widget = PasswordInput(), max_length = 32)
 
     def clean(self):

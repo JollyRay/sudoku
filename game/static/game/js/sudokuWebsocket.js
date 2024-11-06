@@ -172,7 +172,7 @@ function bonusExecute(nick, bonusType, detale, isInvert){
     switch (bonusType) {
         case 'SWAP':
             getAllOptionNodes().forEach(userOptionNode => {
-                if (userOptionNode.querySelector('h1').innerText.toUpperCase() != nick ^ isInvert) {
+                if (userOptionNode.getAttribute('nick').toUpperCase() != nick ^ isInvert) {
                     if (detale.is_big){
                         if (detale.is_row){
                             swapBigRow(detale.first, detale.second, userOptionNode);
@@ -192,12 +192,12 @@ function bonusExecute(nick, bonusType, detale, isInvert){
             break;
         case 'SHADOW_BOX':
             getAllOptionNodes().forEach(userOptionNode => {
-                if (userOptionNode.querySelector('h1').innerText.toUpperCase() != nick ^ isInvert) {shadowBox(detale.box, userOptionNode);}
+                if (userOptionNode.getAttribute('nick').toUpperCase() != nick ^ isInvert) {shadowBox(detale.box, userOptionNode);}
             });
             break;
         case 'ROLL':
             getAllOptionNodes().forEach(userOptionNode => {
-                if (userOptionNode.querySelector('h1').innerText.toUpperCase() != nick ^ isInvert) {rotateBox(detale.box, userOptionNode);}
+                if (userOptionNode.getAttribute('nick').toUpperCase() != nick ^ isInvert) {rotateBox(detale.box, userOptionNode);}
             });
             break;
     
@@ -276,7 +276,7 @@ function createBorder(nick, isSelf){
         
         const scoreTemplate = document.getElementById('score-template'); 
         const scoreTemplateClone = scoreTemplate.content.cloneNode(true);
-        scoreTemplateClone.querySelector('.score-owner-name').innerText = nick;
+        scoreTemplateClone.querySelector('.score-owner-name').innerText = sliceNick(nick);
         const mainContainer = scoreTemplateClone.querySelector('.user-score-container')
         mainContainer.setAttribute('name', nick);
         mainContainer.addEventListener('click', selectEnemy);
@@ -287,7 +287,7 @@ function createBorder(nick, isSelf){
 
     const clone = template.content.cloneNode(true);
     const optrionHeader = clone.querySelector("h1");
-    optrionHeader.textContent = nick;
+    optrionHeader.textContent = sliceNick(nick);
     const userOption = clone.querySelector(".user-option");
     userOption.setAttribute('name', nick);
     if (sudokuMode != 'digit' ) { userOption.classList.add('backcground-value-mode'); }
@@ -784,4 +784,8 @@ function isFinish(userOptionNode, count = CELL_QUANTITY){
         XPathResult.ORDERED_NODE_SNAPSHOT_TYPE,
         null
     ).snapshotLength >= count;
+}
+
+function sliceNick(nick){
+    return nick.length > 16 ? nick.slice(0, 16) + '...' : nick
 }
