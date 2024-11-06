@@ -65,7 +65,7 @@ a:visited {
 footer {
     height: 4vh;
 }
-@media screen and (min-width: 1858px) {
+@media screen and (min-width: 1700px) {
     main {
         display: flex;
         justify-content: center;
@@ -316,7 +316,11 @@ header {
 .self-options {
     margin-left: 100px;
     margin-top: 100px;
-    height: calc(100vw - 100px);
+    height: calc(993px - 100px);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    
 }
 .self-options .extra-sudoku-message {
     color: black;
@@ -423,7 +427,7 @@ header {
     color: var(--select-blue);
 }
 .hidden-option {
-    position: absolute;
+    position: relative;
     bottom: 0;
     transition-duration: 1000ms;
     transition-property: bottom;
