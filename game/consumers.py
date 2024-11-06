@@ -47,8 +47,7 @@ class SudokuConsumer(AsyncWebsocketConsumer):
         if not self.nick:
             await self.close()
             return
-        
-        self.is_first = self.scope['session'].get('is_first')
+
         self.solution_id = []
         self.is_twtich_channel = False
 
@@ -185,7 +184,6 @@ class SudokuConsumer(AsyncWebsocketConsumer):
 
     @userRequestHandler('add_twitch_channel')
     async def add_twitch_channel(self, *args, **kwargs):
-        if not self.is_first: return
         tempThread = Thread(target = asyncio.run, args = (self._add_twitch_channel(),))
 
         tempThread.start()

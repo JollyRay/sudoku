@@ -172,7 +172,7 @@ function bonusExecute(nick, bonusType, detale, isInvert){
     switch (bonusType) {
         case 'SWAP':
             getAllOptionNodes().forEach(userOptionNode => {
-                if (userOptionNode.getAttribute('nick').toUpperCase() != nick ^ isInvert) {
+                if (userOptionNode.getAttribute('name').toUpperCase() != nick ^ isInvert) {
                     if (detale.is_big){
                         if (detale.is_row){
                             swapBigRow(detale.first, detale.second, userOptionNode);
@@ -192,12 +192,12 @@ function bonusExecute(nick, bonusType, detale, isInvert){
             break;
         case 'SHADOW_BOX':
             getAllOptionNodes().forEach(userOptionNode => {
-                if (userOptionNode.getAttribute('nick').toUpperCase() != nick ^ isInvert) {shadowBox(detale.box, userOptionNode);}
+                if (userOptionNode.getAttribute('name').toUpperCase() != nick ^ isInvert) {shadowBox(detale.box, userOptionNode);}
             });
             break;
         case 'ROLL':
             getAllOptionNodes().forEach(userOptionNode => {
-                if (userOptionNode.getAttribute('nick').toUpperCase() != nick ^ isInvert) {rotateBox(detale.box, userOptionNode);}
+                if (userOptionNode.getAttribute('name').toUpperCase() != nick ^ isInvert) {rotateBox(detale.box, userOptionNode);}
             });
             break;
     
