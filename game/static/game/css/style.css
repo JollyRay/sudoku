@@ -322,11 +322,18 @@ header {
 }
 .self-options {
     margin-left: 100px;
-    margin-top: 100px;
     height: calc(998px - 100px);
 }
 .self-options .extra-sudoku-message {
     color: black;
+}
+.timer{
+    height: 100px;
+    width: 350px;
+    padding-top: 10px;
+    color: white;
+    font-size: 28px;
+    font-family: BLACKPASTDEMO;
 }
 .visible-option {
     display: flex;

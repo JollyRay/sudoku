@@ -11,6 +11,8 @@ const FIELD_SIZE = BIG_CELL_SIZE * CELL_SIDE;
 let isGenereate = false;
 let isNoteMode = false;
 let isDigitMode = false;
+var timerStartTime = new Date();
+var timerNode;
 
 let selectedCellNode = undefined;
 let lastDigitSelect = undefined;
@@ -93,7 +95,10 @@ chatSocket.onmessage = function(e) {
             break;
         case 'board':
             fillNamedBoard(data.to, data.board, data.bonus);
-            isGenereate = true; 
+            if (data.to.toLowerCase() == selfnick.toLowerCase()){
+                isGenereate = true;
+                timerStartTime = new Date();
+            }
             break;
         case 'new_user':
             if (selfnick != data.nick){
@@ -421,6 +426,10 @@ function startEventListener(){
 
     const hiddenTongue = document.getElementById('hidden-tongue');
     hiddenTongue.addEventListener('click', toggleVisibleAddOption);
+
+    /* Timer start */
+    timerNode = document.getElementById('personal-timer');
+    setInterval(startTimer, 1000);
 
 }
 
@@ -785,6 +794,19 @@ function rejectTwitchChannel(){
     if (addTwitchChannelButton){
         addTwitchChannelButton.addEventListener('click', requestAddTwitchChannel);
         addTwitchChannelButton.parentElement.classList.remove('twitch-is-add');
+    }
+}
+
+function startTimer(){
+    if (isGenereate){
+        let timeDelta = new Date() - timerStartTime;
+
+        let second = ~~(timeDelta  / 1000) % 60;
+        if (second < 10)
+            second = "0" + second;
+        let minuts = ~~(timeDelta  / 60000);
+
+        timerNode.innerText = `${minuts}:${second}`;
     }
 }
 
