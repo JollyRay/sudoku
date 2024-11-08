@@ -7,6 +7,10 @@
 <div class="game-field-container">
     <div class="game-field">
         <div class="self-options">
+            <div class="timer">
+                <span>Timer: </span>
+                <span id="personal-timer">0:00</span>
+            </div>
             <div class="visible-option">
                 <div>
                     <div id="self-sudoku"></div>
@@ -48,14 +52,24 @@
                         <option value="torry">Torry</option>
                     </select>
                     <div>Канал:</div>
-                    <div>
-                        <span>twitch.tv/{{nick|slice:25}}</span>
-                        <span>
+                    <div class="twitch-channel-settings">
+                        <div>twitch.tv/{{nick|slice:25}}</div>
+                        <div>
                             <button id="add-twitch-channel">Add</button>
                             <p class="icon-after-add">
                                 <i class="fa-solid fa-check"></i>
                             </p>
-                        </span>
+                        </div>
+                        <div class="bonus-explanation">
+                            <i class="fa-solid fa-question"></i>
+                            <div class="bonus-explanation-display">
+                                <p>Команды чата:</p>
+                                <p>!roll - вереть случайную клетку</p>
+                                <p>!swap - поменять случайные строки/столбики местами</p>
+                                <p>!shadow - заблюрить случайную клетку (не больше 3 на поле)</p>
+                                <p>!dance - танец случайной клетки</p>
+                            </div>
+                        </div>
                     </div>
                     <div>Сложность:</div>
                     <select id="sudoku-difficulty">

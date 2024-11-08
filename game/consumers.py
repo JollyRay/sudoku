@@ -47,7 +47,7 @@ class SudokuConsumer(AsyncWebsocketConsumer):
         if not self.nick:
             await self.close()
             return
-
+        
         self.solution_id = []
         self.is_twtich_channel = False
 
@@ -59,7 +59,7 @@ class SudokuConsumer(AsyncWebsocketConsumer):
         # Generate first data
 
         await self.send_full_data(kind = 'new_user', nick = self.nick)
-        info_maps = SudokuMap.get_by_room_info_type(self.room_code)
+        info_maps = await database_sync_to_async(SudokuMap.get_by_room_info_type)(self.room_code)
         await self.send(text_data = json.dumps({'kind': 'first_data', 'data': info_maps}))
         SudokuMap.set(self.room_code, self.nick)
         await self.add_channel()
@@ -141,7 +141,6 @@ class SudokuConsumer(AsyncWebsocketConsumer):
         bonus_map = create_bonus_map(clean_board, [*bonusHandler.reqest_type_map])
 
         SudokuMap.set(self.room_code, self.nick, clean_board, solution_board, bonus_map)
-        self.solution_id.append(solution_board[0].board_id)
         bonus_map = SudokuMap.get_bonus_for_send(self.room_code, self.nick)
 
         info_board = convert_clean_board_to_map(clean_board)
@@ -159,7 +158,7 @@ class SudokuConsumer(AsyncWebsocketConsumer):
         if is_equal is None:
             return
         
-        if is_equal:
+        if is_equal and value:
             bonus_name = SudokuMap.pop_bonus(self.room_code, self.nick, cell_number)
             if bonus_name:
                 await self.send_full_data(
@@ -184,6 +183,7 @@ class SudokuConsumer(AsyncWebsocketConsumer):
 
     @userRequestHandler('add_twitch_channel')
     async def add_twitch_channel(self, *args, **kwargs):
+        if self.is_twtich_channel: return
         tempThread = Thread(target = asyncio.run, args = (self._add_twitch_channel(),))
 
         tempThread.start()
@@ -198,7 +198,7 @@ class SudokuConsumer(AsyncWebsocketConsumer):
         }
         try:
             respond = requests.post(f'http://{host}:{port}', json = payload)
-            self.is_twtich_channel = True
+            self.is_twtich_channel = respond.status_code == 200
             await self.send(text_data = json.dumps({'kind': 'is_add_twitch', 'ok': respond.status_code == 200}))
         except requests.exceptions.ConnectionError:
             print(f'Connectiob error {host}:{port}')
@@ -251,6 +251,10 @@ class SudokuConsumer(AsyncWebsocketConsumer):
     @bonusHandler('ROLL')
     async def generate_roll_box_detale(self):
         return {'box': randint(0, 8)}
+    
+    @bonusHandler('DANCE')
+    async def generate_roll_box_detale(self):
+        return {'box': randint(0, 8)}
 
     #############################
     #                           #
@@ -287,14 +291,15 @@ class SudokuConsumer(AsyncWebsocketConsumer):
 
     @database_sync_to_async
     def get_random_board(self, difficulty):
-        solution_board: QuerySet[SudokuCell] = SudokuBoard.objects.random(filter = {'difficulty__name': difficulty}, exclude = {'id__in': self.solution_id})
+        solution_board: QuerySet[SudokuCell] = SudokuBoard.objects.random(
+            filter = {'difficulty__name': difficulty},
+            exclude = {'id__in': SudokuMap.get_exclude_id(self.room_code, self.nick)}
+        )
+        
         if solution_board is None:
             solution_board: QuerySet[SudokuCell] = SudokuBoard.objects.random(filter = {'difficulty__name': difficulty})
             if solution_board is None:
                 return None
-            self.solution_id = [solution_board[0].board_id, ]
-        else:
-            self.solution_id.append(solution_board[0].board_id)
         
         clean_board = [[0 for _ in range(9)] for _ in range(9)]
         for cell in solution_board:
