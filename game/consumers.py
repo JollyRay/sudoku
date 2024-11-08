@@ -48,7 +48,6 @@ class SudokuConsumer(AsyncWebsocketConsumer):
             await self.close()
             return
         
-        self.is_first = self.scope['session'].get('is_first')
         self.solution_id = []
         self.is_twtich_channel = False
 
@@ -185,7 +184,7 @@ class SudokuConsumer(AsyncWebsocketConsumer):
 
     @userRequestHandler('add_twitch_channel')
     async def add_twitch_channel(self, *args, **kwargs):
-        if not self.is_first: return
+        if self.is_twtich_channel: return
         tempThread = Thread(target = asyncio.run, args = (self._add_twitch_channel(),))
 
         tempThread.start()
@@ -200,7 +199,7 @@ class SudokuConsumer(AsyncWebsocketConsumer):
         }
         try:
             respond = requests.post(f'http://{host}:{port}', json = payload)
-            self.is_twtich_channel = True
+            self.is_twtich_channel = respond.status_code == 200
             await self.send(text_data = json.dumps({'kind': 'is_add_twitch', 'ok': respond.status_code == 200}))
         except requests.exceptions.ConnectionError:
             print(f'Connectiob error {host}:{port}')
@@ -251,6 +250,10 @@ class SudokuConsumer(AsyncWebsocketConsumer):
         }
     
     @bonusHandler('ROLL')
+    async def generate_roll_box_detale(self):
+        return {'box': randint(0, 8)}
+    
+    @bonusHandler('DANCE')
     async def generate_roll_box_detale(self):
         return {'box': randint(0, 8)}
 

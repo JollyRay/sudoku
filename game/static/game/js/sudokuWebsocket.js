@@ -205,6 +205,12 @@ function bonusExecute(nick, bonusType, detale, isInvert){
                         ^ isInvert) {rotateBox(detale.box, userOptionNode);}
             });
             break;
+        case 'DANCE':
+            getAllOptionNodes().forEach(userOptionNode => {
+                if (userOptionNode.getAttribute('name').toUpperCase() != nick
+                        ^ isInvert) {danceBox(detale.box, userOptionNode);}
+            });
+            break;
     
         default:
             break;
@@ -238,12 +244,22 @@ function fillBoard(userOptionNode, boardValues, bonusMap){
         for (const [cellIndex, bonusName] of Object.entries(bonusMap)){
             let bonusDiv = document.createElement('div');
 
-            if (bonusName == 'SWAP'){
-                bonusDiv.innerText = '⇄';
-            } else if (bonusName == 'ROLL') {
-                bonusDiv.innerText = '↻';
-            } else {
-                bonusDiv.innerText = '■';
+            switch (bonusName) {
+                case 'SWAP':
+                    bonusDiv.innerText = '⇄';
+                    break;
+                case 'ROLL':
+                    bonusDiv.innerText = '↻';
+                    break;
+                case 'SHADOW_BOX':
+                    bonusDiv.innerText = '■';
+                    break;
+                case 'DANCE':
+                    bonusDiv.innerText = '𝄞';
+                    break;
+            
+                default:
+                    break;
             }
 
             bonusDiv.classList.add('bonus-cell');
@@ -630,6 +646,19 @@ function shadowBox(index, userOptionNode){
 
 function unlock(lockedSquare){
     lockedSquare.classList.remove('shadow-square');
+}
+
+function danceBox(index, userOptionNode){
+    const danceSquare = userOptionNode.querySelector(`div.sudoku-big-cell[big-cell-index="${index}"]`);
+    if (danceSquare.classList.contains('dance-box')){
+        return;
+    }
+    danceSquare.classList.add('dance-box');
+    setTimeout(stopDanceBox.bind(null, danceSquare), 10000);
+}
+
+function stopDanceBox(danceBox){
+    danceBox.classList.remove('dance-box');
 }
 
 function rotateBox(index, userOptionNode){
