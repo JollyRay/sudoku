@@ -159,7 +159,7 @@ class SudokuConsumer(AsyncWebsocketConsumer):
         if is_equal is None:
             return
         
-        if is_equal:
+        if is_equal and value:
             bonus_name = SudokuMap.pop_bonus(self.room_code, self.nick, cell_number)
             if bonus_name:
                 await self.send_full_data(
