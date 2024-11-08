@@ -24,10 +24,31 @@ class SudokuMap:
     SIDE_SIZE = 9
     BOARD_SIZE = SIDE_SIZE * SIDE_SIZE
     _sudoku_map = dict()
+    """
+    _sudoku_map - all info
+
+    _sudoku_map = {
+        "room_code": {
+            "nick": {
+                "solution": QuerySet[SudokuCell],
+                "clean_board": list(),
+                "exclude": list(),
+                "bonus": {
+                    "cell_number_1": "bonus_name", 
+                    "cell_number_2": "bonus_name",
+                    ... 
+                }
+            }
+            ...
+        }
+        ...
+    }
+    """
 
     SOLUTION_BOARD = 'solution'
     CLEAN_BOARD = 'clean_board'
     BONUS_MAP = 'bonus'
+    EXCLUDE_ID = 'exclude'
 
     def __check_exist_user(func):
         def wrapper(self, code: str, nick: str, *arg, **kwargs):
@@ -56,6 +77,15 @@ class SudokuMap:
         user[cls.CLEAN_BOARD] = clean_board
         user[cls.BONUS_MAP] = bonus_map
 
+        if solution_board is None:
+            user[cls.EXCLUDE_ID] = []
+        else:
+            id = solution_board[0].board_id
+            if id in user[cls.EXCLUDE_ID]:
+                user[cls.EXCLUDE_ID] = [id, ]
+            else:
+                user[cls.EXCLUDE_ID].append(id)
+
         return True
     
     @classmethod
@@ -72,27 +102,6 @@ class SudokuMap:
         return True
     
     @classmethod
-    def get_by_room(cls, code, with_solution = False) -> dict|None:
-        room = cls._sudoku_map.get(code, None)
-        if room: 
-            room = deepcopy(room)
-            if not with_solution:
-                for boards in room.values():
-                    del boards[cls.SOLUTION_BOARD] 
-        return room
-    
-    @classmethod
-    @__check_exist_user
-    def get_by_nick(cls, code: str, nick: str, with_solution: bool = False) -> dict|None:
-        
-        user = deepcopy(nick)
-
-        if not with_solution:
-            del user[cls.SOLUTION_BOARD]
-            del user[cls.BONUS_MAP]
-        return user
-    
-    @classmethod
     @__check_exist_user
     def get_bonus_for_send(cls, code: str, nick: str) -> dict[str, str]:
         raw_bonus_map: dict[int, str]|None = nick.get(cls.BONUS_MAP)
@@ -101,6 +110,39 @@ class SudokuMap:
         
         return {str(key): value for key, value in raw_bonus_map.items()}
     
+    @classmethod
+    @__check_exist_user
+    def get_static_cell_number(cls, code: str, nick: str) -> list[int]:
+        soludtion_cells: QuerySet[SudokuCell] = nick.get(cls.SOLUTION_BOARD, [])
+        if soludtion_cells is None: return None
+
+        static_cells_number = list(cell.number for cell in soludtion_cells if not cell.is_empty)
+        return static_cells_number
+    
+    @classmethod
+    @__check_exist_user
+    def get_wrong_answers(cls, code: str, nick: str) -> list[int]:
+
+        clean_board: list[list[int]] = nick[cls.CLEAN_BOARD]
+        solution_board: QuerySet[SudokuCell] = nick[cls.SOLUTION_BOARD]
+
+        side_lenght = len(clean_board)
+        squares_quantity = side_lenght ** 2
+        wrong_answer: list = []
+
+        for cell_number in range(squares_quantity):
+            row_index = cell_number // side_lenght
+            column_index = cell_number % side_lenght
+            if not solution_board.filter(value = clean_board[row_index][column_index], number = cell_number).exists():
+                wrong_answer.append(cell_number)
+
+        return wrong_answer
+        
+    @classmethod
+    @__check_exist_user
+    def get_exclude_id(cls, code: str, nick: str):
+        return nick.get(cls.EXCLUDE_ID, [])
+
     @classmethod
     def get_by_room_info_type(cls, code) -> dict|None:
         room = cls._sudoku_map.get(code)
@@ -112,7 +154,9 @@ class SudokuMap:
         for nick, boards in room.items():
             info_map[nick] = {
                 'value': convert_clean_board_to_map(boards[cls.CLEAN_BOARD]) if boards[cls.CLEAN_BOARD] else None,
-                'bonus': cls.get_bonus_for_send(code, nick)
+                'bonus': cls.get_bonus_for_send(code, nick),
+                'static_answer': cls.get_static_cell_number(code, nick),
+                'wrong_answer': cls.get_wrong_answers(code, nick)
             }
 
         return info_map

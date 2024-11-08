@@ -218,7 +218,7 @@ function bonusExecute(nick, bonusType, detale, isInvert){
 }
 
 const sudokuCellReg = new RegExp('^sudoku-cell(-[0-9])?$');
-function fillBoard(userOptionNode, boardValues, bonusMap){
+function fillBoard(userOptionNode, boardValues, bonusMap, staticAnswerIndexs, wrongAnswer){
 
     /* Remove lock board */
     userOptionNode.classList.remove('resolved-sudoku-field');
@@ -234,7 +234,14 @@ function fillBoard(userOptionNode, boardValues, bonusMap){
             }
         });
         if (boardValues[index]){
-            cellNode.classList.add('static-answer');
+            if (staticAnswerIndexs == undefined || staticAnswerIndexs.includes(index)){
+                cellNode.classList.add('static-answer');
+            } else {
+                cellNode.classList.add('user-answer');
+                if (wrongAnswer != undefined && wrongAnswer.includes(index)){
+                    cellNode.classList.add('wrong-answer');
+                }
+            }
             fillCellQuantity++;
         }
         setCellValue(cellNode, boardValues[index]);
@@ -347,7 +354,7 @@ function fillOtherBoard(boardsInfo){
     for (const [nick, boardInfo] of Object.entries(boardsInfo)){
         const userOptionNode = createBorder(nick);
         if (boardInfo.value){
-            fillBoard(userOptionNode, boardInfo.value, boardInfo.bonus);
+            fillBoard(userOptionNode, boardInfo.value, boardInfo.bonus, boardInfo.static_answer, boardInfo.wrong_answer);
         }
     }
 }

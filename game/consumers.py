@@ -59,7 +59,7 @@ class SudokuConsumer(AsyncWebsocketConsumer):
         # Generate first data
 
         await self.send_full_data(kind = 'new_user', nick = self.nick)
-        info_maps = SudokuMap.get_by_room_info_type(self.room_code)
+        info_maps = await database_sync_to_async(SudokuMap.get_by_room_info_type)(self.room_code)
         await self.send(text_data = json.dumps({'kind': 'first_data', 'data': info_maps}))
         SudokuMap.set(self.room_code, self.nick)
         await self.add_channel()
@@ -141,7 +141,6 @@ class SudokuConsumer(AsyncWebsocketConsumer):
         bonus_map = create_bonus_map(clean_board, [*bonusHandler.reqest_type_map])
 
         SudokuMap.set(self.room_code, self.nick, clean_board, solution_board, bonus_map)
-        self.solution_id.append(solution_board[0].board_id)
         bonus_map = SudokuMap.get_bonus_for_send(self.room_code, self.nick)
 
         info_board = convert_clean_board_to_map(clean_board)
@@ -292,14 +291,15 @@ class SudokuConsumer(AsyncWebsocketConsumer):
 
     @database_sync_to_async
     def get_random_board(self, difficulty):
-        solution_board: QuerySet[SudokuCell] = SudokuBoard.objects.random(filter = {'difficulty__name': difficulty}, exclude = {'id__in': self.solution_id})
+        solution_board: QuerySet[SudokuCell] = SudokuBoard.objects.random(
+            filter = {'difficulty__name': difficulty},
+            exclude = {'id__in': SudokuMap.get_exclude_id(self.room_code, self.nick)}
+        )
+        
         if solution_board is None:
             solution_board: QuerySet[SudokuCell] = SudokuBoard.objects.random(filter = {'difficulty__name': difficulty})
             if solution_board is None:
                 return None
-            self.solution_id = [solution_board[0].board_id, ]
-        else:
-            self.solution_id.append(solution_board[0].board_id)
         
         clean_board = [[0 for _ in range(9)] for _ in range(9)]
         for cell in solution_board:
