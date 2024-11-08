@@ -135,9 +135,25 @@ class SudokuMap:
 
     @classmethod
     @__check_exist_user
-    def equival(cls, code: str, nick: str, value: int, cell_number: int, save: bool = True) -> bool:
+    def equival(cls, code: str, nick: str, value: int, cell_number: int, save: bool = True) -> bool|None:
+        """
+        compares solution and digit by user
+
+        :param code: room code
+        :param nick: user's nick in room
+        :param value: user get value for compare with solution
+        :param cell_number: cell number in board for compare
+        :param save: after compare save in database
+        :return: matches value and solution or None if board not exist 
+        """
+
+
+        solution_board = nick.get(cls.SOLUTION_BOARD, None)
+
+        if solution_board is None:
+            return None
         
-        is_equel = value == 0 or nick[cls.SOLUTION_BOARD].filter(value = value, number = cell_number).exists()
+        is_equel = value == 0 or solution_board.filter(value = value, number = cell_number).exists()
 
         if save:
             row = cell_number // cls.SIDE_SIZE
