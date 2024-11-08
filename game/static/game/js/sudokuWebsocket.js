@@ -4,7 +4,7 @@ let sudokuMode = 'digit';
 
 const SIDE_SIZE = 9;
 const CELL_QUANTITY = SIDE_SIZE * SIDE_SIZE;
-const CELL_SIZE = 59;
+const CELL_SIZE = 60;
 const CELL_SIDE = 3;
 const BIG_CELL_SIZE = CELL_SIZE * CELL_SIDE;
 const FIELD_SIZE = BIG_CELL_SIZE * CELL_SIDE;
@@ -137,18 +137,12 @@ function removeBoard(nick){
 
 function updateValueFromServer(nick, cellNumber, value, isRight){
 
-    if (value == ''){
-        if (!isEqualValue(nick, cellNumber, '')){
-            decriceProcessBar(nick);
-        }
-    } else {
-        if (!isEqualValue(nick, cellNumber, value)){
-            incriceProcessBar(nick);
-        }
-    }
-
     const userOptionNode = findBoard(nick); 
     if (userOptionNode == null) return;
+
+    if (!isEqualValue(nick, cellNumber, value)){
+        recalculateProcessBar(userOptionNode);
+    }
 
     const cellNode = userOptionNode.querySelector(`div.sudoku-cell[number="${cellNumber}"]`);
 
@@ -163,7 +157,7 @@ function updateValueFromServer(nick, cellNumber, value, isRight){
 
     if (isFinish(userOptionNode)){
         userOptionNode.classList.add('resolved-sudoku-field');
-        isGenereate = false;
+        if (userOptionNode.getAttribute('name').toLowerCase() == selfnick.toLowerCase()) isGenereate = false;
     }
 }
 
@@ -195,7 +189,7 @@ function bonusExecute(nick, bonusType, detale, isInvert){
             getAllOptionNodes().forEach(userOptionNode => {
                 if (userOptionNode.getAttribute('name').toUpperCase() != nick
                         ^ isInvert
-                        && userOptionNode.querySelectorAll('.shadow-square').length < 4) {
+                        && userOptionNode.querySelectorAll('.shadow-square').length < 3) {
                     shadowBox(detale.box, userOptionNode);
                 }
             });
@@ -235,21 +229,22 @@ function fillBoard(userOptionNode, boardValues, bonusMap){
 
     userOptionNode.querySelectorAll('.bonus-cell').forEach(el => el.remove());
 
-    for (const [cellIndex, bonusName] of Object.entries(bonusMap)){
-        let bonusDiv = document.createElement('div');
+    if (bonusMap)
+        for (const [cellIndex, bonusName] of Object.entries(bonusMap)){
+            let bonusDiv = document.createElement('div');
 
-        if (bonusName == 'SWAP'){
-            bonusDiv.innerText = '⇄';
-        } else if (bonusName == 'ROLL') {
-            bonusDiv.innerText = '↻';
-        } else {
-            bonusDiv.innerText = '■';
+            if (bonusName == 'SWAP'){
+                bonusDiv.innerText = '⇄';
+            } else if (bonusName == 'ROLL') {
+                bonusDiv.innerText = '↻';
+            } else {
+                bonusDiv.innerText = '■';
+            }
+
+            bonusDiv.classList.add('bonus-cell');
+
+            userOptionNode.querySelector(`div[number="${cellIndex}"`).appendChild(bonusDiv);
         }
-
-        bonusDiv.classList.add('bonus-cell');
-
-        userOptionNode.querySelector(`div[number="${cellIndex}"`).appendChild(bonusDiv);
-    }
 
     document.querySelectorAll('.numbers-button').forEach(el => el.classList.remove('number-button-ended'));
 
@@ -286,7 +281,7 @@ function createBorder(nick, isSelf){
         const mainContainer = scoreTemplateClone.querySelector('.user-score-container')
         mainContainer.setAttribute('name', nick);
         mainContainer.addEventListener('click', selectEnemy);
-        scoreTemplateClone.querySelector('.score-progress').value = 20;
+        scoreTemplateClone.querySelector('.score-progress').value = 0;
         scoreContainerNode.appendChild(scoreTemplateClone);
     }
     const template = document.getElementById("user-optrion-template");
@@ -496,6 +491,13 @@ function updateProcessBar(nick, value){
     }
 }
 
+function recalculateProcessBar(userOptionNode){
+    let quantity = getFilledCellQuantity(userOptionNode);
+    let nick = userOptionNode.getAttribute('name');
+
+    updateProcessBar(nick, quantity);
+}
+
 function incriceProcessBar(nick){
     const progressBar = document.querySelector(`div.user-score-container[name="${nick}"] progress`);
     if (progressBar != undefined){
@@ -658,9 +660,28 @@ function rerenderSudoku(){
 
         nodeOption.querySelectorAll('.sudoku-cell').forEach(cellNode => {
             value = cellNode.querySelector('p').innerText.trim();
-            setCellValue(cellNode, value);
+            if (value == ''){
+                rerenderNotes(cellNode)
+            } else {
+                setCellValue(cellNode, value);
+            }
         });
     });
+}
+
+function rerenderNotes(cellNode){
+    const noteDivs = cellNode.querySelectorAll('.cell-notes *');
+
+    for (let index = 0; index < noteDivs.length; index++){
+        let innerValue = noteDivs[index].innerText.trim();
+        if (innerValue != ''){
+            if (sudokuMode == 'digit'){
+                noteDivs[index].innerText = index + 1;
+            } else {
+                noteDivs[index].innerText = '■';
+            }
+        }
+    }
 }
 
 function setCellValue(cellNode, value){
@@ -675,7 +696,11 @@ function setCellValue(cellNode, value){
         if (noteCells[value - 1].innerText){
             noteCells[value - 1].innerText = '';
         } else {
-            noteCells[value - 1].innerText = '■';
+            if (sudokuMode == 'digit'){
+                noteCells[value - 1].innerText = value;
+            } else {
+                noteCells[value - 1].innerText = '■';
+            }
         }
 
         return 0;
@@ -774,7 +799,6 @@ function getAllOptionNodes(){
 }
 
 function findBoard(nick){
-    // return document.evaluate(`//div[contains(@class,"user-option")]/h1[text()="${nick}"]/..`, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE).singleNodeValue;
     return document.querySelector(`.user-option[name^="${nick}"]`);
 }
 
@@ -794,4 +818,15 @@ function isFinish(userOptionNode, count = CELL_QUANTITY){
 
 function sliceNick(nick){
     return nick.length > 16 ? nick.slice(0, 16) + '...' : nick
+}
+
+function getFilledCellQuantity(userOptionNode, onlyTruth = false){
+    let quantity;
+    if (onlyTruth){
+        quantity = document.evaluate(".//div[contains(@class, 'sudoku-cell') and not(contains(@class, 'wrong-answer'))]/p[text() != '']", userOptionNode, null, XPathResult.UNORDERED_NODE_SNAPSHOT_TYPE).snapshotLength;
+    } else {
+        quantity = document.evaluate(".//div[contains(@class, 'sudoku-cell')]/p[text() != '']", userOptionNode, null, XPathResult.UNORDERED_NODE_SNAPSHOT_TYPE).snapshotLength;
+    }
+
+    return quantity
 }

@@ -2,6 +2,7 @@
 :root {
     --light-blue: #40ffff;
     --select-blue: #a0ffff;
+    --equal-selected-yellow: goldenrod;
     --main-backround: white;
     --main-card-shadow-color: #67cd9f;
 }
@@ -300,23 +301,29 @@ header {
 .user-option .sudoku-big-cell .sudoku-cell-select {
     background-color: var(--select-blue);
 }
+.user-option .sudoku-big-cell .sudoku-cell-select:not(.show-wrong .wrong-answer) {
+    box-shadow: inset 0px 0px 15px var(--select-blue);
+}
 .sudoku-big-cell .sudoku-cell-equal-select {
     background-color: var(--light-blue);
 }
 .visible-option .sudoku-big-cell .sudoku-cell-equal-select:not(.sudoku-cell-select) {
-    background-color: goldenrod;
+    background-color: var(--equal-selected-yellow);
+}
+.visible-option .sudoku-big-cell .sudoku-cell-equal-select:not(.sudoku-cell-select):not(.show-wrong .wrong-answer) {
+    box-shadow: inset 0px 0px 25px var(--equal-selected-yellow);
 }
 .sudoku-big-cell .sudoku-cell-equal-select p {
     font-weight: bold;
 }
 .show-wrong .wrong-answer {
     color: red;
-    border: 2px red solid;
+    box-shadow: inset 0px 0px 40px red;
 }
 .self-options {
     margin-left: 100px;
     margin-top: 100px;
-    height: calc(100vw - 100px);
+    height: calc(998px - 100px);
 }
 .self-options .extra-sudoku-message {
     color: black;
@@ -395,7 +402,7 @@ header {
     transform: scale(1.2);
 }
 .numbers-button.number-button-ended{
-    background: lightgray;
+    background-color: lightgray;
     color: grey;
     filter: grayscale(100%);
 }
@@ -403,7 +410,7 @@ header {
     background-color: white;
     transform: none;
 }
-.number-as-img {
+.numbers-button.number-as-img {
     color: rgba(0, 0, 0, 0);
 }
 .mode-button {
