@@ -358,6 +358,10 @@ header {
     -webkit-text-stroke: 2px blue;
     font-size: small;
     background-size: 100%;
+    opacity: 1;
+}
+.user-answer > .cell-notes > div{
+    opacity: 0;
 }
 .user-option .sudoku-big-cell .sudoku-cell-select {
     background-color: var(--select-blue);

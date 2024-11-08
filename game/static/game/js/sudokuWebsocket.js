@@ -220,8 +220,10 @@ function bonusExecute(nick, bonusType, detale, isInvert){
 const sudokuCellReg = new RegExp('^sudoku-cell(-[0-9])?$');
 function fillBoard(userOptionNode, boardValues, bonusMap){
 
+    /* Remove lock board */
     userOptionNode.classList.remove('resolved-sudoku-field');
 
+    /* Fill board new and remove old values and class */
     selectedCellNode = undefined;
     let fillCellQuantity = 0;
     for (let index = 0; index < CELL_QUANTITY; index++){
@@ -238,8 +240,16 @@ function fillBoard(userOptionNode, boardValues, bonusMap){
         setCellValue(cellNode, boardValues[index]);
     }
 
+    /* Remove notes */
+    const noteIterator = document.evaluate(".//div[contains(@class, 'cell-notes')]/div[text() != '']", userOptionNode, null, XPathResult.UNORDERED_NODE_SNAPSHOT_TYPE);
+    for (let index = 0; index < noteIterator.snapshotLength; index++){
+        noteIterator.snapshotItem(index).innerText = '';
+    }
+
+    /* Remove old bonus */
     userOptionNode.querySelectorAll('.bonus-cell').forEach(el => el.remove());
 
+    /* Set bonus map */
     if (bonusMap)
         for (const [cellIndex, bonusName] of Object.entries(bonusMap)){
             let bonusDiv = document.createElement('div');
@@ -267,12 +277,12 @@ function fillBoard(userOptionNode, boardValues, bonusMap){
             userOptionNode.querySelector(`div[number="${cellIndex}"`).appendChild(bonusDiv);
         }
 
+    /* Remove lock number button */
     document.querySelectorAll('.numbers-button').forEach(el => el.classList.remove('number-button-ended'));
-
+    
+    /* Update process bar */
     const nick = userOptionNode.getAttribute('name');
-    
     updateProcessBar(nick, fillCellQuantity);
-    
 }
 
 function fillNamedBoard(nick, boardInfo, bonusMap){
@@ -747,8 +757,10 @@ function setCellValue(cellNode, value){
 
     if (value || (fieldForValue.innerText != value && value > 0 && value <= 9)){
         fieldForValue.innerText = value;
+        cellNode.classList.add('user-answer');
     } else {
         fieldForValue.innerText = '';
+        cellNode.classList.remove('user-answer');
     }
 
     if (sudokuMode == 'digit'){
@@ -757,9 +769,9 @@ function setCellValue(cellNode, value){
         cellNode.style.backgroundImage = (value) ? `url("${IMAGE_MAP[sudokuMode][value]}")` : '';
     }
 
-    noteCells.forEach(noteElement => {
-        noteElement.innerText = '';
-    });
+    // noteCells.forEach(noteElement => {
+    //     noteElement.innerText = '';
+    // });
 }
 
 function setCellValueAndSend(cellNode, value){
