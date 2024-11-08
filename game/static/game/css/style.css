@@ -451,7 +451,7 @@ header {
 .hidden-option.show-hidden-option .hidden-items {
     height: 150px;
 }
-.hidden-option.show-hidden-option .hidden-items * {
+.hidden-option.show-hidden-option .hidden-items > * {
     height: 40px;
     opacity: 1;
 }
@@ -482,7 +482,7 @@ header {
     transition-duration: 1000ms;
     transition-property: height, opacity;
 }
-.hidden-items * {
+.hidden-items > * {
     pointer-events:none;
     height: 0;
     opacity: 0;
@@ -492,8 +492,39 @@ header {
 .show-hidden-option .hidden-items *{
     pointer-events: auto;
 }
+.twitch-channel-settings {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    width: 90%;
+}
 .twitch-is-add > #add-twitch-channel{
     display: none;
+}
+.bonus-explanation{
+    position: relative;
+    background-color: gray;
+    color: white;
+    border-radius: 100px;
+    width: 21px;
+    height: 21px;
+    text-align: center;
+}
+.bonus-explanation-display{
+    left: 20px;
+    bottom: -40px;
+    width: 350px;
+    position: absolute;
+    visibility: hidden;
+    opacity: 0;
+    transition: visibility 0s, opacity 0.5s;
+
+    background-color: gray;
+    border: darkgray;
+}
+.bonus-explanation:hover .bonus-explanation-display{
+    visibility: visible;
+    opacity: 1;
 }
 .icon-after-add{
     display: none;
