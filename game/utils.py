@@ -124,6 +124,7 @@ class SudokuMap:
     def get_wrong_answers(cls, code: str, nick: str) -> list[int]:
 
         clean_board: list[list[int]] = nick[cls.CLEAN_BOARD]
+        if clean_board is None: return None
         solution_board: QuerySet[SudokuCell] = nick[cls.SOLUTION_BOARD]
 
         side_lenght = len(clean_board)
