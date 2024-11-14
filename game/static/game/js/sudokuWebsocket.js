@@ -219,6 +219,8 @@ function bonusExecute(nick, bonusType, detale, isInvert){
 const sudokuCellReg = new RegExp('^sudoku-cell(-[0-9])?$');
 function fillBoard(userOptionNode, boardValues, bonusMap, staticAnswerIndexs, wrongAnswer, time_from, time_to){
 
+    const nick = userOptionNode.getAttribute('name');
+
     /* Remove lock board */
     userOptionNode.classList.remove('resolved-sudoku-field');
 
@@ -284,10 +286,10 @@ function fillBoard(userOptionNode, boardValues, bonusMap, staticAnswerIndexs, wr
         }
 
     /* Remove lock number button */
-    document.querySelectorAll('.numbers-button').forEach(el => el.classList.remove('number-button-ended'));
+    if (nick === selfnick)
+        document.querySelectorAll('.numbers-button').forEach(el => el.classList.remove('number-button-ended'));
     
     /* Update process bar */
-    const nick = userOptionNode.getAttribute('name');
     updateProcessBar(nick, fillCellQuantity);
     if (time_from){
         setProcessTimerStart(nick, time_from);
