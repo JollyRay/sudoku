@@ -9,7 +9,7 @@
         <div class="self-options">
             <div class="timer">
                 <span>Timer: </span>
-                <span id="personal-timer">0:00</span>
+                <span id="personal-timer" class="sudoku-solving-timer">--:--</span>
             </div>
             <div class="visible-option">
                 <div>
@@ -124,6 +124,7 @@
 </template>
 <template id="score-template">
     <div class="score-user-height">
+        <p class="sudoku-solving-timer" is-stop="true">--:--</p>
         <div class="user-score-container">
             <progress class="score-progress" max="81" value="0"></progress>
             <p class="score-owner-name"></p>

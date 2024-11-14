@@ -4,6 +4,7 @@ import random
 from itertools import islice
 from copy import deepcopy
 from math import sqrt
+from time import time
 
 from .models import *
 
@@ -37,7 +38,9 @@ class SudokuMap:
                     "cell_number_1": "bonus_name", 
                     "cell_number_2": "bonus_name",
                     ... 
-                }
+                },
+                "time_from": int,
+                "time_to": int,
             }
             ...
         }
@@ -49,6 +52,8 @@ class SudokuMap:
     CLEAN_BOARD = 'clean_board'
     BONUS_MAP = 'bonus'
     EXCLUDE_ID = 'exclude'
+    TIME_FROM = 'time_from'
+    TIME_TO = 'time_to'
 
     def __check_exist_user(func):
         def wrapper(self, code: str, nick: str, *arg, **kwargs):
@@ -79,12 +84,18 @@ class SudokuMap:
 
         if solution_board is None:
             user[cls.EXCLUDE_ID] = []
+
+            user[cls.TIME_FROM] = None
+            user[cls.TIME_TO] = None
         else:
             id = solution_board[0].board_id
             if id in user[cls.EXCLUDE_ID]:
                 user[cls.EXCLUDE_ID] = [id, ]
             else:
                 user[cls.EXCLUDE_ID].append(id)
+
+            user[cls.TIME_FROM] = int(time())
+            user[cls.TIME_TO] = None
 
         return True
     
@@ -157,7 +168,9 @@ class SudokuMap:
                 'value': convert_clean_board_to_map(boards[cls.CLEAN_BOARD]) if boards[cls.CLEAN_BOARD] else None,
                 'bonus': cls.get_bonus_for_send(code, nick),
                 'static_answer': cls.get_static_cell_number(code, nick),
-                'wrong_answer': cls.get_wrong_answers(code, nick)
+                'wrong_answer': cls.get_wrong_answers(code, nick),
+                'time_from': boards[cls.TIME_FROM],
+                'time_to': boards[cls.TIME_TO],
             }
 
         return info_map
@@ -206,6 +219,35 @@ class SudokuMap:
             nick[cls.CLEAN_BOARD][row][column] = value
 
         return is_equel
+    
+    @classmethod
+    @__check_exist_user
+    def valid_finish(cls, code: str, nick: str):
+
+        solution_board: QuerySet[SudokuCell]|None = nick.get(cls.SOLUTION_BOARD, None)
+        clean_board: list[list[int]]|None = nick.get(cls.CLEAN_BOARD, None)
+
+        if solution_board is None or clean_board is None:
+            return None
+        
+        for cell in solution_board:
+            row, col = cell.number // 9 , cell.number % 9
+
+            if cell.is_empty and cell.value != clean_board[row][col]:
+                return False
+
+        nick[cls.TIME_TO] = int(time())
+        return True
+
+    @classmethod
+    @__check_exist_user
+    def get_time_from(cls, code: str, nick: str):
+        return nick.get(cls.TIME_FROM, None)
+    
+    @classmethod
+    @__check_exist_user
+    def get_time_to(cls, code: str, nick: str):
+        return nick.get(cls.TIME_TO, None)
 
 ##############################
 #                            #

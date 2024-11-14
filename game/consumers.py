@@ -144,10 +144,16 @@ class SudokuConsumer(AsyncWebsocketConsumer):
         bonus_map = SudokuMap.get_bonus_for_send(self.room_code, self.nick)
 
         info_board = convert_clean_board_to_map(clean_board)
-        await self.send_full_data(kind = 'board', to = self.nick, board = info_board, bonus = bonus_map)
+        await self.send_full_data(
+            kind = 'board',
+            to = self.nick,
+            board = info_board,
+            bonus = bonus_map,
+            time_from = SudokuMap.get_time_from(self.room_code, self.nick)
+        )
 
     @userRequestHandler('set_value')
-    async def set_sudoku_value(self, cell_number: int, value: int, *args, **kwargs):
+    async def set_sudoku_value(self, cell_number: int, value: int, is_finish: bool, *args, **kwargs):
 
         # Protect if send None or empty string
         if not value:
@@ -158,19 +164,16 @@ class SudokuConsumer(AsyncWebsocketConsumer):
         if is_equal is None:
             return
         
+        extra_info = {}
         if is_equal and value:
             bonus_name = SudokuMap.pop_bonus(self.room_code, self.nick, cell_number)
             if bonus_name:
-                await self.send_full_data(
-                    kind = 'cell_result',
-                    cell_number = cell_number,
-                    value = value,
-                    to = self.nick,
-                    is_right = is_equal,
-                    bonus_type = bonus_name,
-                    detale = await bonusHandler.reqest_type_map[bonus_name](self)
-                )
-                return
+                extra_info['bonus_type'] = bonus_name
+                extra_info['detale'] = await bonusHandler.reqest_type_map[bonus_name](self)
+
+            if is_finish and SudokuMap.valid_finish(self.room_code, self.nick):
+                extra_info['is_finish'] = True
+                extra_info['time_to'] = SudokuMap.get_time_to(self.room_code, self.nick)
 
         
         await self.send_full_data(
@@ -178,7 +181,8 @@ class SudokuConsumer(AsyncWebsocketConsumer):
             cell_number = cell_number,
             value = value,
             to = self.nick,
-            is_right = is_equal
+            is_right = is_equal,
+            **extra_info
         )
 
     @userRequestHandler('add_twitch_channel')
