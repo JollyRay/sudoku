@@ -387,7 +387,7 @@ header {
 }
 .self-options {
     margin-left: 100px;
-    height: calc(998px - 100px);
+    height: 998px;
 }
 .self-options .extra-sudoku-message {
     color: black;
@@ -615,7 +615,7 @@ header {
     align-self: flex-end;
 }
 .score-user-height {
-    height: 40px;
+    height: 60px;
 }
 .user-score-container {
     position: absolute;

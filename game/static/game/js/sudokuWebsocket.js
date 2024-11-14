@@ -11,8 +11,6 @@ const FIELD_SIZE = BIG_CELL_SIZE * CELL_SIDE;
 let isGenereate = false;
 let isNoteMode = false;
 let isDigitMode = false;
-var timerStartTime = new Date();
-var timerNode;
 
 let selectedCellNode = undefined;
 let lastDigitSelect = undefined;
@@ -94,10 +92,9 @@ chatSocket.onmessage = function(e) {
             fillOtherBoard(data.data);
             break;
         case 'board':
-            fillNamedBoard(data.to, data.board, data.bonus);
+            fillNamedBoard(data.to, data.board, data.bonus, data.time_from, data.time_to);
             if (data.to.toLowerCase() == selfnick.toLowerCase()){
                 isGenereate = true;
-                timerStartTime = new Date();
             }
             break;
         case 'new_user':
@@ -106,9 +103,11 @@ chatSocket.onmessage = function(e) {
             }
             break;
         case 'cell_result':
-            updateValueFromServer(data.to, data.cell_number, data.value, data.is_right);
+            updateValueFromServer(data.to, data.cell_number, data.value, data.is_right, data.is_finish);
             if (data.bonus_type !== null)
                 bonusExecute(data.to, data.bonus_type, data.detale);
+            if (data.is_finish)
+                stopProcessTimer(data.to, data.time_to)
             break;
         case 'disconection':
             removeBoard(data.nick);
@@ -134,13 +133,13 @@ function removeBoard(nick){
     if (board != null){
         board.remove();
     }
-    const scoreNode = document.querySelector(`div.user-score-container[name="${nick}"]`)
+    const scoreNode = document.querySelector(`div.score-user-height[name="${nick}"]`)
     if (scoreNode != undefined){
-        scoreNode.parentNode.remove();
+        scoreNode.remove();
     }
 }
 
-function updateValueFromServer(nick, cellNumber, value, isRight){
+function updateValueFromServer(nick, cellNumber, value, isRight, isFinish = false){
 
     const userOptionNode = findBoard(nick); 
     if (userOptionNode == null) return;
@@ -160,7 +159,7 @@ function updateValueFromServer(nick, cellNumber, value, isRight){
         setCellValue(cellNode, value);
     }
 
-    if (isFinish(userOptionNode)){
+    if (isFinish){
         userOptionNode.classList.add('resolved-sudoku-field');
         if (userOptionNode.getAttribute('name').toLowerCase() == selfnick.toLowerCase()) isGenereate = false;
     }
@@ -218,7 +217,9 @@ function bonusExecute(nick, bonusType, detale, isInvert){
 }
 
 const sudokuCellReg = new RegExp('^sudoku-cell(-[0-9])?$');
-function fillBoard(userOptionNode, boardValues, bonusMap, staticAnswerIndexs, wrongAnswer){
+function fillBoard(userOptionNode, boardValues, bonusMap, staticAnswerIndexs, wrongAnswer, time_from, time_to){
+
+    const nick = userOptionNode.getAttribute('name');
 
     /* Remove lock board */
     userOptionNode.classList.remove('resolved-sudoku-field');
@@ -285,14 +286,20 @@ function fillBoard(userOptionNode, boardValues, bonusMap, staticAnswerIndexs, wr
         }
 
     /* Remove lock number button */
-    document.querySelectorAll('.numbers-button').forEach(el => el.classList.remove('number-button-ended'));
+    if (nick === selfnick)
+        document.querySelectorAll('.numbers-button').forEach(el => el.classList.remove('number-button-ended'));
     
     /* Update process bar */
-    const nick = userOptionNode.getAttribute('name');
     updateProcessBar(nick, fillCellQuantity);
+    if (time_from){
+        setProcessTimerStart(nick, time_from);
+    }
+    if (time_to){
+        stopProcessTimer(nick, time_to);
+    }
 }
 
-function fillNamedBoard(nick, boardInfo, bonusMap){
+function fillNamedBoard(nick, boardInfo, bonusMap, time_from = undefined, time_to = undefined){
     const userOptionNode = findBoard(nick);
     if (userOptionNode == null){
         return;
@@ -301,7 +308,7 @@ function fillNamedBoard(nick, boardInfo, bonusMap){
         switchNoteMode()
     }
 
-    fillBoard(userOptionNode, boardInfo, bonusMap);
+    fillBoard(userOptionNode, boardInfo, bonusMap, undefined, undefined, time_from, time_to);
 }
 
 function createBorder(nick, isSelf){
@@ -316,7 +323,7 @@ function createBorder(nick, isSelf){
         const scoreTemplate = document.getElementById('score-template'); 
         const scoreTemplateClone = scoreTemplate.content.cloneNode(true);
         scoreTemplateClone.querySelector('.score-owner-name').innerText = sliceNick(nick);
-        const mainContainer = scoreTemplateClone.querySelector('.user-score-container')
+        const mainContainer = scoreTemplateClone.querySelector('.score-user-height')
         mainContainer.setAttribute('name', nick);
         mainContainer.addEventListener('click', selectEnemy);
         scoreTemplateClone.querySelector('.score-progress').value = 0;
@@ -354,7 +361,7 @@ function fillOtherBoard(boardsInfo){
     for (const [nick, boardInfo] of Object.entries(boardsInfo)){
         const userOptionNode = createBorder(nick);
         if (boardInfo.value){
-            fillBoard(userOptionNode, boardInfo.value, boardInfo.bonus, boardInfo.static_answer, boardInfo.wrong_answer);
+            fillBoard(userOptionNode, boardInfo.value, boardInfo.bonus, boardInfo.static_answer, boardInfo.wrong_answer, boardInfo.time_from, boardInfo.time_to);
         }
     }
 }
@@ -372,11 +379,12 @@ function requestGenerateSudoku(){
     chatSocket.send(JSON.stringify(dataForSend));
 }
 
-function requestSetValue(value, cellNumebr){
+function requestSetValue(value, cellNumebr, isFinish = false){
     chatSocket.send(JSON.stringify({
         "kind": "set_value",
         "cell_number": cellNumebr,
-        "value": value
+        "value": value,
+        "is_finish": isFinish
     }));
 }
 
@@ -461,7 +469,6 @@ function startEventListener(){
     hiddenTongue.addEventListener('click', toggleVisibleAddOption);
 
     /* Timer start */
-    timerNode = document.getElementById('personal-timer');
     setInterval(startTimer, 1000);
 
 }
@@ -527,9 +534,40 @@ function selectDigit(numberNode){
 }
 
 function updateProcessBar(nick, value){
-    const progressBar = document.querySelector(`div.user-score-container[name="${nick}"] progress`);
+    const progressBar = document.querySelector(`div.score-user-height[name="${nick}"] progress`);
     if (progressBar != undefined){
         progressBar.value = value;
+    }
+}
+
+function setProcessTimerStart(nick, timeFrom){
+    const progressTimer = getProcessTimer(nick);
+    if (progressTimer != undefined){
+        progressTimer.setAttribute("time-from", timeFrom);
+        progressTimer.setAttribute("is-stop", "false");
+    }
+}
+
+function stopProcessTimer(nick, timeTo){
+    const progressTimer = getProcessTimer(nick);
+    if (progressTimer != undefined){
+        progressTimer.setAttribute("is-stop", "true");
+        updateProcessTimer(progressTimer, timeTo, true);
+    }
+}
+
+function updateProcessTimer(progressTimer, timeTo = undefined, isForce= false){
+    if (progressTimer.getAttribute('is-stop') === 'false' || isForce){
+        timeTo = timeTo || ~~((new Date()).getTime() / 1000);
+        timeFrom = Number(progressTimer.getAttribute('time-from'));
+        timeDelta = timeTo - timeFrom;
+
+        let second = timeDelta % 60;
+        if (second < 10)
+            second = "0" + second;
+        let minuts = ~~(timeDelta  / 60);
+
+        progressTimer.innerText = `${minuts}:${second}`;
     }
 }
 
@@ -538,20 +576,6 @@ function recalculateProcessBar(userOptionNode){
     let nick = userOptionNode.getAttribute('name');
 
     updateProcessBar(nick, quantity);
-}
-
-function incriceProcessBar(nick){
-    const progressBar = document.querySelector(`div.user-score-container[name="${nick}"] progress`);
-    if (progressBar != undefined){
-        progressBar.value = 1 + progressBar.value;
-    }
-}
-
-function decriceProcessBar(nick){
-    const progressBar = document.querySelector(`div.user-score-container[name="${nick}"] progress`);
-    if (progressBar != undefined){
-        progressBar.value = 1 - progressBar.value;
-    }
 }
 
 function toggleVisibleAddOption(event){
@@ -787,12 +811,10 @@ function setCellValueAndSend(cellNode, value){
         let oldValue = cellNode.querySelector('p').textContent.trim();
         let oldQuantity = document.evaluate(`.//div[contains(@class,'sudoku-cell')]/p[text() = '${oldValue}']`, userOptionNode, null, XPathResult.UNORDERED_NODE_SNAPSHOT_TYPE).snapshotLength;
         
-        if (!isNoteMode){
-            requestSetValue(value, Number(cellNode.getAttribute('number')));
-        }
         setCellValue(cellNode, value);
-
-        
+        if (!isNoteMode){
+            requestSetValue(value, Number(cellNode.getAttribute('number')), isFinish(userOptionNode));
+        }
     
         if (oldQuantity == SIDE_SIZE){
             const oldNumberNode = document.evaluate(`//div[contains(@class,'numbers-button')]/p[contains(., '${oldValue}')]/..`, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE).singleNodeValue;
@@ -846,16 +868,11 @@ function rejectTwitchChannel(){
 }
 
 function startTimer(){
-    if (isGenereate){
-        let timeDelta = new Date() - timerStartTime;
+    const allTimers = getAllTimers();
 
-        let second = ~~(timeDelta  / 1000) % 60;
-        if (second < 10)
-            second = "0" + second;
-        let minuts = ~~(timeDelta  / 60000);
-
-        timerNode.innerText = `${minuts}:${second}`;
-    }
+    allTimers.forEach(timer => {
+        updateProcessTimer(timer);
+    });
 }
 
 /****************************
@@ -899,4 +916,19 @@ function getFilledCellQuantity(userOptionNode, onlyTruth = false){
     }
 
     return quantity
+}
+
+function getProcessTimer(nick){
+    if (selfnick == nick){
+        return document.getElementById('personal-timer');
+    }
+    return document.querySelector(`div.score-user-height[name="${nick}"] .sudoku-solving-timer`);
+}
+
+function getAllTimers(isActivity = true){
+    if (isActivity){
+        return document.querySelectorAll('.sudoku-solving-timer[is-stop="false"]');
+    } else {
+        return document.querySelectorAll('.sudoku-solving-timer');
+    }
 }
