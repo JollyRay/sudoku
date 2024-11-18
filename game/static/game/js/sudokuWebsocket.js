@@ -560,7 +560,7 @@ function updateProcessTimer(progressTimer, timeTo = undefined, isForce= false){
     if (progressTimer.getAttribute('is-stop') === 'false' || isForce){
         timeTo = timeTo || ~~((new Date()).getTime() / 1000);
         timeFrom = Number(progressTimer.getAttribute('time-from'));
-        timeDelta = timeTo - timeFrom;
+        timeDelta = Math.max(timeTo - timeFrom, 0);
 
         let second = timeDelta % 60;
         if (second < 10)
