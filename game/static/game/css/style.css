@@ -387,7 +387,10 @@ header {
 }
 .self-options {
     margin-left: 100px;
-    height: 998px;
+    height: 993px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
 }
 .self-options .extra-sudoku-message {
     color: black;
@@ -443,7 +446,7 @@ header {
     background-color: var(--light-blue);
 }
 .self-interface {
-    padding-top: 40px;
+    padding-top: 160px;
 }
 .number-board {
     display: grid;
