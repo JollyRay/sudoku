@@ -766,10 +766,12 @@ function rerenderNotes(cellNode){
 function setCellValue(cellNode, value){
     let fieldForValue = cellNode.querySelector('p');
     let noteCells = cellNode.querySelectorAll('div.cell-notes div');
+
+    if (cellNode.classList.contains('wrong-answer')){
+        cellNode.classList.remove('wrong-answer');
+    }
+
     if (isNoteMode){
-        if (cellNode.classList.contains('wrong-answer')){
-            cellNode.classList.remove('wrong-answer');
-        }
         fieldForValue.innerText = '';
         cellNode.style.backgroundImage = '';
         if (noteCells[value - 1].innerText){
@@ -788,7 +790,9 @@ function setCellValue(cellNode, value){
 
     if (value || (fieldForValue.innerText != value && value > 0 && value <= 9)){
         fieldForValue.innerText = value;
-        cellNode.classList.add('user-answer');
+        if (!cellNode.classList.contains('static-answer')){
+            cellNode.classList.add('user-answer');
+        }
     } else {
         fieldForValue.innerText = '';
         cellNode.classList.remove('user-answer');
@@ -800,9 +804,6 @@ function setCellValue(cellNode, value){
         cellNode.style.backgroundImage = (value) ? `url("${IMAGE_MAP[sudokuMode][value]}")` : '';
     }
 
-    // noteCells.forEach(noteElement => {
-    //     noteElement.innerText = '';
-    // });
 }
 
 function setCellValueAndSend(cellNode, value){
