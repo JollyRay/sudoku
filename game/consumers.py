@@ -108,7 +108,10 @@ class SudokuConsumer(AsyncWebsocketConsumer):
         if func is None:
             return
         
-        await func(self, **text_data_json)
+        try:
+            await func(self, **text_data_json)
+        except TypeError:
+            logging.warning(f'User did not provide all the arguments for function "{kind}"')
 
     async def send_full_data(self, **data):
         await self.channel_layer.group_send(
