@@ -145,3 +145,25 @@ CHANNEL_LAYERS = {
 
 SECRET_WEBSOCKET_ADMIN_KEY_HEADER_BYTE = os.getenv('SECRET_WEBSOCKET_ADMIN_HEADER_KEY').encode()
 SECRET_WEBSOCKET_ADMIN_KEY_VALUE_BYTE = os.getenv('SECRET_WEBSOCKET_ADMIN_VALUE_KEY').encode()
+
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+        },
+    },
+    "root": {
+        "handlers": ["console"],
+        "level": os.getenv("DJANGO_LOG_LEVEL", "INFO"),
+    },
+    "loggers": {
+        "django": {
+            "handlers": ["console"],
+            "level": os.getenv("DJANGO_LOG_LEVEL", "INFO"),
+            "propagate": False,
+        },
+    },
+}

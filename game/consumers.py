@@ -86,8 +86,8 @@ class SudokuConsumer(AsyncWebsocketConsumer):
     async def dispatch(self, message):
         try:
             await super().dispatch(message)
-        except ValueError: 
-            print('Erroe ignore')
+        except ValueError as err: 
+            logging.error('Erroe ignore')
 
     async def receive(self, text_data):
         
@@ -102,7 +102,7 @@ class SudokuConsumer(AsyncWebsocketConsumer):
             await self.close()
             return
         
-        print(f'WebSocket {kind} {self.scope["path"]} [{self.scope["client"][0]}:{self.scope["client"][1]}]')
+        logging.info(f'WebSocket {kind} {self.scope["path"]} [{self.scope["client"][0]}:{self.scope["client"][1]}]')
         func = userRequestHandler.reqest_type_map.get(kind)
 
         if func is None:
@@ -208,7 +208,7 @@ class SudokuConsumer(AsyncWebsocketConsumer):
             self.is_twtich_channel = respond.status_code == 200
             await self.send(text_data = json.dumps({'kind': 'is_add_twitch', 'ok': respond.status_code == 200}))
         except requests.exceptions.ConnectionError:
-            print(f'Connectiob error {host}:{port}')
+            logging.error(f'Connectiob error {host}:{port}')
 
     @userRequestHandler('admin_bonus')
     async def catch_admin_bonus(self, to, bonus_type, *args, **kwargs):
