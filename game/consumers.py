@@ -171,11 +171,11 @@ class SudokuConsumer(AsyncWebsocketConsumer):
             extra_info['bonus_type'] = bonus_name
             extra_info['detale'] = await bonusHandler.reqest_type_map[bonus_name](self)
 
-            if is_finish:
-                finish_time = await database_sync_to_async(SudokuBoarderProxy.finish(self.room_code, self.nick))
-                if finish_time is not None:
-                    extra_info['is_finish'] = True
-                    extra_info['time_to'] = finish_time
+        if is_finish:
+            finish_time = await database_sync_to_async(SudokuBoarderProxy.finish)(self.room_code, self.nick)
+            if finish_time is not None:
+                extra_info['is_finish'] = True
+                extra_info['time_to'] = finish_time
 
         
         await self.send_full_data(

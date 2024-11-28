@@ -561,7 +561,7 @@ function stopProcessTimer(nick, timeTo){
 function updateProcessTimer(progressTimer, timeTo = undefined, isForce= false){
     if (progressTimer.getAttribute('is-stop') === 'false' || isForce){
         let nowDate = new Date();
-        timeTo = timeTo || (~~( nowDate.getTime() / 1000) - nowDate.getTimezoneOffset() * 60);
+        timeTo = timeTo || (~~( nowDate.getTime() / 1000));
         timeFrom = Number(progressTimer.getAttribute('time-from'));
         timeDelta = Math.max(timeTo - timeFrom, 0);
 
