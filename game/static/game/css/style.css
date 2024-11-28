@@ -395,14 +395,6 @@ header {
 .self-options .extra-sudoku-message {
     color: black;
 }
-.timer{
-    height: 100px;
-    width: 350px;
-    padding-top: 10px;
-    color: white;
-    font-size: 28px;
-    font-family: BLACKPASTDEMO;
-}
 .visible-option {
     display: flex;
     flex-direction: row;
@@ -620,8 +612,25 @@ header {
 .score-user-height {
     height: 60px;
 }
+.self-options .score-user-height{
+    height: 100px;
+    width: 350px;
+    padding-top: 10px;
+    
+    display: flex;
+    justify-content: space-between;
+    flex-direction: row;
+}
+.self-options .score-user-height .sudoku-solving-timer{
+    color: white;
+    font-size: 28px;
+    font-family: BLACKPASTDEMO;
+}
+.self-options .score-user-height .sudoku-solving-timer::before{
+    content: 'Timer: ';
+}
 .user-score-container {
-    position: absolute;
+    position: relative;
     height: 30px;
 }
 .user-score-container:hover {

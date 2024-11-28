@@ -1,0 +1,26 @@
+{% load sudoku_tags %}
+
+<div class="user-option">
+    <h1 class="nick-field"></h1>
+    <div class="sudoku-field">
+        <div class="sudoku-big-cell-0 sudoku-big-cell" big-cell-index="0">
+        {% for indexs in 81|range_sudoku %}
+            <div class="sudoku-cell-{{ indexs.cell_in_big_cell_index }} sudoku-cell" number="{{ indexs.finish_index }}" now="{{ indexs.finish_index }}">
+                <p></p>
+                <div class="cell-notes">
+                    {% for index in 9|range %}
+                    <div></div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% if not forloop.last and forloop.counter|divisibleby:"9" %}
+            <div class="extra-big-cell-message"></div></div><div class="sudoku-big-cell-{{ indexs.big_cell_number }} sudoku-big-cell" big-cell-index="{{ indexs.big_cell_number }}">
+            {% endif %}
+
+        {% endfor %}
+        <div class="extra-big-cell-message"></div>
+        </div>
+        <div class="extra-sudoku-message">Победютьканье</div>
+
+    </div>
+</div>

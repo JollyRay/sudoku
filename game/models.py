@@ -1,5 +1,5 @@
 from django.db.models import *
-from random import randint
+from random import randint, sample
 from sys import maxsize
 
 # Create your models here.
@@ -11,7 +11,7 @@ class LobbySetting(Model):
 
     code = CharField(max_length = 32, blank = False, null = False, unique = True)
     seed = BigIntegerField(default = genereate_seed)
-    time_create = DateField(auto_now = True)
+    time_create = DateTimeField(auto_now = True)
 
     class Meta:
         verbose_name = 'Лобби'
@@ -27,12 +27,18 @@ class LobbySetting(Model):
 class UserSetting(Model):
     nick = CharField(max_length = 32, blank = False, null = False)
     lobby = ForeignKey('LobbySetting', on_delete = CASCADE, blank = False, null = False)
-    user_seed = BigIntegerField(blank = True, null = True)
+    board = ManyToManyField('SudokuBoard')
+    time_from = DateTimeField(auto_now = False, auto_now_add = False, null = True, default = None)
+    time_to = DateTimeField(auto_now = False, auto_now_add = False, null = True, default = None)
 
     class Meta:
-        unique_together = ('nick', 'lobby',)
+        unique_together = ('nick', 'lobby')
         verbose_name = 'Канал'
         verbose_name_plural = 'Каналы'
+
+        indexes = [
+            Index(fields=['nick', 'lobby']),
+        ]
 
     def __str__(self):
         return f'Lobby: {self.lobby.code} - {self.nick}'
@@ -40,6 +46,29 @@ class UserSetting(Model):
 class SudokuBoardManager(Manager):
     def random(self, filter: dict = {}, exclude: dict = {}):
         query = self.filter(**filter).exclude(**exclude).values('id')
+        
+        return self._collect_cell_by_id(query)
+    
+    def random_for_user(self, room_code: str, nick: str, difficulty_name: str) -> QuerySet: 
+        """
+        Get 81 (or other by the number of cells on the board) cells
+
+        :param room_code: lobby name
+        :param nick: nick of lobby user
+        :param difficulty_name: difficulty of board. On defualt 'easy', 'medium', 'hard'.
+        :return: QuerySet[SudokuCell] for one board 
+
+        P.S.
+        random_for_user equivalent to random with arguments:
+            filter = {'difficulty__name' = difficulty_name},
+            exclude = {'usersetting__nick': nick, 'usersetting__lobby__code' = room_code)}
+        """
+        query = self.filter(difficulty__name = difficulty_name).exclude(usersetting__nick = nick, usersetting__lobby__code = room_code).values('id')
+
+        return self._collect_cell_by_id(query)
+
+
+    def _collect_cell_by_id(self, query: QuerySet):
         count = query.aggregate(count=Count('id'))['count']
         if count == 0:
             return None
@@ -81,7 +110,19 @@ class Difficulty(Model):
     def __str__(self) -> str:
         return f'{self.name} limit - {self.top_limit}'
 
+class SudokuCellManager(Manager):
+
+    def get_random_empty_cell_id(self, board_id, quantity):
+        empty_cell = self.filter(board_id = board_id, is_empty = True).values('id')
+        empty_cells_id = list(map(lambda cell: cell['id'], empty_cell))
+        try: 
+            return sample(empty_cells_id, k = quantity)
+        except ValueError:
+            return empty_cells_id
+
 class SudokuCell(Model):
+    objects = SudokuCellManager()
+
     board = ForeignKey('SudokuBoard', on_delete = CASCADE, blank = False, null = False)
     number = IntegerField(blank = False, null = False)
     value = IntegerField(blank = False, null = False)
@@ -91,3 +132,19 @@ class SudokuCell(Model):
         unique_together = ('board', 'number')
         verbose_name = 'Ячейка'
         verbose_name_plural = 'Ячейки'
+
+        indexes = [
+            Index(fields=['board', 'number']),
+        ]
+
+class UserCell(Model):
+    user = ForeignKey('UserSetting', on_delete = CASCADE, blank = False, null = False)
+    cell = ForeignKey('SudokuCell', on_delete = CASCADE, blank = False, null = False)
+    value = IntegerField(blank = False, null = False, default = 0)
+    bonus_name = CharField(max_length = 32, blank = False, null = True)
+    was_equal = BooleanField(blank = False, null = False, default = False)
+
+    class Meta:
+        unique_together = ('user', 'cell')
+        verbose_name = 'Пользовательская ячейка'
+        verbose_name_plural = 'Пользовательские ячейки'

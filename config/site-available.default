@@ -6,7 +6,6 @@ server {
 
 server {
     listen 443 ssl;
-    ssl on;
     server_name schepka26.ru;
 
     ssl_certificate     /etc/letsencrypt/live/schepka26.ru/fullchain.pem;

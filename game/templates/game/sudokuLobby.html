@@ -9,10 +9,6 @@
         <div class="self-options">
             <div class="visible-option">
                 <div>
-                    <div class="timer">
-                        <span>Timer: </span>
-                        <span id="personal-timer" class="sudoku-solving-timer">--:--</span>
-                    </div>
                     <div id="self-sudoku"></div>
                     <div class="button-container">
                         <button id="generate-sudoku" class="genereate-button">Generate</button>
@@ -97,39 +93,10 @@
 
 {% block extra_script %}
 <template id="user-optrion-template">
-    <div class="user-option">
-        <h1 class="nick-field"></h1>
-        <div class="sudoku-field">
-            <div class="sudoku-big-cell-0 sudoku-big-cell" big-cell-index="0">
-            {% for indexs in 81|range_sudoku %}
-                <div class="sudoku-cell-{{ indexs.cell_in_big_cell_index }} sudoku-cell" number="{{ indexs.finish_index }}" now="{{ indexs.finish_index }}">
-                    <p></p>
-                    <div class="cell-notes">
-                        {% for index in 9|range %}
-                        <div></div>
-                        {% endfor %}
-                    </div>
-                </div>
-                {% if not forloop.last and forloop.counter|divisibleby:"9" %}
-                <div class="extra-big-cell-message"></div></div><div class="sudoku-big-cell-{{ indexs.big_cell_number }} sudoku-big-cell" big-cell-index="{{ indexs.big_cell_number }}">
-                {% endif %}
-
-            {% endfor %}
-            <div class="extra-big-cell-message"></div>
-            </div>
-            <div class="extra-sudoku-message">Победютьканье</div>
-
-        </div>
-    </div>
+    {% include "game/sudokuBoard.html" %}
 </template>
 <template id="score-template">
-    <div class="score-user-height">
-        <p class="sudoku-solving-timer" is-stop="true">--:--</p>
-        <div class="user-score-container">
-            <progress class="score-progress" max="81" value="0"></progress>
-            <p class="score-owner-name"></p>
-        </div>
-    </div>
+    {% include "game/sudokuProgressBar.html" %}
 </template>
 {{ room_code|json_script:"room-code" }}
 <script src="{% static 'game/js/sudokuWebsocket.js' %}"></script>

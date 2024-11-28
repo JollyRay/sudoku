@@ -9,10 +9,12 @@ from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.db import database_sync_to_async
 from django.db.utils import IntegrityError
 
+from game.exception import SudokuException
+
 from .models import *
 from sudoku.settings import SECRET_WEBSOCKET_ADMIN_KEY_VALUE_BYTE, SECRET_WEBSOCKET_ADMIN_KEY_HEADER_BYTE
 
-from .utils import AddHandler, convert_clean_board_to_map, create_bonus_map, SudokuMap
+from .utils import AddHandler, SudokuBoarderProxy
 
 userRequestHandler = AddHandler()
 bonusHandler = AddHandler()
@@ -59,17 +61,14 @@ class SudokuConsumer(AsyncWebsocketConsumer):
         # Generate first data
 
         await self.send_full_data(kind = 'new_user', nick = self.nick)
-        info_maps = await database_sync_to_async(SudokuMap.get_by_room_info_type)(self.room_code)
+        info_maps = await database_sync_to_async(SudokuBoarderProxy.get_room_info)(self.room_code)
         await self.send(text_data = json.dumps({'kind': 'first_data', 'data': info_maps}))
-        SudokuMap.set(self.room_code, self.nick)
         await self.add_channel()
 
     async def disconnect(self, close_code):
         try:
             if not self.is_admin:
-                SudokuMap.remove(self.room_code, self.nick)
-
-                is_remove_lobby = await self.delete_channel()
+                is_remove_lobby = await database_sync_to_async(SudokuBoarderProxy.delete_user)(self.room_code, self.nick)
 
                 if not is_remove_lobby:
                     await self.send_full_data(kind = 'disconection', nick = self.nick)
@@ -83,11 +82,11 @@ class SudokuConsumer(AsyncWebsocketConsumer):
         except AttributeError:
             pass
 
-    async def dispatch(self, message):
-        try:
-            await super().dispatch(message)
-        except ValueError: 
-            print('Erroe ignore')
+    # async def dispatch(self, message):
+    #     try:
+    #         await super().dispatch(message)
+    #     except ValueError as err: 
+    #         logging.error('Erroe ignore')
 
     async def receive(self, text_data):
         
@@ -102,13 +101,19 @@ class SudokuConsumer(AsyncWebsocketConsumer):
             await self.close()
             return
         
-        print(f'WebSocket {kind} {self.scope["path"]} [{self.scope["client"][0]}:{self.scope["client"][1]}]')
+        logging.info(f'WebSocket {kind} {self.scope["path"]} [{self.scope["client"][0]}:{self.scope["client"][1]}]')
         func = userRequestHandler.reqest_type_map.get(kind)
 
         if func is None:
             return
         
-        await func(self, **text_data_json)
+        try:
+            await func(self, **text_data_json)
+        except SudokuException as e:
+            logging.error(e)
+            self.close()
+        except TypeError:
+            logging.warning(f'User did not provide all the arguments for function "{kind}"')
 
     async def send_full_data(self, **data):
         await self.channel_layer.group_send(
@@ -132,24 +137,20 @@ class SudokuConsumer(AsyncWebsocketConsumer):
     @userRequestHandler('generate')
     async def generate_sudoku(self, difficulty = 'medium', *args, **kwargs):
 
-        boards = await self.get_random_board(difficulty)
-        if boards is None:
+        if not await database_sync_to_async(SudokuBoarderProxy.add_random_board)(self.room_code, self.nick, difficulty, [*bonusHandler.reqest_type_map]):
             await self.close()
             return
 
-        solution_board, clean_board = boards
-        bonus_map = create_bonus_map(clean_board, [*bonusHandler.reqest_type_map])
+        clean_board = await database_sync_to_async(SudokuBoarderProxy.get_clean_board)(self.room_code, self.nick)
+        bonus_map = await database_sync_to_async(SudokuBoarderProxy.get_bonus_map)(self.room_code, self.nick)
+        time_from = await database_sync_to_async(SudokuBoarderProxy.get_time_from)(self.room_code, self.nick)
 
-        SudokuMap.set(self.room_code, self.nick, clean_board, solution_board, bonus_map)
-        bonus_map = SudokuMap.get_bonus_for_send(self.room_code, self.nick)
-
-        info_board = convert_clean_board_to_map(clean_board)
         await self.send_full_data(
             kind = 'board',
             to = self.nick,
-            board = info_board,
+            board = clean_board,
             bonus = bonus_map,
-            time_from = SudokuMap.get_time_from(self.room_code, self.nick)
+            time_from = time_from
         )
 
     @userRequestHandler('set_value')
@@ -159,21 +160,22 @@ class SudokuConsumer(AsyncWebsocketConsumer):
         if not value:
             value = 0
 
-        is_equal = await database_sync_to_async(SudokuMap.equival)(self.room_code, self.nick, value, cell_number)
+        is_equal, bonus_name = await database_sync_to_async(SudokuBoarderProxy.set_value)(self.room_code, self.nick, value, cell_number)
 
         if is_equal is None:
             return
         
         extra_info = {}
-        if is_equal and value:
-            bonus_name = SudokuMap.pop_bonus(self.room_code, self.nick, cell_number)
-            if bonus_name:
-                extra_info['bonus_type'] = bonus_name
-                extra_info['detale'] = await bonusHandler.reqest_type_map[bonus_name](self)
+        if is_equal and bonus_name:
 
-            if is_finish and SudokuMap.valid_finish(self.room_code, self.nick):
-                extra_info['is_finish'] = True
-                extra_info['time_to'] = SudokuMap.get_time_to(self.room_code, self.nick)
+            extra_info['bonus_type'] = bonus_name
+            extra_info['detale'] = await bonusHandler.reqest_type_map[bonus_name](self)
+
+            if is_finish:
+                finish_time = await database_sync_to_async(SudokuBoarderProxy.finish(self.room_code, self.nick))
+                if finish_time is not None:
+                    extra_info['is_finish'] = True
+                    extra_info['time_to'] = finish_time
 
         
         await self.send_full_data(
@@ -205,7 +207,7 @@ class SudokuConsumer(AsyncWebsocketConsumer):
             self.is_twtich_channel = respond.status_code == 200
             await self.send(text_data = json.dumps({'kind': 'is_add_twitch', 'ok': respond.status_code == 200}))
         except requests.exceptions.ConnectionError:
-            print(f'Connectiob error {host}:{port}')
+            logging.error(f'Connectiob error {host}:{port}')
 
     @userRequestHandler('admin_bonus')
     async def catch_admin_bonus(self, to, bonus_type, *args, **kwargs):
@@ -273,42 +275,3 @@ class SudokuConsumer(AsyncWebsocketConsumer):
             UserSetting.objects.create(lobby = lobby, nick = self.nick)
         except IntegrityError:
             logging.error(f'User {self.nick} exist name.')
-
-    """
-    Delete channel and lobby, if channel was last
-
-    :param group_name: lobby name
-    :param nick: channel ownder nick
-    :return: is delete lobby 
-    """
-    @database_sync_to_async
-    def delete_channel(self) -> bool:
-        try:
-            UserSetting.objects.filter(lobby__code = self.room_code, nick = self.nick).delete()
-            count_channels = UserSetting.objects.filter(lobby__code = self.room_code).count()
-            if count_channels == 0:
-                LobbySetting.objects.get(code = self.room_code).delete()
-                return True
-            return False
-        except (UserSetting.DoesNotExist, LobbySetting.DoesNotExist):
-            return False
-
-    @database_sync_to_async
-    def get_random_board(self, difficulty):
-        solution_board: QuerySet[SudokuCell] = SudokuBoard.objects.random(
-            filter = {'difficulty__name': difficulty},
-            exclude = {'id__in': SudokuMap.get_exclude_id(self.room_code, self.nick)}
-        )
-        
-        if solution_board is None:
-            solution_board: QuerySet[SudokuCell] = SudokuBoard.objects.random(filter = {'difficulty__name': difficulty})
-            if solution_board is None:
-                return None
-        
-        clean_board = [[0 for _ in range(9)] for _ in range(9)]
-        for cell in solution_board:
-            row, col = cell.number // 9 , cell.number % 9
-            if not cell.is_empty:
-                clean_board[row][col] = cell.value
-
-        return solution_board, clean_board

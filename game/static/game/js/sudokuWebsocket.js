@@ -144,9 +144,7 @@ function updateValueFromServer(nick, cellNumber, value, isRight, isFinish = fals
     const userOptionNode = findBoard(nick); 
     if (userOptionNode == null) return;
 
-    if (!isEqualValue(nick, cellNumber, value)){
-        recalculateProcessBar(userOptionNode);
-    }
+    recalculateProcessBar(userOptionNode);
 
     const cellNode = userOptionNode.querySelector(`div.sudoku-cell[number="${cellNumber}"]`);
 
@@ -312,29 +310,33 @@ function fillNamedBoard(nick, boardInfo, bonusMap, time_from = undefined, time_t
 }
 
 function createBorder(nick, isSelf){
+
+    const scoreTemplate = document.getElementById('score-template'); 
+    const scoreTemplateClone = scoreTemplate.content.cloneNode(true);
+    scoreTemplateClone.querySelector('.score-owner-name').innerText = sliceNick(nick);
+    const mainContainer = scoreTemplateClone.querySelector('.score-user-height');
+    mainContainer.setAttribute('name', nick);
+    scoreTemplateClone.querySelector('.score-progress').value = 0;
+
+    const boardTemplate = document.getElementById("user-optrion-template");
+    const boardClone = boardTemplate.content.cloneNode(true);
+
     let container;
     if (isSelf){
         container = document.getElementById('self-sudoku');
+
+        boardClone.children[0].insertBefore(scoreTemplateClone, boardClone.children[0].firstChild);
     } else{
         container = document.querySelector('.enemy-option');
 
         const scoreContainerNode = document.getElementById('score-container');
-        
-        const scoreTemplate = document.getElementById('score-template'); 
-        const scoreTemplateClone = scoreTemplate.content.cloneNode(true);
-        scoreTemplateClone.querySelector('.score-owner-name').innerText = sliceNick(nick);
-        const mainContainer = scoreTemplateClone.querySelector('.score-user-height')
-        mainContainer.setAttribute('name', nick);
         mainContainer.addEventListener('click', selectEnemy);
-        scoreTemplateClone.querySelector('.score-progress').value = 0;
         scoreContainerNode.appendChild(scoreTemplateClone);
     }
-    const template = document.getElementById("user-optrion-template");
 
-    const clone = template.content.cloneNode(true);
-    const optrionHeader = clone.querySelector("h1");
+    const optrionHeader = boardClone.querySelector("h1");
     optrionHeader.textContent = sliceNick(nick);
-    const userOption = clone.querySelector(".user-option");
+    const userOption = boardClone.querySelector(".user-option");
     userOption.setAttribute('name', nick);
     if (sudokuMode != 'digit' ) { userOption.classList.add('backcground-value-mode'); }
     if (document.querySelectorAll('.enemy-option .user-option').length > 0) {
@@ -345,12 +347,12 @@ function createBorder(nick, isSelf){
 
 
     if (isSelf){
-        clone.querySelectorAll('div.sudoku-cell').forEach(cell => {
+        boardClone.querySelectorAll('div.sudoku-cell').forEach(cell => {
             cell.addEventListener('click', selectNewCell);
         });
     }
 
-    container.appendChild(clone);
+    container.appendChild(boardClone);
 
     return container.lastElementChild;
 }
@@ -558,7 +560,8 @@ function stopProcessTimer(nick, timeTo){
 
 function updateProcessTimer(progressTimer, timeTo = undefined, isForce= false){
     if (progressTimer.getAttribute('is-stop') === 'false' || isForce){
-        timeTo = timeTo || ~~((new Date()).getTime() / 1000);
+        let nowDate = new Date();
+        timeTo = timeTo || (~~( nowDate.getTime() / 1000) - nowDate.getTimezoneOffset() * 60);
         timeFrom = Number(progressTimer.getAttribute('time-from'));
         timeDelta = Math.max(timeTo - timeFrom, 0);
 
@@ -920,9 +923,6 @@ function getFilledCellQuantity(userOptionNode, onlyTruth = false){
 }
 
 function getProcessTimer(nick){
-    if (selfnick == nick){
-        return document.getElementById('personal-timer');
-    }
     return document.querySelector(`div.score-user-height[name="${nick}"] .sudoku-solving-timer`);
 }
 
