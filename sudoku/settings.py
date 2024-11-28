@@ -167,3 +167,8 @@ LOGGING = {
         },
     },
 }
+
+# Time zone
+# https://docs.djangoproject.com/en/5.0/ref/settings/#use-tz
+
+USE_TZ = True
