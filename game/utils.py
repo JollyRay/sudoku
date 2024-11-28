@@ -6,6 +6,7 @@ from itertools import islice
 from copy import deepcopy
 from math import sqrt
 from time import time
+from zoneinfo import ZoneInfo
 
 from game.exception import SudokuException, UserDisconnect, BoardNotReqest
 
@@ -53,7 +54,7 @@ class SudokuBoarderProxy:
 
         UserCell.objects.bulk_create(user_cells)
 
-        user_setting.time_from = datetime.now()
+        user_setting.time_from = datetime.now(ZoneInfo('Europe/London'))
         user_setting.time_to = None
         user_setting.save()
 
@@ -165,7 +166,7 @@ class SudokuBoarderProxy:
         :param value: value sent by user
         :param cell_number: cell number for value
         :return:    (None, None) - if value not change
-                    (True, None) - if value is truth, but bonus not exist
+                    (True, None) - if value is truth or zero, but bonus not exist
                     (True, str) - if value is truth and bonus exist
                     (False, None) - if value is wrong
         """
@@ -179,11 +180,11 @@ class SudokuBoarderProxy:
         if user_cell.value == value:
             return (None, None)
         
-        is_equal = cell.value == value
+        is_equal = cell.value == value or value == 0
         was_equal = not created and user_cell.was_equal
 
         if value != user_cell.value:
-            if is_equal and not was_equal:
+            if is_equal and not was_equal and value != 0:
                 user_cell.was_equal = True
             user_cell.value = value
             user_cell.save()
@@ -270,11 +271,11 @@ class SudokuBoarderProxy:
 
         rigth_count = SudokuCell.objects.filter(Q(board = last_board) & ( Q(is_empty = False) | Q(usercell__user = user_setting) & Q(usercell__value = F('value')))).count()
         if rigth_count == cls.BOARD_SIZE:
-            finis_time = datetime.now()
+            finis_time = datetime.now(ZoneInfo('Europe/London'))
             user_setting.time_to = finis_time
             user_setting.save()
 
-        return finis_time.timestamp()
+        return int(user_setting.time_to.timestamp())
 
     @classmethod
     def get_room_info(cls, room_code):
