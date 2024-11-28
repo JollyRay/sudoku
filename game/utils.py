@@ -1,3 +1,4 @@
+from datetime import datetime
 import itertools
 import pickle
 import random
@@ -5,6 +6,8 @@ from itertools import islice
 from copy import deepcopy
 from math import sqrt
 from time import time
+
+from game.exception import SudokuException, UserDisconnect, BoardNotReqest
 
 from .models import *
 
@@ -21,233 +24,277 @@ class AddHandler:
             return wrapper
         return decorator
 
-class SudokuMap:
-    SIDE_SIZE = 9
-    BOARD_SIZE = SIDE_SIZE * SIDE_SIZE
-    _sudoku_map = dict()
-    """
-    _sudoku_map - all info
+class SudokuBoarderProxy:
 
-    _sudoku_map = {
-        "room_code": {
-            "nick": {
-                "solution": QuerySet[SudokuCell],
-                "clean_board": list(),
-                "exclude": list(),
-                "bonus": {
-                    "cell_number_1": "bonus_name", 
-                    "cell_number_2": "bonus_name",
-                    ... 
-                },
-                "time_from": int,
-                "time_to": int,
-            }
-            ...
-        }
-        ...
-    }
-    """
-
-    SOLUTION_BOARD = 'solution'
-    CLEAN_BOARD = 'clean_board'
-    BONUS_MAP = 'bonus'
-    EXCLUDE_ID = 'exclude'
-    TIME_FROM = 'time_from'
-    TIME_TO = 'time_to'
-
-    def __check_exist_user(func):
-        def wrapper(self, code: str, nick: str, *arg, **kwargs):
-            room = SudokuMap._sudoku_map.get(code)
-            if not room:
-                return
-            user = room.get(nick)
-            if not user:
-                return
-            return func(self, room, user, *arg, **kwargs)
-        return wrapper
+    BOARD_SIDE = 9
+    BOARD_SIZE = BOARD_SIDE * BOARD_SIDE
 
     @classmethod
-    def set(cls, room_code: str, nick: str, clean_board: list[list[int]]|None = None, solution_board: QuerySet[SudokuCell]|None = None, bonus_map: dict[int, str]|None = None) -> bool:
-        room = cls._sudoku_map.get(room_code, False)
-        if not room:
-            room = dict()
-            cls._sudoku_map[room_code] = room
+    def add_random_board(cls, room_code: str, nick: str, difficulty_name: str, bonus_list: list[str], bonus_quantity = 6) -> bool:
 
-        user = room.get(nick, False)
-        if not user:
-            user = dict()
-            room[nick] = user
+        cls._remove_user_cells(room_code, nick)
 
-        user[cls.SOLUTION_BOARD] = solution_board
-        user[cls.CLEAN_BOARD] = clean_board
-        user[cls.BONUS_MAP] = bonus_map
-
-        if solution_board is None:
-            user[cls.EXCLUDE_ID] = []
-
-            user[cls.TIME_FROM] = None
-            user[cls.TIME_TO] = None
-        else:
-            id = solution_board[0].board_id
-            if id in user[cls.EXCLUDE_ID]:
-                user[cls.EXCLUDE_ID] = [id, ]
-            else:
-                user[cls.EXCLUDE_ID].append(id)
-
-            user[cls.TIME_FROM] = int(time())
-            user[cls.TIME_TO] = None
-
-        return True
-    
-    @classmethod
-    def remove(cls, code, nick) -> bool:
-        room: dict = cls._sudoku_map.get(code, False)
-        if not room:
-            return True
+        user_setting = cls._find_user_setting(room_code, nick)
+        if user_setting is None:
+            return False
         
-        room.pop(nick, None)
+        cells = cls._select_cells(room_code, nick, difficulty_name)
+        if cells is None:
+            return False
 
-        if len(room) == 0:
-            del cls._sudoku_map[code]
+        board_id = cells[0].board_id
+        user_setting.board.add(board_id)
+
+        bonus_map = cls._create_bonus_map(board_id, bonus_list, bonus_quantity)
+
+        user_cells = list()
+        for cell_id, bonus_name in bonus_map.items():
+            user_cells.append(UserCell(cell_id = cell_id, user = user_setting, bonus_name = bonus_name))
+
+        UserCell.objects.bulk_create(user_cells)
+
+        user_setting.time_from = datetime.now()
+        user_setting.time_to = None
+        user_setting.save()
 
         return True
     
     @classmethod
-    @__check_exist_user
-    def get_bonus_for_send(cls, code: str, nick: str) -> dict[str, str]:
-        raw_bonus_map: dict[int, str]|None = nick.get(cls.BONUS_MAP)
-        if not raw_bonus_map:
+    def _remove_user_cells(cls, room_code: str, nick: str) -> bool:
+        try:
+            user_settings = UserSetting.objects.get(lobby__code = room_code, nick = nick)
+            user_settings.usercell_set.all().delete()
+            return True
+        except UserSetting.DoesNotExist:
+            return False
+
+    @classmethod
+    def _find_user_setting(cls, room_code: str, nick: str):
+        try:
+            user_setting = UserSetting.objects.get(lobby__code = room_code, nick = nick)
+            return user_setting
+        except UserSetting.DoesNotExist:
             return None
         
-        return {str(key): value for key, value in raw_bonus_map.items()}
+    @classmethod
+    def _select_cells(cls, room_code: str, nick: str, difficulty_name: str) -> QuerySet[SudokuCell]|None:
+        try:
+            cells: QuerySet[SudokuCell] = SudokuBoard.objects.random_for_user(room_code, nick, difficulty_name)
+            
+            if cells is None:
+                user_setting = cls._find_user_setting(room_code, nick)
+                user_setting.board.through.objects.filter(sudokuboard__difficulty__name = difficulty_name).delete()
+                cells: QuerySet[SudokuCell] = SudokuBoard.objects.random_for_user(room_code, nick, difficulty_name)
+
+            return cells
+
+        except UserSetting.DoesNotExist:
+            return None
     
     @classmethod
-    @__check_exist_user
-    def get_static_cell_number(cls, code: str, nick: str) -> list[int]:
-        soludtion_cells: QuerySet[SudokuCell] = nick.get(cls.SOLUTION_BOARD, [])
-        if soludtion_cells is None: return None
+    def _create_bonus_map(cls, boarder_id: int, bonus_list: list[str], quantity: int) -> dict[int, str]:
+        empty_cells_id: list[SudokuCell] = SudokuCell.objects.get_random_empty_cell_id(boarder_id, quantity)
+        bonuses = random.choices(bonus_list, k = len(empty_cells_id))
 
-        static_cells_number = list(cell.number for cell in soludtion_cells if not cell.is_empty)
-        return static_cells_number
+        # TODO: change string as value on link, maybe recreate bonus_list as enum
+
+        return {
+            cell_id: bonus_name for cell_id, bonus_name in zip(empty_cells_id, bonuses)
+        }
+
+    @classmethod
+    def _get_user_setting(cls, room_code: str, nick: str):
+        user_setting = cls._find_user_setting(room_code, nick)
+        if user_setting is None:
+            raise UserDisconnect(room_code, nick)
+        
+        return user_setting
+
+    @classmethod
+    def _get_user_setting_and_last_board(cls, room_code: str, nick: str) -> tuple[UserSetting, SudokuBoard]:
+        user_setting = cls._get_user_setting(room_code, nick)
+
+        lastboard_id = user_setting.board.through.objects.filter(usersetting = user_setting).last()
+
+        if lastboard_id is None:
+            raise BoardNotReqest(room_code, nick)
+        
+        last_board: SudokuBoard = lastboard_id.sudokuboard    
+        return user_setting, last_board
     
     @classmethod
-    @__check_exist_user
-    def get_wrong_answers(cls, code: str, nick: str) -> list[int]:
+    def _find_user_setting_and_last_board(cls, room_code: str, nick: str) -> tuple[UserSetting, SudokuBoard]:
+        user_setting = cls._get_user_setting(room_code, nick)
 
-        clean_board: list[list[int]] = nick[cls.CLEAN_BOARD]
-        if clean_board is None: return None
-        solution_board: QuerySet[SudokuCell] = nick[cls.SOLUTION_BOARD]
+        lastboard_id = user_setting.board.through.objects.filter(usersetting = user_setting).last()
+        if lastboard_id is None:
+            return user_setting, None
+        last_board: SudokuBoard = lastboard_id.sudokuboard
 
-        side_lenght = len(clean_board)
-        squares_quantity = side_lenght ** 2
-        wrong_answer: list = []
-
-        for cell_number in range(squares_quantity):
-            row_index = cell_number // side_lenght
-            column_index = cell_number % side_lenght
-            if not solution_board.filter(value = clean_board[row_index][column_index], number = cell_number).exists():
-                wrong_answer.append(cell_number)
-
-        return wrong_answer
+        # if last_board is None:
+        #     raise BoardNotReqest(room_code, nick)
         
-    @classmethod
-    @__check_exist_user
-    def get_exclude_id(cls, code: str, nick: str):
-        return nick.get(cls.EXCLUDE_ID, [])
+        return user_setting, last_board
 
     @classmethod
-    def get_by_room_info_type(cls, code) -> dict|None:
-        room = cls._sudoku_map.get(code)
-        if room is None:
-            return room
+    def delete_user(self, room_code, nick) -> bool:
+        """
+        delete user from lobby
+
+        :param room_code: room code
+        :param nick: user's nick in room
+        :return: if user was last in lobby and lobby remove, return True. Else return False 
+        """
+        try:
+            UserSetting.objects.filter(lobby__code = room_code, nick = nick).delete()
+            count_channels = UserSetting.objects.filter(lobby__code = room_code).count()
+            if count_channels == 0:
+                LobbySetting.objects.get(code = room_code).delete()
+                return True
+            return False
+        except (UserSetting.DoesNotExist, LobbySetting.DoesNotExist):
+            return False
+
+    @classmethod
+    def set_value(cls, room_code: str, nick: str, value: int, cell_number: int) -> tuple[bool|None, str|None]:
+        """
+        Set value in database
+
+        :param room_code: room code
+        :param nick: user's nick in room
+        :param value: value sent by user
+        :param cell_number: cell number for value
+        :return:    (None, None) - if value not change
+                    (True, None) - if value is truth, but bonus not exist
+                    (True, str) - if value is truth and bonus exist
+                    (False, None) - if value is wrong
+        """
+        user_setting, last_board = cls._get_user_setting_and_last_board(room_code, nick)
         
+        cell: SudokuCell = last_board.sudokucell_set.get(number = cell_number)
+        if not cell.is_empty:
+            return (False, None)
+        
+        user_cell, created = UserCell.objects.get_or_create(user = user_setting, cell = cell)
+        if user_cell.value == value:
+            return (None, None)
+        
+        is_equal = cell.value == value
+        was_equal = not created and user_cell.was_equal
+
+        if value != user_cell.value:
+            if is_equal and not was_equal:
+                user_cell.was_equal = True
+            user_cell.value = value
+            user_cell.save()
+        
+        if not is_equal or was_equal:
+            return (is_equal, None)
+        
+        return (is_equal, user_cell.bonus_name)
+    
+    @classmethod
+    def get_clean_board(cls, room_code: str, nick: str) -> dict[str, int]:
+        user_setting, last_board = cls._find_user_setting_and_last_board(room_code, nick)
+
+        if last_board is None:
+            return None
+
+        clean_board = dict()
+        cells = SudokuCell.objects.filter(Q(board = last_board) & (Q(is_empty = False) | Q(usercell__user = user_setting)))
+
+        for cell in cells:
+
+            if not cell.is_empty:
+                clean_board[str(cell.number)] = cell.value
+            else:
+                user_cell: UserCell|None = cell.usercell_set.first()
+                clean_board[str(cell.number)] = user_cell.value
+
+        return clean_board
+            
+    @classmethod
+    def get_bonus_map(cls, room_code: str, nick: str) -> dict[str, str]:
+        bonus_cells = UserCell.objects.filter(Q(user__nick = nick) & Q(user__lobby__code = room_code) & ~Q(bonus_name = None)).values('bonus_name', 'cell__number')
+        bonus_map = dict()
+
+        for bonus_cell in bonus_cells:
+            bonus_map[str(bonus_cell['cell__number'])] = bonus_cell['bonus_name']
+
+        return bonus_map
+
+    @classmethod
+    def get_wrong_answers(cls, room_code: str, nick: str) -> list[int]:
+        wrong_cell = UserCell.objects.filter(Q(user__nick = nick) & Q(user__lobby__code = room_code) & ~Q(value = 0) & ~Q(value = F('cell__value'))).values('cell__number')
+        wrong_answer_list = list(map(lambda wrong_cell: wrong_cell['cell__number'], wrong_cell))
+        return wrong_answer_list
+
+    @classmethod
+    def get_static_cell_number(cls, room_code: str, nick: str) -> list[int]:
+        _, last_board = cls._find_user_setting_and_last_board(room_code, nick)
+        if last_board is None:
+            return None
+        static_cells = SudokuCell.objects.filter(board = last_board, is_empty = False).values('number')
+        static_answer_list = list(map(lambda wrong_cell: wrong_cell['number'], static_cells))
+        return static_answer_list
+
+    @classmethod
+    def get_time_from(cls, room_code: str, nick: str) -> int|None:
+        user_setting = cls._get_user_setting(room_code, nick)
+        time_from = user_setting.time_from
+        if time_from is None:
+            return None
+        
+        time_from = int(time_from.timestamp())
+        return time_from
+
+    @classmethod
+    def get_time_to(cls, room_code: str, nick: str) -> int|None:
+        user_setting = cls._get_user_setting(room_code, nick)
+        time_to = user_setting.time_to
+        if time_to is None:
+            return None
+        
+        time_to = int(time_to.timestamp())
+        return time_to
+
+    @classmethod
+    def finish(cls, room_code: str, nick: str) -> int|None:
+        try:
+            user_setting, last_board = cls._get_user_setting_and_last_board(room_code, nick)
+        except SudokuException:
+            return None
+        
+        if user_setting.time_to is not None:
+            return int(user_setting.time_to.timestamp())
+
+        rigth_count = SudokuCell.objects.filter(Q(board = last_board) & ( Q(is_empty = False) | Q(usercell__user = user_setting) & Q(usercell__value = F('value')))).count()
+        if rigth_count == cls.BOARD_SIZE:
+            finis_time = datetime.now()
+            user_setting.time_to = finis_time
+            user_setting.save()
+
+        return finis_time.timestamp()
+
+    @classmethod
+    def get_room_info(cls, room_code):
         info_map = dict()
 
-        for nick, boards in room.items():
+        lobby_nicks = list(map(lambda user_setting: user_setting['nick'], UserSetting.objects.filter(lobby__code = room_code).values('nick')))
+        for nick in lobby_nicks:
+
+            # TODO: in one query if posible
+
             info_map[nick] = {
-                'value': convert_clean_board_to_map(boards[cls.CLEAN_BOARD]) if boards[cls.CLEAN_BOARD] else None,
-                'bonus': cls.get_bonus_for_send(code, nick),
-                'static_answer': cls.get_static_cell_number(code, nick),
-                'wrong_answer': cls.get_wrong_answers(code, nick),
-                'time_from': boards[cls.TIME_FROM],
-                'time_to': boards[cls.TIME_TO],
+                'value': cls.get_clean_board(room_code, nick),
+                'bonus': cls.get_bonus_map(room_code, nick),
+                'static_answer': cls.get_static_cell_number(room_code, nick),
+                'wrong_answer': cls.get_wrong_answers(room_code, nick),
+                'time_from': cls.get_time_from(room_code, nick),
+                'time_to': cls.get_time_to(room_code, nick),
             }
 
         return info_map
-    
-    @classmethod
-    @__check_exist_user
-    def get_bonus(cls, code: str, nick: str, cell_number) -> str|None:
-        bonus_map = nick.get(cls.BONUS_MAP)
-        if not bonus_map:
-            return
-        return bonus_map.get(cell_number)
-    
-    @classmethod
-    @__check_exist_user
-    def pop_bonus(cls, code: str, nick: str, cell_number: int) -> str|None:
-        bonus_map = nick.get(cls.BONUS_MAP)
-        if not bonus_map:
-            return
-        return bonus_map.pop(cell_number, None)
-
-    @classmethod
-    @__check_exist_user
-    def equival(cls, code: str, nick: str, value: int, cell_number: int, save: bool = True) -> bool|None:
-        """
-        compares solution and digit by user
-
-        :param code: room code
-        :param nick: user's nick in room
-        :param value: user get value for compare with solution
-        :param cell_number: cell number in board for compare
-        :param save: after compare save in database
-        :return: matches value and solution or None if board not exist 
-        """
-
-
-        solution_board = nick.get(cls.SOLUTION_BOARD, None)
-
-        if solution_board is None:
-            return None
-        
-        is_equel = value == 0 or solution_board.filter(value = value, number = cell_number).exists()
-
-        if save:
-            row = cell_number // cls.SIDE_SIZE
-            column = cell_number % cls.SIDE_SIZE
-            nick[cls.CLEAN_BOARD][row][column] = value
-
-        return is_equel
-    
-    @classmethod
-    @__check_exist_user
-    def valid_finish(cls, code: str, nick: str):
-
-        solution_board: QuerySet[SudokuCell]|None = nick.get(cls.SOLUTION_BOARD, None)
-        clean_board: list[list[int]]|None = nick.get(cls.CLEAN_BOARD, None)
-
-        if solution_board is None or clean_board is None:
-            return None
-        
-        for cell in solution_board:
-            row, col = cell.number // 9 , cell.number % 9
-
-            if cell.is_empty and cell.value != clean_board[row][col]:
-                return False
-
-        nick[cls.TIME_TO] = int(time())
-        return True
-
-    @classmethod
-    @__check_exist_user
-    def get_time_from(cls, code: str, nick: str):
-        return nick.get(cls.TIME_FROM, None)
-    
-    @classmethod
-    @__check_exist_user
-    def get_time_to(cls, code: str, nick: str):
-        return nick.get(cls.TIME_TO, None)
 
 ##############################
 #                            #
@@ -417,30 +464,3 @@ class Sudoku:
             return sudoku.clean_board, sudoku.board, select_difficult[0], select_difficult[3]
         
         return cls.generate_sudoku_with_setting(base, limit_reqest)
-
-def convert_clean_board_to_map(clean_board: list[list[int]]) -> dict[int, int]|None:
-    board_info: dict = dict()
-    side_lenght = len(clean_board)
-    squares_quantity = side_lenght * side_lenght
-
-    try:
-        for index in range(squares_quantity):
-            row_index = index // side_lenght
-            column_index = index % side_lenght
-            if clean_board[row_index][column_index] != 0:
-                board_info[str(index)] = clean_board[row_index][column_index]
-    except IndexError:
-        return None
-
-    return board_info
-
-def create_bonus_map(board: list[list[int]], bonus_list, k = 6):
-    empty_cells = [index for index, value in enumerate(itertools.chain.from_iterable(board)) if value == 0]
-    cells_index = random.sample(empty_cells, k = k)
-    bonuses = random.choices(bonus_list, k = k)
-
-    # TODO: change string as value on link, maybe recreate bonus_list as enum
-
-    return {
-        cell_index: bonus_name for cell_index, bonus_name in zip(cells_index, bonuses)
-    }
