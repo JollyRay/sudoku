@@ -43,6 +43,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'game.apps.GameConfig',
+    'voice.apps.VoiceConfig',
 ]
 
 MIDDLEWARE = [
