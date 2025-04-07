@@ -6,6 +6,7 @@ from collections.abc import Callable, Awaitable
 import asyncio
 import json
 from copy import copy
+from time import time
 
 from .models import VoiceGroup, VoiceMember
 from .stubs import MemberNick, OfferData
@@ -16,7 +17,7 @@ user_request_handler = AddHandler()
 class VoiceConsumer(AsyncWebsocketConsumer):
 
     name_locker = asyncio.Lock()
-    user_number = 0
+    user_number = int(time())
     user_nick_pattern = 'user_n%d'
 
     #############################
@@ -27,23 +28,12 @@ class VoiceConsumer(AsyncWebsocketConsumer):
 
     async def websocket_connect(self, event):
 
-        async with VoiceConsumer.name_locker:
-            VoiceConsumer.user_number += 1
-            self.nick: str = VoiceConsumer.user_nick_pattern % VoiceConsumer.user_number
-
         self.room_code: str = self.scope['url_route']['kwargs'].get('room_name')
         if not self.room_code:
             await self.close()
             return
         
-        await self.channel_layer.group_add(self.room_code, self.channel_name)
         await self.accept()
-
-        is_add = await self.add_voice_member()
-        if not is_add:
-            await self.send(text_data = json.dumps({'type': 'error_nick'}))
-            self.close()
-
     
     async def websocket_disconnect(self, event):
         print('Webscoket isconnected', event)
@@ -119,8 +109,46 @@ class VoiceConsumer(AsyncWebsocketConsumer):
 
     @user_request_handler('ready')
     async def ready_handler(self, **_: str) -> None:
+
+        if hasattr(self, 'nick'):
+            await self.close()
+            return
+        
+        async with VoiceConsumer.name_locker:
+            VoiceConsumer.user_number += 1
+            self.nick: str = VoiceConsumer.user_nick_pattern % VoiceConsumer.user_number
+
+        is_add = await self._add_user()
+        if not is_add:
+            self.close()
+            return
+
+
         members = await self.get_voice_members()
         await self.send(text_data = json.dumps({'type': 'ready', 'members': [member['nick'] for member in members], 'nick': self.nick}))
+
+    @user_request_handler('reconnect')
+    async def reconnect_handler(self, sender: str, **_: str) -> None:
+        if hasattr(self, 'nick'):
+            await self.close()
+            return
+        
+        self.nick = sender
+
+        is_add = await self._add_user()
+        if not is_add:
+            self.close()
+            return
+        
+        await self.send_data_with_restrictions(sender = self.nick, type = 'reconnect')
+
+    async def _add_user(self) -> bool:
+        is_add = await self.add_voice_member()
+        if not is_add:
+            await self.send(text_data = json.dumps({'type': 'error_nick'}))
+            return False
+        await self.channel_layer.group_add(self.room_code, self.channel_name)
+        return True
 
     @user_request_handler('offers')
     async def offers_handler(self, sender: str, data: str, **_: str) -> None:
@@ -163,7 +191,7 @@ class VoiceConsumer(AsyncWebsocketConsumer):
                 VoiceGroup.objects.get(name = self.room_code).delete()
 
             return True
-        except VoiceMember.DoesNotExist:
+        except (VoiceMember.DoesNotExist, AttributeError):
             return False
         
     @database_sync_to_async # type: ignore

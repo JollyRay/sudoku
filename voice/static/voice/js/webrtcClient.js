@@ -22,7 +22,6 @@ document.addEventListener("DOMContentLoaded", async (e) => {
 
     chatSocket.onopen = () => {
         chatSocket.send(JSON.stringify({type: 'ready'}));
-        setInterval(reconnetIfNedd, 10000);
     };
 
 });
@@ -153,11 +152,24 @@ async function handleCandidate(candidate, sender) {
     }
 }
 
-async function reconnetIfNedd() {
+async function reconnetIfNeed(_) {
     if (WebSocket.CLOSED === chatSocket.readyState){
-        console.log('Try reconnect')
-        createWebSocket();
+        try {
+            console.log('Try reconnect');
+            createWebSocket();
+            chatSocket.onopen = () => {
+                chatSocket.send(JSON.stringify({type: 'reconnect', sender: selfNick}))
+            };
+        } catch {
+            console.log('Failed connect');
+        }
+
+        setTimeout(reconnetIfNeed, 10000);
     }
+}
+
+function isExist(nick) {
+    return nick == selfNick || document.querySelectorAll(`video[nick="${nick}"]`).length > 0;
 }
 
 function createWebSocket(){
@@ -208,6 +220,12 @@ function createWebSocket(){
                 }
                 makeCalls(data);
                 break;
+            case 'reconnect':
+                if (isExist(sender)) {
+                    return;
+                }
+                makeCalls({members: [sender, ]});
+                break;
             case 'bye':
                 hangup(sender);
                 break;
@@ -216,4 +234,6 @@ function createWebSocket(){
                 break;
         }
     };
+
+    chatSocket.onclose = reconnetIfNeed;
 }
