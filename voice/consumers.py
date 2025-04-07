@@ -1,11 +1,14 @@
 from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.db import database_sync_to_async
-from django.db.models import F
+from django.db.utils import IntegrityError
+from django.db.models import F, QuerySet
 from collections.abc import Callable, Awaitable
 import asyncio
 import json
+from copy import copy
 
-from .models import VoiceGroupSize
+from .models import VoiceGroup, VoiceMember
+from .stubs import MemberNick, OfferData
 from game.utils import AddHandler
 
 user_request_handler = AddHandler()
@@ -35,19 +38,22 @@ class VoiceConsumer(AsyncWebsocketConsumer):
         
         await self.channel_layer.group_add(self.room_code, self.channel_name)
         await self.accept()
-        size = await self.update_group_size(1)
 
-        await self.send(text_data = json.dumps({'type': 'hello', 'nick': self.nick}))
-        if size > 1:
-            await self.send(text_data = json.dumps({'type': 'ready'}))
+        is_add = await self.add_voice_member()
+        if not is_add:
+            await self.send(text_data = json.dumps({'type': 'error_nick'}))
+            self.close()
 
     
     async def websocket_disconnect(self, event):
-        await self.update_group_size(-1)
-        print('Disconnected', event)
+        print('Webscoket isconnected', event)
+        await super().websocket_disconnect(event)
 
     async def disconnect(self, close_code):
-        print('Close')
+        await self.delete_voice_member()
+        await self.send_data_with_restrictions(sender = self.nick, type = 'bye')
+        await self.channel_layer.group_discard(self.room_code, self.channel_name)
+        print('Disconnected', close_code)
 
     #############################
     #                           #
@@ -77,16 +83,32 @@ class VoiceConsumer(AsyncWebsocketConsumer):
         )
     
     async def send_message_with_exclude_self(self, data: dict[str, dict[str, str]]) -> None:
-        usefull_data = data['data']
+        usefull_data = copy(data['data'])
 
         if self.nick == usefull_data.get('sender'):
             return
         if usefull_data.get('to'):
-            if usefull_data.get('to') != self.nick:
+            if usefull_data['to'] != self.nick:
                 return
         else:
             usefull_data['to'] = self.nick
 
+        await self.send(text_data = json.dumps(usefull_data))
+
+    async def send_offers(self, data: OfferData):
+        
+        try:
+            sdp: str = data['data'][self.nick]
+            sender: str = data['sender']
+        except KeyError:
+            return
+        
+        usefull_data = {
+            'type': 'offer',
+            'sdp': sdp,
+            'sender': sender,
+            'to': self.nick,
+        }
         await self.send(text_data = json.dumps(usefull_data))
 
     #############################
@@ -95,21 +117,24 @@ class VoiceConsumer(AsyncWebsocketConsumer):
     #                           #
     #############################
 
-    @user_request_handler('offer')
-    async def offer_handler(self, sdp: str, *args: str, **kwargs: str) -> None:
-        await self.send_data_with_restrictions(sender = self.nick, sdp = sdp, type = 'offer')
+    @user_request_handler('ready')
+    async def ready_handler(self, **_: str) -> None:
+        members = await self.get_voice_members()
+        await self.send(text_data = json.dumps({'type': 'ready', 'members': [member['nick'] for member in members], 'nick': self.nick}))
+
+    @user_request_handler('offers')
+    async def offers_handler(self, sender: str, data: str, **_: str) -> None:
+        await self.channel_layer.group_send(
+            self.room_code, {'type': 'send_offers', 'sender': sender, 'data': data}
+        )
 
     @user_request_handler('answer')
-    async def answer_handler(self, sdp: str, to: str, *args: str, **kwargs: str) -> None:
+    async def answer_handler(self, sdp: str, to: str, **_: str) -> None:
         await self.send_data_with_restrictions(sender = self.nick, sdp = sdp, to = to, type = 'answer')
 
     @user_request_handler('candidate')
-    async def candidate_handler(self, candidate: str, sdpMid: str, sdpMLineIndex: str, *args: str, **kwargs: str) -> None:
-        await self.send_data_with_restrictions(candidate = candidate, sdpMid = sdpMid, sdpMLineIndex = sdpMLineIndex, sender = self.nick, type = 'candidate')
-
-    # @userRequestHandler('bye')
-    # async def bye_handler(self, sender: str, *args, **kwargs) -> None:
-    #     await self.send_data_with_restrictions(sender = sender, type = 'bye')
+    async def candidate_handler(self, candidate: str, sdpMid: str, to: str, sdpMLineIndex: str, **_: str) -> None:
+        await self.send_data_with_restrictions(candidate = candidate, sdpMid = sdpMid, sdpMLineIndex = sdpMLineIndex, sender = self.nick, to = to, type = 'candidate')
 
     #############################
     #                           #
@@ -118,15 +143,36 @@ class VoiceConsumer(AsyncWebsocketConsumer):
     #############################
 
     @database_sync_to_async # type: ignore
-    def update_group_size(self, delta: int) -> int:
-        VoiceGroupSize.objects.filter(name=self.room_code).update(size=F('size') + delta)
+    def add_voice_member(self) -> bool:
+        voice_group, _ = VoiceGroup.objects.get_or_create(name = self.room_code)
 
-        voice_group_size, _ = VoiceGroupSize.objects.get_or_create(
-            name=self.room_code,
-        )
-
-        if not voice_group_size.size:
-            voice_group_size.delete()
-            return 0
+        try: 
+            VoiceMember.objects.create(nick = self.nick, voice_group = voice_group)
+            return True
+        except IntegrityError:
+            return False
         
-        return voice_group_size.size
+    @database_sync_to_async # type: ignore
+    def delete_voice_member(self) -> bool:
+
+        try: 
+            VoiceMember.objects.get(nick = self.nick, voice_group__name = self.room_code).delete()
+            count = VoiceMember.objects.filter(voice_group__name = self.room_code).count()
+
+            if not count:
+                VoiceGroup.objects.get(name = self.room_code).delete()
+
+            return True
+        except VoiceMember.DoesNotExist:
+            return False
+        
+    @database_sync_to_async # type: ignore
+    def get_voice_members(self) -> list[MemberNick]:
+
+        return list(VoiceMember.objects.filter(voice_group__name = self.room_code).values('nick'))
+        
+    @database_sync_to_async # type: ignore
+    def get_voice_group_size(self) -> int:
+
+        return VoiceMember.objects.filter(voice_group__name = self.room_code).count()
+

@@ -2,12 +2,14 @@
 {% load static %}
 
 {% block content %}
-<video id="localVideo" playsinline="" autoplay="" muted="" class="webrtc-video"></video>
-<video id="remoteVideo" playsinline="" autoplay="" class="webrtc-video"></video>
-<button id="hangupButton">2</button>
+<div id="video-home">
+    <video id="localVideo" playsinline="" autoplay="" muted="" class="webrtc-video"></video>
+    <button id="hangupButton">2</button>
+</div>
 {% endblock %}
 
 {% block extra_script %}
 {{ room_code|json_script:"room-code" }}
+<script src="{% static 'voice/js/pageModife.js' %}"></script>
 <script src="{% static 'voice/js/webrtcClient.js' %}"></script>
 {% endblock %}

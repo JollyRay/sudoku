@@ -9,6 +9,6 @@ class VoiceConfig(AppConfig):
     def ready(self) -> None:
 
         try: 
-            VoiceGroupSize = self.get_model('VoiceGroupSize')
-            VoiceGroupSize.objects.all().delete()
+            VoiceGroup = self.get_model('VoiceGroup') 
+            VoiceGroup.objects.all().delete() # type: ignore
         except OperationalError: ...
