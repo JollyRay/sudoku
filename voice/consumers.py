@@ -67,7 +67,7 @@ class VoiceConsumer(AsyncWebsocketConsumer):
         except (KeyError, IndexError, TypeError) as e:
             print(e)
 
-    async def send_data_with_restrictions(self, **data: str):
+    async def send_data_with_restrictions(self, **data: str|bool):
         await self.channel_layer.group_send(
             self.room_code, {'type': 'send_message_with_exclude_self', 'data': data}
         )
@@ -88,18 +88,26 @@ class VoiceConsumer(AsyncWebsocketConsumer):
     async def send_offers(self, data: OfferData):
         
         try:
-            sdp: str = data['data'][self.nick]
-            sender: str = data['sender']
+            sdp_list: tuple[str|None, str|None, str|None] = (
+                data['data'][self.nick]['sdpVoice'],
+                data['data'][self.nick]['sdpScreenReceiver'],
+                data['data'][self.nick]['sdpScreenProvider'],
+            )
+            sender = data['sender']
         except KeyError:
             return
         
-        usefull_data = {
-            'type': 'offer',
-            'sdp': sdp,
-            'sender': sender,
-            'to': self.nick,
-        }
-        await self.send(text_data = json.dumps(usefull_data))
+        for index, sdp in enumerate(sdp_list):
+            if sdp:
+                usefull_data = {
+                    'type': 'offer',
+                    'sdp': sdp,
+                    'isProvider': index == 1,
+                    'isScreen': index > 0,
+                    'sender': sender,
+                    'to': self.nick,
+                }
+                await self.send(text_data = json.dumps(usefull_data))
 
     #############################
     #                           #
@@ -125,7 +133,10 @@ class VoiceConsumer(AsyncWebsocketConsumer):
 
 
         members = await self.get_voice_members()
-        await self.send(text_data = json.dumps({'type': 'ready', 'members': [member['nick'] for member in members], 'nick': self.nick}))
+        await self.send(text_data = json.dumps(
+            {
+                'type': 'ready',
+                'members': [{"nick": member['nick'], 'hasScreen': member['has_screen_sream']} for member in members], 'nick': self.nick}))
 
     @user_request_handler('reconnect')
     async def reconnect_handler(self, sender: str, **_: str) -> None:
@@ -157,12 +168,12 @@ class VoiceConsumer(AsyncWebsocketConsumer):
         )
 
     @user_request_handler('answer')
-    async def answer_handler(self, sdp: str, to: str, **_: str) -> None:
-        await self.send_data_with_restrictions(sender = self.nick, sdp = sdp, to = to, type = 'answer')
+    async def answer_handler(self, sdp: str, isScreen: bool, isProvider: bool, to: str, **_: str) -> None:
+        await self.send_data_with_restrictions(sender = self.nick, sdp = sdp, isScreen = isScreen, isProvider = isProvider, to = to, type = 'answer')
 
     @user_request_handler('candidate')
-    async def candidate_handler(self, candidate: str, sdpMid: str, to: str, sdpMLineIndex: str, **_: str) -> None:
-        await self.send_data_with_restrictions(candidate = candidate, sdpMid = sdpMid, sdpMLineIndex = sdpMLineIndex, sender = self.nick, to = to, type = 'candidate')
+    async def candidate_handler(self, candidate: str, sdpMid: str, isProvider: bool, isScreen: bool, to: str, sdpMLineIndex: str, **_: str) -> None:
+        await self.send_data_with_restrictions(candidate = candidate, sdpMid = sdpMid, sdpMLineIndex = sdpMLineIndex, isScreen = isScreen, isProvider = isProvider, sender = self.nick, to = to, type = 'candidate')
 
     #############################
     #                           #
@@ -197,7 +208,7 @@ class VoiceConsumer(AsyncWebsocketConsumer):
     @database_sync_to_async # type: ignore
     def get_voice_members(self) -> list[MemberNick]:
 
-        return list(VoiceMember.objects.filter(voice_group__name = self.room_code).values('nick'))
+        return list(VoiceMember.objects.filter(voice_group__name = self.room_code).values('nick', 'has_screen_sream'))
         
     @database_sync_to_async # type: ignore
     def get_voice_group_size(self) -> int:

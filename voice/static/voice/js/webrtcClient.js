@@ -2,21 +2,18 @@ let chatSocket;
 let selfNick;
 let roomName;
 
-const hangupButton = document.getElementById('hangupButton');
-hangupButton.disabled = true;
+const localVideo = document.getElementById('local-video');
+const localScreenVideo = document.getElementById('local-screen-video');
+const showScreenButton = document.getElementById('toggle-screen-stream-button');
 
-const localVideo = document.getElementById('localVideo');
-
-var pc1;
 var peerConnections = {};
 var localStream;
+var localScreenStream;
 
 document.addEventListener("DOMContentLoaded", async (e) => {
     roomName = JSON.parse(document.getElementById('room-code').textContent);
     localStream = await navigator.mediaDevices.getUserMedia({audio: true, video: false, noiseSuppression: true});
     localVideo.srcObject = localStream;
-
-    hangupButton.disabled = false;
     
     createWebSocket();
 
@@ -26,15 +23,227 @@ document.addEventListener("DOMContentLoaded", async (e) => {
 
 });
 
-hangupButton.onclick = async () => {
-    hangup();
-    chatSocket.send(JSON.stringify({type: 'bye'}));
-};
+showScreenButton.addEventListener('click', async (_) => {
+    if (localScreenStream){
+        localScreenStream = undefined;
+
+        for (const [nick, peers] of Object.entries(peerConnections)) {
+                peers?.peerScreenReceiver.close();
+                // removeVideo(nick);
+        }
+        toggleScreenVideo();
+    } else {
+        localScreenStream = await navigator.mediaDevices.getDisplayMedia({ audio: true, video: true });
+        toggleScreenVideo();
+        let data = {members: []};
+        Object.keys(peerConnections).forEach(nick => {
+            data.members.push({nick: nick})
+        });
+
+        makeCalls(data, true)
+
+    }
+});
+
+function createPeerConnection(remoteVideo, remoteNick, stream, isScreen, isProvider) {
+    let pc = new RTCPeerConnection();
+    pc.onicecandidate = e => {
+        if (e.candidate) {
+            const message = {
+                type: 'candidate',
+                candidate: e.candidate.candidate,
+                sdpMid: e.candidate.sdpMid,
+                sdpMLineIndex: e.candidate.sdpMLineIndex,
+                isProvider: isProvider,
+                isScreen: isScreen,
+                to: remoteNick
+            };
+            if (!message.to){
+                console.log(remoteNick)
+            }
+            chatSocket.send(JSON.stringify(message));
+        }
+    };
+    if (isScreen && !isProvider){
+        pc.ontrack = e => {
+            e.streams[0].getTracks().forEach((track) => {
+                stream.addTrack(track);
+            });
+        };
+        
+        remoteVideo.srcObject = stream;
+    } else {
+        pc.ontrack = e => {
+            remoteVideo.srcObject = e.streams[0];
+        }
+        stream.getTracks().forEach(track => pc.addTrack(track, stream));
+        remoteVideo.srcObject = stream;
+    }
+
+    return pc;
+}
+
+function handleFirstData(data){
+    
+    selfNick = data.nick;
+
+    return data.members?.length > 1;
+}
+
+function makeCalls(data, onlyMyScreen = false) {
+    let offersMap = {};
+    Promise.all(data.members.map(async member => {
+
+        if (member.nick == selfNick){
+            return;
+        }
+
+        if (!peerConnections[member.nick]){
+            peerConnections[member.nick] = {};
+        }
+    
+        offersMap[member.nick] = {
+            sdpVoice: null,
+            sdpScreenProvider: null,
+            sdpScreenReceiver: null
+        }
+
+        //   Если у меня есть экран
+
+        if (localScreenStream){
+            const pcsp = createPeerConnection(localScreenVideo, member.nick, localScreenStream, true, true);
+            
+            const offerProvider = await pcsp.createOffer({offerToReceiveAudio: true, offerToReceiveVideo: true});
+            await pcsp.setLocalDescription(offerProvider);
+            
+            peerConnections[member.nick]['peerScreenReceiver'] = pcsp;
+            offersMap[member.nick].sdpScreenReceiver = offerProvider.sdp;
+        }
+
+        if (onlyMyScreen) return;
+
+        //   Если у меня есть голос
+        
+        const remoteVideo = createNewVideoElement(member.nick);
+        const pc = createPeerConnection(remoteVideo, member.nick, localStream, false, false);
+        
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+        
+        
+        peerConnections[member.nick]['peer'] = pc;
+        offersMap[member.nick].sdpVoice = offer.sdp;
+
+        if (member.hasScreen){
+
+            //   Если у друга есть экран
+
+            const remoteScreenVideo = createNewVideoElement(member.nick, true);
+            const pcsr = createPeerConnection(remoteScreenVideo, member.nick, new MediaStream(), true, false);
+
+            const offerScreen = await pcsr.createOffer();
+            await pcsr.setLocalDescription(offerScreen);
+
+            peerConnections[member.nick]['peerScreenProvider'] = pcsrc;
+            offersMap[member.nick] = {
+                sdpScreen: offer.sdp
+            }
+        }
+    })).then(() => {
+        chatSocket.send(JSON.stringify({type: 'offers', sender: selfNick, data: offersMap}));
+    });
+}
+
+async function handleOffer(offer, sender) {
+    if ((peerConnections[sender]?.peer && !offer.isScreen && !offer.isProvider) ||
+            (peerConnections[sender]?.peerScreenProvider && offer.isScreen && offer.isProvider) || 
+            (peerConnections[sender]?.peerScreenReceiver && offer.isScreen && !offer.isProvider) ) {
+        console.error('existing peerconnection');
+        return;
+    }
+
+    if (!peerConnections[sender]){
+        peerConnections[sender] = {};
+    }
+
+    let [isScreen, isProvider] = [offer.isScreen, offer.isProvider];
+    delete offer.isScreen;
+    delete offer.isProvider;
+
+    let pc
+    
+    if (isScreen){
+        if (isProvider){
+            let remoteVideo = createNewVideoElement(sender);
+            pc = createPeerConnection(remoteVideo, sender, new MediaStream(), isScreen, !isProvider);
+            peerConnections[sender]['peerScreenProvider'] = pc;
+        } else {
+            pc = createPeerConnection(localScreenVideo, sender, localScreenStream, isScreen, !isProvider);
+            peerConnections[sender]['peerScreenReceiver'] = pc;
+        }
+    } else {
+        let remoteVideo = createNewVideoElement(sender);
+        pc = createPeerConnection(remoteVideo, sender, localStream, isScreen, false);
+        peerConnections[sender]['peer'] = pc;
+    }
+    
+
+    await pc.setRemoteDescription(offer);
+
+    const answer = await pc.createAnswer();
+    chatSocket.send(JSON.stringify({
+        type: 'answer',
+        sdp: answer.sdp,
+        isProvider: !isProvider,
+        isScreen: isScreen,
+        to: sender,
+        sender: selfNick
+    }));
+    await pc.setLocalDescription(answer);
+}
+
+async function handleAnswer(answer, sender) {
+    if ((!peerConnections[sender]?.peer && !answer.isScreen && !answer.isProvider) ||
+        (!peerConnections[sender]?.peerScreenProvider && answer.isScreen && answer.isProvider) || 
+        (!peerConnections[sender]?.peerScreenReceiver && answer.isScreen && !answer.isProvider) ) {
+        console.error('no peerconnection');
+        return;
+    }
+    let [isScreen, isProvider] = [answer.isScreen, answer.isProvider];
+    delete answer.isScreen;
+    delete answer.isProvider;
+    await peerConnections[sender][isScreen ? (isProvider ? 'peerScreenProvider' : 'peerScreenReceiver') : 'peer'].setRemoteDescription(answer);
+}
+
+async function handleCandidate(candidate, sender) {
+    if ((!peerConnections[sender]?.peer && !candidate.isScreen && !candidate.isProvider) ||
+            (!peerConnections[sender]?.peerScreenProvider && candidate.isScreen && candidate.isProvider) || 
+            (!peerConnections[sender]?.peerScreenReceiver && candidate.isScreen && !candidate.isProvider) ) {
+        console.error('no peerconnection');
+        return;
+    }
+    if (!candidate.candidate) {
+        await peerConnections[sender].peer.addIceCandidate(null);
+    } else {
+        let [isScreen, isProvider] = [candidate.isScreen, candidate.isProvider];
+        delete candidate.isScreen;
+        delete candidate.isProvider;
+
+        if (isScreen){
+            if (isProvider){
+                await peerConnections[sender].peerScreenProvider.addIceCandidate(candidate);
+            } else {
+                await peerConnections[sender].peerScreenReceiver.addIceCandidate(candidate);
+            }
+        } else {
+            await peerConnections[sender].peer.addIceCandidate(candidate);
+        }
+
+    }
+}
 
 async function hangup(sender) {
-    document.querySelectorAll(`video[nick="${sender}"]`).forEach(videoElement => {
-        videoElement.remove();
-    });
+    removeVideo(sender);
     try {
 
         peerConnections[sender].peer.close();
@@ -55,103 +264,6 @@ async function hangup(sender) {
     // hangupButton.disabled = true;
 };
 
-function createPeerConnection(remoteVideo, remoteNick) {
-    let pc = new RTCPeerConnection();
-    pc.onicecandidate = e => {
-        if (e.candidate) {
-            const message = {
-                type: 'candidate',
-                candidate: e.candidate.candidate,
-                sdpMid: e.candidate.sdpMid,
-                sdpMLineIndex: e.candidate.sdpMLineIndex,
-                to: remoteNick
-            };
-            if (!message.to){
-                console.log(remoteNick)
-            }
-            chatSocket.send(JSON.stringify(message));
-        }
-    };
-    pc.ontrack = e => {
-        remoteVideo.srcObject = e.streams[0];
-    }
-    localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
-
-    return pc;
-}
-
-function handleFirstData(data){
-    
-    selfNick = data.nick;
-
-    return data.members?.length > 1;
-}
-
-function makeCalls(data) {
-    let offersMap = {};
-    Promise.all(data.members.map(async member => {
-
-        if (member == selfNick){
-            return;
-        }
-        
-        let remoteVideo = createNewVideoElement(member);
-        let pc = createPeerConnection(remoteVideo, member);
-        
-        const offer = await pc.createOffer();
-        await pc.setLocalDescription(offer);
-        
-        peerConnections[member] = {'video': remoteVideo, 'peer': pc};
-        offersMap[member] = offer.sdp;
-    })).then(() => {
-        chatSocket.send(JSON.stringify({type: 'offers', sender: selfNick, data: offersMap}));
-    });
-    // chatSocket.send(JSON.stringify({type: 'offer', sdp: offer.sdp}));
-}
-
-async function handleOffer(offer, sender) {
-    if (peerConnections[sender]?.peer) {
-        console.error('existing peerconnection');
-        return;
-    }
-
-    let remoteVideo = createNewVideoElement(sender);
-    let pc = createPeerConnection(remoteVideo, sender);
-
-    peerConnections[sender] = {'video': remoteVideo, 'peer': pc};
-
-    await pc.setRemoteDescription(offer);
-
-    const answer = await pc.createAnswer();
-    chatSocket.send(JSON.stringify({
-        type: 'answer',
-        sdp: answer.sdp,
-        to: sender,
-        sender: selfNick
-    }));
-    await pc.setLocalDescription(answer);
-}
-
-async function handleAnswer(answer, sender) {
-    if (!peerConnections[sender]?.peer) {
-        console.error('no peerconnection');
-        return;
-    }
-    await peerConnections[sender].peer.setRemoteDescription(answer);
-}
-
-async function handleCandidate(candidate, sender) {
-    if (!peerConnections[sender]?.peer) {
-        console.error('no peerconnection');
-        return;
-    }
-    if (!candidate.candidate) {
-        await peerConnections[sender].peer.addIceCandidate(null);
-    } else {
-        await peerConnections[sender].peer.addIceCandidate(candidate);
-    }
-}
-
 async function reconnetIfNeed(_) {
     if (WebSocket.CLOSED === chatSocket.readyState){
         try {
@@ -166,10 +278,6 @@ async function reconnetIfNeed(_) {
 
         setTimeout(reconnetIfNeed, 10000);
     }
-}
-
-function isExist(nick) {
-    return nick == selfNick || document.querySelectorAll(`video[nick="${nick}"]`).length > 0;
 }
 
 function createWebSocket(){

@@ -3,8 +3,9 @@
 
 {% block content %}
 <div id="video-home">
-    <video id="localVideo" playsinline="" autoplay="" muted="" class="webrtc-video"></video>
-    <button id="hangupButton">2</button>
+    <video id="local-video" playsinline="" autoplay="" muted="" class="webrtc-video"></video>
+    <video id="local-screen-video" playsinline="" autoplay="" muted="" class="webrtc-video hidden"></video>
+    <button id="toggle-screen-stream-button">Screen</button>
 </div>
 {% endblock %}
 
