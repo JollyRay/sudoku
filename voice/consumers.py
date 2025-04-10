@@ -45,6 +45,12 @@ class VoiceConsumer(AsyncWebsocketConsumer):
         await self.channel_layer.group_discard(self.room_code, self.channel_name)
         print('Disconnected', close_code)
 
+    async def dispatch(self, message):
+        try:
+            await super().dispatch(message)
+        except ConnectionRefusedError as err: 
+            print(err)
+
     #############################
     #                           #
     #        FOR MESSAGE        #
