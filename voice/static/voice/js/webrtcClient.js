@@ -92,6 +92,33 @@ function createPeerConnection(remoteVideo, remoteNick, stream, isScreen, isProvi
     return pc;
 }
 
+function setDataChannelOffer(pc, nick){
+    peerConnections[nick]['datachannel'] = pc.createDataChannel('chat');
+    setupDataChannelHandlers(peerConnections[nick]['datachannel']);
+}
+
+function setDataChannelAnswer(pc, nick){
+    pc.ondatachannel = (event) => {
+        peerConnections[nick]['datachannel'] = event.channel;
+        setupDataChannelHandlers(peerConnections[nick]['datachannel']);
+    };
+}
+
+function setupDataChannelHandlers(channel) {
+    
+    channel.onmessage = (event) => {
+      console.log('Received:', event.data);
+    };
+    
+    channel.onclose = () => {
+      console.log('Data channel closed');
+    };
+    
+    channel.onerror = (error) => {
+      console.error('Data channel error:', error);
+    };
+}
+
 function handleFirstData(data){
     
     selfNick = data.nick;
@@ -135,6 +162,7 @@ function makeCalls(data, onlyMyScreen = false) {
         
         const remoteVideo = createNewVideoElement(member.nick);
         const pc = createPeerConnection(remoteVideo, member.nick, localStream, false, false);
+        setDataChannelOffer(pc, member.nick);
         
         const offer = await pc.createOffer();
         await pc.setLocalDescription(offer);
@@ -197,6 +225,7 @@ async function handleOffer(offer, sender) {
         let remoteVideo = createNewVideoElement(sender);
         pc = createPeerConnection(remoteVideo, sender, localStream, isScreen, false);
         peerConnections[sender]['peer'] = pc;
+        setDataChannelAnswer(pc, sender);
     }
     
 
@@ -259,7 +288,9 @@ async function hangup(sender, isPeer = true, isProvider = true, isReceiver = tru
     try {
         if (isPeer){
             peerConnections[sender].peer?.close();
+            peerConnections[sender].datachannel?.close();
             delete peerConnections[sender].peer;
+            delete peerConnections[sender].datachannel;
         }
         if (isReceiver){
             peerConnections[sender].peerScreenReceiver?.close();
