@@ -6,7 +6,7 @@ function createNewVideoElement(nick, isScreen = false, homeElemnt = undefined){
     videoElement.setAttribute('playsinline', '');
     videoElement.setAttribute('autoplay', true);
     videoElement.setAttribute('nick', nick);
-    videoElement.setAttribute('isScreen', isScreen)
+    videoElement.setAttribute('is-screen', isScreen)
 
     homeElemnt.appendChild(videoElement);
 
@@ -28,7 +28,7 @@ function removeVideo(nick, isScreen = undefined){
             elem.remove()
         });
     } else {
-        document.querySelectorAll(`video[nick="${nick}"][isScreen=${isScreen}]`).forEach(elem => {
+        document.querySelectorAll(`video[nick="${nick}"][is-screen=${isScreen}]`).forEach(elem => {
             elem.remove()
         });
     }

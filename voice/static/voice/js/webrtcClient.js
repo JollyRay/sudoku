@@ -25,11 +25,11 @@ document.addEventListener("DOMContentLoaded", async (e) => {
 
 showScreenButton.addEventListener('click', async (_) => {
     if (localScreenStream){
-        localScreenStream = undefined;
-
-        for (const [nick, peers] of Object.entries(peerConnections)) {
-                peers?.peerScreenReceiver.close();
-                // removeVideo(nick);
+        localScreenStream.getTracks().forEach(track => track.stop());
+        localScreenStream = null;
+        
+        for (const nick of Object.keys(peerConnections)) {
+            hangup(nick, false, false, true)
         }
         toggleScreenVideo();
     } else {
@@ -72,6 +72,15 @@ function createPeerConnection(remoteVideo, remoteNick, stream, isScreen, isProvi
         };
         
         remoteVideo.srcObject = stream;
+
+        pc.addEventListener('connectionstatechange', () => {
+            if (pc.connectionState === 'disconnected' || 
+                pc.connectionState === 'failed' ||
+                pc.connectionState === 'closed') {
+                hangup(remoteNick, false, true, false);
+            }
+        });
+
     } else {
         pc.ontrack = e => {
             remoteVideo.srcObject = e.streams[0];
@@ -138,13 +147,15 @@ function makeCalls(data, onlyMyScreen = false) {
 
             //   Если у друга есть экран
 
+            peerConnections[member.nick]['peerScreenProviderStream'] = new MediaStream();
             const remoteScreenVideo = createNewVideoElement(member.nick, true);
-            const pcsr = createPeerConnection(remoteScreenVideo, member.nick, new MediaStream(), true, false);
+            const pcsr = createPeerConnection(remoteScreenVideo, member.nick, peerConnections[member.nick]['peerScreenProviderStream'], true, false);
 
             const offerScreen = await pcsr.createOffer();
             await pcsr.setLocalDescription(offerScreen);
 
-            peerConnections[member.nick]['peerScreenProvider'] = pcsrc;
+            peerConnections[member.nick]['peerScreenProvider'] = pcsr;
+            
             offersMap[member.nick] = {
                 sdpScreen: offer.sdp
             }
@@ -174,8 +185,9 @@ async function handleOffer(offer, sender) {
     
     if (isScreen){
         if (isProvider){
-            let remoteVideo = createNewVideoElement(sender);
-            pc = createPeerConnection(remoteVideo, sender, new MediaStream(), isScreen, !isProvider);
+            let remoteVideo = createNewVideoElement(sender, true);
+            peerConnections[sender]['peerScreenProviderStream'] = new MediaStream();
+            pc = createPeerConnection(remoteVideo, sender, peerConnections[sender]['peerScreenProviderStream'], isScreen, !isProvider);
             peerConnections[sender]['peerScreenProvider'] = pc;
         } else {
             pc = createPeerConnection(localScreenVideo, sender, localScreenStream, isScreen, !isProvider);
@@ -242,26 +254,37 @@ async function handleCandidate(candidate, sender) {
     }
 }
 
-async function hangup(sender) {
-    removeVideo(sender);
+async function hangup(sender, isPeer = true, isProvider = true, isReceiver = true) {
+
     try {
-
-        peerConnections[sender].peer.close();
-
-        delete peerConnections[sender];
-
+        if (isPeer){
+            peerConnections[sender].peer?.close();
+            delete peerConnections[sender].peer;
+        }
+        if (isReceiver){
+            peerConnections[sender].peerScreenReceiver?.close();
+            delete peerConnections[sender].peerScreenReceiver;
+        }
+        if (isProvider){
+            peerConnections[sender].peerScreenProvider?.close();
+            peerConnections[sender].peerScreenProviderStream?.getTracks().forEach(track => track.stop());
+            delete peerConnections[sender].peerScreenProvider;
+            delete peerConnections[sender].peerScreenProviderStream;
+            removeVideo(sender, true);
+        }
+        
+        
     } catch (error) {
         console.error(error);
+    } finally {
+        if (isPeer && isProvider && isReceiver || peerConnections[sender] && Object.keys(peerConnections[sender]).length == 0){
+            delete peerConnections[sender];
+            removeVideo(sender);
+        }
+        
     }
 
-    // TODO
-    // if (pc1) {
-    //     pc1.close();
-    //     pc1 = null;
-    // }
-    // localStream.getTracks().forEach(track => track.stop());
-    // localStream = null;
-    // hangupButton.disabled = true;
+
 };
 
 async function reconnetIfNeed(_) {
