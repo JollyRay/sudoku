@@ -26,20 +26,27 @@ document.addEventListener("DOMContentLoaded", async (e) => {
 showScreenButton.addEventListener('click', async (_) => {
     if (localScreenStream){
         localScreenStream.getTracks().forEach(track => track.stop());
-        localScreenStream = null;
+        localScreenStream = undefined;
         
         for (const nick of Object.keys(peerConnections)) {
             hangup(nick, false, false, true)
         }
+        chatSocket.send(JSON.stringify({type: 'removeScreen'}));
         toggleScreenVideo();
     } else {
-        localScreenStream = await navigator.mediaDevices.getDisplayMedia({ audio: true, video: true });
-        toggleScreenVideo();
         let data = {members: []};
         Object.keys(peerConnections).forEach(nick => {
             data.members.push({nick: nick})
         });
 
+        if (data.members.length == 0){
+            alert('В комнату вы один');
+            return;
+        }
+        localScreenStream = await navigator.mediaDevices.getDisplayMedia({ audio: true, video: true });
+        toggleScreenVideo();
+        
+        chatSocket.send(JSON.stringify({type: 'addScreen'}));
         makeCalls(data, true)
 
     }
@@ -58,9 +65,7 @@ function createPeerConnection(remoteVideo, remoteNick, stream, isScreen, isProvi
                 isScreen: isScreen,
                 to: remoteNick
             };
-            if (!message.to){
-                console.log(remoteNick)
-            }
+            
             chatSocket.send(JSON.stringify(message));
         }
     };
@@ -80,6 +85,9 @@ function createPeerConnection(remoteVideo, remoteNick, stream, isScreen, isProvi
                 hangup(remoteNick, false, true, false);
             }
         });
+
+        pc.addTransceiver('video', { direction: 'recvonly' });
+        pc.addTransceiver('audio', { direction: 'recvonly' });
 
     } else {
         pc.ontrack = e => {
@@ -149,7 +157,7 @@ function makeCalls(data, onlyMyScreen = false) {
         if (localScreenStream){
             const pcsp = createPeerConnection(localScreenVideo, member.nick, localScreenStream, true, true);
             
-            const offerProvider = await pcsp.createOffer({offerToReceiveAudio: true, offerToReceiveVideo: true});
+            const offerProvider = await pcsp.createOffer();
             await pcsp.setLocalDescription(offerProvider);
             
             peerConnections[member.nick]['peerScreenReceiver'] = pcsp;
@@ -184,9 +192,7 @@ function makeCalls(data, onlyMyScreen = false) {
 
             peerConnections[member.nick]['peerScreenProvider'] = pcsr;
             
-            offersMap[member.nick] = {
-                sdpScreen: offer.sdp
-            }
+            offersMap[member.nick].sdpScreenProvider = offerScreen.sdp;
         }
     })).then(() => {
         chatSocket.send(JSON.stringify({type: 'offers', sender: selfNick, data: offersMap}));
@@ -324,7 +330,7 @@ async function reconnetIfNeed(_) {
             console.log('Try reconnect');
             createWebSocket();
             chatSocket.onopen = () => {
-                chatSocket.send(JSON.stringify({type: 'reconnect', sender: selfNick}))
+                chatSocket.send(JSON.stringify({type: 'reconnect', sender: selfNick, hasScreen: localScreenStream != undefined}));
             };
         } catch {
             console.log('Failed connect');

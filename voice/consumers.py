@@ -145,22 +145,22 @@ class VoiceConsumer(AsyncWebsocketConsumer):
                 'members': [{"nick": member['nick'], 'hasScreen': member['has_screen_sream']} for member in members], 'nick': self.nick}))
 
     @user_request_handler('reconnect')
-    async def reconnect_handler(self, sender: str, **_: str) -> None:
+    async def reconnect_handler(self, sender: str, hasScreen: bool, **_: str) -> None:
         if hasattr(self, 'nick'):
             await self.close()
             return
         
         self.nick = sender
 
-        is_add = await self._add_user()
+        is_add = await self._add_user(hasScreen)
         if not is_add:
             self.close()
             return
         
         await self.send_data_with_restrictions(sender = self.nick, type = 'reconnect')
 
-    async def _add_user(self) -> bool:
-        is_add = await self.add_voice_member()
+    async def _add_user(self, has_screen: bool = False) -> bool:
+        is_add = await self.add_voice_member(has_screen)
         if not is_add:
             await self.send(text_data = json.dumps({'type': 'error_nick'}))
             return False
@@ -181,6 +181,14 @@ class VoiceConsumer(AsyncWebsocketConsumer):
     async def candidate_handler(self, candidate: str, sdpMid: str, isProvider: bool, isScreen: bool, to: str, sdpMLineIndex: str, **_: str) -> None:
         await self.send_data_with_restrictions(candidate = candidate, sdpMid = sdpMid, sdpMLineIndex = sdpMLineIndex, isScreen = isScreen, isProvider = isProvider, sender = self.nick, to = to, type = 'candidate')
 
+    @user_request_handler('addScreen')
+    async def add_screen(self, **_: str):
+        await self.update_has_screen_stream(True)
+
+    @user_request_handler('removeScreen')
+    async def remove_screen(self, **_: str):
+        await self.update_has_screen_stream(False)
+
     #############################
     #                           #
     #         DATABASE          #
@@ -188,11 +196,11 @@ class VoiceConsumer(AsyncWebsocketConsumer):
     #############################
 
     @database_sync_to_async # type: ignore
-    def add_voice_member(self) -> bool:
+    def add_voice_member(self, has_screen: bool) -> bool:
         voice_group, _ = VoiceGroup.objects.get_or_create(name = self.room_code)
 
         try: 
-            VoiceMember.objects.create(nick = self.nick, voice_group = voice_group)
+            VoiceMember.objects.create(nick = self.nick, voice_group = voice_group, has_screen_sream = has_screen)
             return True
         except IntegrityError:
             return False
@@ -221,3 +229,6 @@ class VoiceConsumer(AsyncWebsocketConsumer):
 
         return VoiceMember.objects.filter(voice_group__name = self.room_code).count()
 
+    @database_sync_to_async # type: ignore
+    def update_has_screen_stream(self, is_exist_screen: bool) -> bool:
+        return VoiceMember.objects.filter(nick = self.nick).update(has_screen_sream = is_exist_screen) > 0
