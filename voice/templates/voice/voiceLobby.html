@@ -2,10 +2,16 @@
 {% load static %}
 
 {% block content %}
-<div id="video-home">
-    <video id="local-video" playsinline="" autoplay="" muted="" class="webrtc-video"></video>
-    <video id="local-screen-video" playsinline="" autoplay="" muted="" class="webrtc-video hidden"></video>
-    <button id="toggle-screen-stream-button">Screen</button>
+<div class="main-container">
+    <div id="video-home" class="video-container">
+        <video id="local-video" playsinline="" autoplay="" muted="" class="webrtc-video"></video>
+        <video id="local-screen-video" playsinline="" autoplay="" muted="" class="webrtc-video hidden" is-screen="true"></video>
+    </div>
+    <div class="button-container">
+        <div class="hidden-button-frame">
+            <button id="toggle-screen-stream-button" class="hideen-button"><i class="fa-solid fa-desktop"></i></button>
+        </div>
+    </div>
 </div>
 {% endblock %}
 

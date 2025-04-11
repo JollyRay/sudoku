@@ -1,6 +1,104 @@
+:root{
+    --video-container-width: 85vw;
+    --video-container-height: 85vh;
+    --video-width: var(--video-container-width);
+    --video-hight: var(--video-container-height);
+}
+body, header, main, footer, h1, h2, h3, h4 {
+    border: 0;
+    padding: 0;
+    margin: 0;
+}
+body{
+    min-height: 100vh;
+    width: 100vw;
+}
+header{
+    height: 7vh;
+}
+main{
+    height: 88vh;
+    width: 100vw;
+}
+.main-container{
+    height: 100%;
+    width: var(--video-container-width);
+    margin: 0 calc((100vw - var(--video-container-width)) / 2);
+}
+.video-container{
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+    width: var(--video-container-width);
+    height: var(--video-container-height);
+}
+.video-container:has(> :nth-child(2 of :not(.hidden))){
+    --video-width: var(--video-container-width);
+    --video-hight: calc(var(--video-container-height) / 2);
+}
+.video-container:has(> :nth-child(3 of :not(.hidden))),
+.video-container:has(> :nth-child(4 of :not(.hidden)))
+{
+    --video-width: calc(var(--video-container-width) / 2);
+    --video-hight: calc(var(--video-container-height) / 2);
+}
+
+.video-container:has(> :nth-child(5 of :not(.hidden))),
+.video-container:has(> :nth-child(6 of :not(.hidden)))
+{
+    --video-width: calc(var(--video-container-width) / 3);
+    --video-hight: calc(var(--video-container-height) / 2);
+}
+.video-container:has(> :nth-child(7 of :not(.hidden))){
+    --video-width: calc(var(--video-container-width) / 3);
+    --video-hight: calc(var(--video-container-height) / 3);
+}
 .webrtc-video{
     border: 2px solid black;
+    border-radius: 10px;
+    margin: 2px;
+    height: min(calc(var(--video-width) / 192 * 108), var(--video-hight));
+    width: min(calc(var(--video-hight) / 108 * 192), var(--video-width));
 }
 .hidden {
     display: none;
+}
+.button-container{
+    position: relative;
+    display: flex;
+    justify-content: center;
+    height: 3vh;
+}
+.hidden-button-frame{
+    position: absolute;
+    bottom: -2vh;
+    opacity: 0;
+    transition: opacity, height;
+    transition-duration: 1s;
+    height: 30px;
+    margin: 10px 0;
+}
+.main-container:hover .hidden-button-frame{
+    opacity: 1;
+    height: 60px;
+}
+.hideen-button{
+    width: 69px;
+    height: 69px;
+    border-radius: 9999px;
+    font-size: 30px;
+    border: 0;
+    background: darkgray;
+    transition: background;
+    transition-duration: 200ms;
+}
+.hideen-button:hover{
+    background: gray;
+}
+footer{
+    height: 5vh;
+    display: flex;
+    justify-content: end;
+    flex-direction: column;
 }
