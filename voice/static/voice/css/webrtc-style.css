@@ -4,7 +4,7 @@
     --video-width: var(--video-container-width);
     --video-hight: var(--video-container-height);
 }
-body, header, main, footer, h1, h2, h3, h4 {
+body, header, main, footer, div, h1, h2, h3, h4, ul, li, p, span{
     border: 0;
     padding: 0;
     margin: 0;
@@ -101,4 +101,118 @@ footer{
     display: flex;
     justify-content: end;
     flex-direction: column;
+}
+
+/************************ * * * HUB * * * *************************/
+.groups-container{
+    height: 100%;
+    display: flex;
+    flex-direction: row;
+}
+.group-list{
+    width: 20vw;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+.group-list > div{
+    width: 100%;
+    height: min(calc(100% / 15), 48px);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    transition: background;
+    transition-duration: 1s;
+}
+.group-list > div:nth-child(2n+2){
+    background: gainsboro;
+}
+.group-list > div:nth-child(2n+1){
+    background: rgb(196, 196, 196);
+}
+.group-list > div:nth-child(n):hover{
+    background: gray;
+}
+.group-list .select-group{
+    border: 2px solid black;
+}
+.group-list .room-name-nav{
+    width: 100%;
+    display: flex;
+    flex-direction: row;
+    justify-content: space-around;
+}
+.group-list .room-name-nav a{
+    background: white;
+    width: 32px;
+    height: 32px;
+    border-radius: 30px;
+    opacity: 0;
+    transition: opacity;
+    transition-duration: 200ms;
+    text-align: center;
+    margin-right: 10px;
+    font-size: 21px;
+}
+.group-list .room-name-nav:hover a{
+    opacity: 1;
+}
+.group-list p{
+    width: calc(100% - 2px);
+    height: calc(100% - 2px);
+    padding-left: 12px;
+    font-size: 27px;
+    user-select: none;
+    text-overflow: ellipsis;
+    overflow: hidden;
+    white-space: nowrap;
+}
+.group-nav{
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+.lobby-room-paginator ul {
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+}
+.lobby-room-paginator a{
+    margin: 5px;
+    text-decoration: none;
+    color: black;
+}
+.lobby-room-paginator li {
+    list-style-type: none;
+    border: 1px black solid;
+    border-radius: 30px;
+    width: 30px;
+    height: 30px;
+    text-align: center;
+    transition-duration: 1s;
+}
+.lobby-room-paginator .currant-page{
+    box-shadow: 5px 5px 6px gray;
+}
+.lobby-room-paginator li:hover{
+
+    transform: scale(1.25);
+}
+.group-info{
+    width: 80vw;
+}
+.new-room-form > div{
+    display: flex;
+    flex-direction: row;
+    align-self: first;
+    margin: 10px;
+}
+.new-room-form label {
+    width: 200px;
+}
+.group-info-item p {
+    white-space: pre-wrap;
+    word-break: break-word;
+    width: 400px;
 }

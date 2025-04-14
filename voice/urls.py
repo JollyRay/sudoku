@@ -4,5 +4,6 @@ from .views import *
 
 
 urlpatterns = [
-    path('<slug:name>', voice_lobby, name = 'voice_lobby')
+    path('room/<slug:name>', voice_lobby, name = 'voice_lobby'),
+    path('hub', LobbyListView.as_view(), name = 'voice_hub')
 ]
