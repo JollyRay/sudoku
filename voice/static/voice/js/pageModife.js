@@ -68,3 +68,7 @@ function toggleFullscreen(event) {
         }
     }
 }
+
+function muteFlip(elem){
+    elem.classList.toggle('muted')
+}

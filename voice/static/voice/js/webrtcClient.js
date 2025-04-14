@@ -5,6 +5,7 @@ let roomName;
 const localVideo = document.getElementById('local-video');
 const localScreenVideo = document.getElementById('local-screen-video');
 const showScreenButton = document.getElementById('toggle-screen-stream-button');
+const microButton = document.getElementById('toggle-micro-button');
 
 var peerConnections = {};
 var localStream;
@@ -51,6 +52,10 @@ showScreenButton.addEventListener('click', async (_) => {
 
     }
 });
+microButton.addEventListener('click', (_) => {
+    localStream.getAudioTracks()[0].enabled = !localStream.getAudioTracks()[0].enabled;
+    muteFlip(microButton);
+})
 
 function createPeerConnection(remoteVideo, remoteNick, stream, isScreen, isProvider) {
     let pc = new RTCPeerConnection();

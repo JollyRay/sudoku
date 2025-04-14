@@ -66,22 +66,29 @@ main{
 }
 .button-container{
     position: relative;
+}
+.button-absolute-container{
+    width: 100%;
+    height: 1vh;
+    bottom: 0;
+    position: absolute;
     display: flex;
     justify-content: center;
-    height: 3vh;
+    transition: height;
+    transition-duration: 1s;
 }
 .hidden-button-frame{
-    position: absolute;
-    bottom: -2vh;
     opacity: 0;
-    transition: opacity, height;
+    transition: opacity;
     transition-duration: 1s;
     height: 30px;
     margin: 10px 0;
 }
+.main-container:hover .button-absolute-container{
+    height: 4vh;
+}
 .main-container:hover .hidden-button-frame{
     opacity: 1;
-    height: 60px;
 }
 .hideen-button{
     width: 69px;
@@ -92,9 +99,22 @@ main{
     background: darkgray;
     transition: background;
     transition-duration: 200ms;
+    margin: 0 5px;
 }
 .hideen-button:hover{
     background: gray;
+}
+.fa-microphone-slash{
+    display: none;
+}
+.muted .fa-microphone-slash{
+    display: inline;
+}
+.fa-microphone{
+    display: inline;
+}
+.muted .fa-microphone{
+    display: none;
 }
 footer{
     height: 5vh;
