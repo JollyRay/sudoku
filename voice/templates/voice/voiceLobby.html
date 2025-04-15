@@ -3,18 +3,29 @@
 
 {% block content %}
 <div class="main-container">
-    <div id="video-home" class="video-container">
-        <video id="local-video" playsinline="" autoplay="" muted="" class="webrtc-video"></video>
-        <video id="local-screen-video" playsinline="" autoplay="" muted="" class="webrtc-video hidden" is-screen="true"></video>
-    </div>
-    <div class="button-container">
-        <div class="button-absolute-container">
-            <div class="hidden-button-frame">
-                <button id="toggle-screen-stream-button" class="hideen-button"><i class="fa-solid fa-desktop"></i></button>
+    <div class="all-media-container">
+        <div>
+            <div id="video-home" class="video-container">
+                <video id="local-video" playsinline="" autoplay="" muted="" class="webrtc-video"></video>
+                <video id="local-screen-video" playsinline="" autoplay="" muted="" class="webrtc-video hidden" is-screen="true"></video>
             </div>
-            <div class="hidden-button-frame">
-                <button id="toggle-micro-button" class="hideen-button"><i class="fa-solid fa-microphone"></i><i class="fa-solid fa-microphone-slash"></i></button>
+            <div class="button-container">
+                <div class="button-absolute-container">
+                    <div class="hidden-button-frame">
+                        <button id="toggle-screen-stream-button" class="hideen-button"><i class="fa-solid fa-desktop"></i></button>
+                    </div>
+                    <div class="hidden-button-frame">
+                        <button id="toggle-micro-button" class="hideen-button"><i class="fa-solid fa-microphone"></i><i class="fa-solid fa-microphone-slash"></i></button>
+                    </div>
+                    <div class="hidden-button-frame">
+                        <button id="toggle-chat-button" class="hideen-button"><i class="fa-solid fa-comments"></i></button>
+                    </div>
+                </div>
             </div>
+        </div>
+        <div id="text-chat-container" class="message-chat hidden" >
+            <div class="old-message" id="old-message-container"></div>
+            <textarea rows="3" cols="26" id="chat-input"></textarea>
         </div>
     </div>
 </div>

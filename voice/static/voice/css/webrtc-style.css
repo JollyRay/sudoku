@@ -1,6 +1,8 @@
 :root{
     --video-container-width: 85vw;
     --video-container-height: 85vh;
+    --chat-container-width: calc(100vw - var(--video-container-width) - 3vw);
+    --chat-container-height: var(--video-container-height);
     --video-width: var(--video-container-width);
     --video-hight: var(--video-container-height);
 }
@@ -22,8 +24,12 @@ main{
 }
 .main-container{
     height: 100%;
-    width: var(--video-container-width);
-    margin: 0 calc((100vw - var(--video-container-width)) / 2);
+    width: 100vw;
+}
+.all-media-container{
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
 }
 .video-container{
     display: flex;
@@ -32,6 +38,7 @@ main{
     align-items: center;
     width: var(--video-container-width);
     height: var(--video-container-height);
+    margin: 0 min(30px, calc((100vw - var(--video-container-width)) / 2));
 }
 .video-container:has(> :nth-child(2 of :not(.hidden))){
     --video-width: var(--video-container-width);
@@ -60,6 +67,62 @@ main{
     margin: 2px;
     height: min(calc(var(--video-width) / 192 * 108), var(--video-hight));
     width: min(calc(var(--video-hight) / 108 * 192), var(--video-width));
+}
+.message-chat{
+    max-height: var(--chat-container-height);
+    max-width: var(--chat-container-width);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    margin-right: 5px;
+}
+.message-chat > textarea{
+    height: 5vh;
+}
+.old-message{
+    max-height: calc(var(--chat-container-height) - 5vh);
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+.first-message-in-row{
+    display: grid;
+    grid-template-columns: min-content 38px;
+}
+.first-message-in-row > div:first-child{
+    font-size: 1.2em;
+    font-weight: bold;
+    max-width: calc(var(--chat-container-width) - 3vw);
+    text-overflow: ellipsis;
+    overflow: hidden;
+    white-space: nowrap;
+}
+.first-message-in-row > div:nth-child(2),
+.another-message-in-row:hover > div:first-child{
+    color: gray;
+    font-size: 0.9em;
+    margin-left: 5px;
+    display: flex;
+    justify-content: end;
+    flex-direction: column;
+}
+.first-message-in-row > div:last-child{
+    grid-column-start: 1;
+    grid-column-end: 4;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+.another-message-in-row{
+    display: flex;
+    justify-content: space-between;
+    flex-direction: row;
+}
+.another-message-in-row > div:first-child{
+    display: none;
+    order: 2;
+}
+.another-message-in-row > div:last-child{
+    word-break: break-word;
+    white-space: pre-wrap;
 }
 .hidden {
     display: none;

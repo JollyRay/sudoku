@@ -1,5 +1,5 @@
 let chatSocket;
-let selfNick;
+var selfNick;
 let roomName;
 
 const localVideo = document.getElementById('local-video');
@@ -121,6 +121,16 @@ function setupDataChannelHandlers(channel) {
     
     channel.onmessage = (event) => {
       console.log('Received:', event.data);
+      const data = JSON.parse(event.data)
+
+      switch (data.type) {
+        case 'chatMessage':
+            newChatMessage(data.sender, data.text, data.time);
+            break;
+      
+        default:
+            break;
+      }
     };
     
     channel.onclose = () => {
@@ -409,4 +419,18 @@ function createWebSocket(){
     };
 
     chatSocket.onclose = reconnetIfNeed;
+}
+
+function sendChatMessage(text, time){
+    Object.keys(peerConnections).forEach(nick => {
+        peerConnections[nick]?.datachannel.send(
+            JSON.stringify({
+                type: "chatMessage",
+                sender: selfNick,
+                to: nick,
+                text: text,
+                time: time
+            })
+        );
+    });
 }
