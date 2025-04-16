@@ -40,9 +40,12 @@ class VoiceConsumer(AsyncWebsocketConsumer):
         await super().websocket_disconnect(event)
 
     async def disconnect(self, close_code):
-        await self.delete_voice_member()
-        await self.send_data_with_restrictions(sender = self.nick, type = 'bye')
-        await self.channel_layer.group_discard(self.room_code, self.channel_name)
+        try:
+            await self.delete_voice_member()
+            await self.send_data_with_restrictions(sender = self.nick, type = 'bye')
+            await self.channel_layer.group_discard(self.room_code, self.channel_name)
+        except AttributeError: pass
+
         print('Disconnected', close_code)
 
     async def dispatch(self, message):
