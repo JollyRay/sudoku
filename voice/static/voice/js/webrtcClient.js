@@ -58,7 +58,18 @@ microButton.addEventListener('click', (_) => {
 })
 
 function createPeerConnection(remoteVideo, remoteNick, stream, isScreen, isProvider) {
-    let pc = new RTCPeerConnection();
+    let pc = new RTCPeerConnection({
+        iceServers: [
+            {
+                urls: "stun:schepka26.ru:3478"  // Free STUN server
+            },
+            {
+                urls: "turn:schepka26.ru:5349",
+                username: "username",
+                credential: "password"
+            }
+        ]
+    });
     pc.onicecandidate = e => {
         if (e.candidate) {
             const message = {

@@ -1,3 +1,5 @@
+# /etc/nginx/sites-available/default
+
 server {
     listen 80;
     server_name www.schepka26.ru;
@@ -47,4 +49,14 @@ server {
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
     }
+}
+
+server {
+    listen 3478;
+    proxy_pass localhost:3478;
+}
+
+server {
+    listen 5349;
+    proxy_pass localhost:5349;
 }
