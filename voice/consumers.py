@@ -1,3 +1,4 @@
+import logging
 from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.db import database_sync_to_async
 from django.db.utils import IntegrityError
@@ -34,9 +35,10 @@ class VoiceConsumer(AsyncWebsocketConsumer):
             return
         
         await self.accept()
+        logging.info(f'WebSocket accept {self.scope["path"]} [{self.scope["client"][0]}:{self.scope["client"][1]}]')
     
     async def websocket_disconnect(self, event):
-        print('Webscoket isconnected', event)
+        logging.info(f'WebSocket disconect {self.scope["path"]} [{self.scope["client"][0]}:{self.scope["client"][1]}]')
         await super().websocket_disconnect(event)
 
     async def disconnect(self, close_code):
@@ -52,7 +54,7 @@ class VoiceConsumer(AsyncWebsocketConsumer):
         try:
             await super().dispatch(message)
         except ConnectionRefusedError as err: 
-            print(err)
+            logging.error(err)
 
     #############################
     #                           #
@@ -61,7 +63,6 @@ class VoiceConsumer(AsyncWebsocketConsumer):
     #############################
 
     async def websocket_receive(self, event):
-        print(event['text'])
         try:
             text_data_json = json.loads(event['text'])
             if not isinstance(text_data_json, dict):
@@ -69,12 +70,12 @@ class VoiceConsumer(AsyncWebsocketConsumer):
             
             kind = text_data_json['type']
             
-            # logging.info(f'WebSocket {kind} {self.scope["path"]} [{self.scope["client"][0]}:{self.scope["client"][1]}]')
+            logging.info(f'WebSocket voice-{kind} {self.scope["path"]} [{self.scope["client"][0]}:{self.scope["client"][1]}]')
             func: Callable[..., Awaitable[None]] = user_request_handler.reqest_type_map[kind]
             
             await func(self, **text_data_json)
         except (KeyError, IndexError, TypeError) as e:
-            print(e)
+            logging.error(e)
 
     async def send_data_with_restrictions(self, **data: str|bool):
         await self.channel_layer.group_send(
