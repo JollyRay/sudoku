@@ -89,7 +89,7 @@ class SudokuBoarderProxy:
 
             return cells
 
-        except UserSetting.DoesNotExist:
+        except (UserSetting.DoesNotExist, AttributeError):
             return None
     
     @classmethod
