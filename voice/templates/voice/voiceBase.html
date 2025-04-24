@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block extra_style %}
+<link type="text/css" rel="stylesheet" href="{% static 'voice/css/webrtc-style.css' %}">
+<link rel="shortcut icon" type="image/png" href="{% static 'favicon.ico' %}"/>
+<title>{{ title }}</title>
+{% endblock %}
+
+{% block header_contant %}
+<h1><a>Создать лобби</a></h1>
+{% endblock %}
+
+{% block footer_content %}
+<div class="footer-container">
+    <span>
+        Автор идеи: <i class="fa-brands fa-discord"></i> nitlania
+    </span>
+</div>
+{% endblock %}

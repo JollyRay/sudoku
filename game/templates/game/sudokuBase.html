@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block extra_style %}
+<link type="text/css" rel="stylesheet" href="{% static 'game/css/style.css' %}">
+<link type="text/css" rel="stylesheet" href="{% static 'game/css/font.css' %}">
+<link rel="shortcut icon" type="image/png" href="{% static 'favicon.ico' %}"/>
+<title>{{ title }}</title>
+{% endblock %}
+
+
+{% block header_contant %}
+<h1><a href="{% url 'create_lobby' %}">Создать лобби</a></h1>
+{% endblock %}
+
+{% block footer_content %}
+<div class="footer-container">
+    <span>
+        Автор идеи: <i class="fa-brands fa-twitch"></i><a href="https://www.twitch.tv/torrythelittle">torrythelittle</a>
+    </span>
+    <span>
+        Автор дизайна: <i class="fa-brands fa-discord"></i> lilitasami
+    </span>
+</div>
+{% endblock %}

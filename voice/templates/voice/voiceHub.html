@@ -1,0 +1,88 @@
+{% extends "voice/voiceBase.html" %}
+{% load static %}
+
+{% block content %}
+<div class="groups-container">
+    <div class="group-nav">
+        
+        <div class="group-list">
+            <div>Создать</div>
+            {% for info in group_info %}
+                <div name="{{ info.name }}">
+                    <div class="room-name-nav">
+                        <p>{{ info.name }}</p>
+                        <a href="{% url 'voice_lobby' name=info.name %}"><i class="fa-solid fa-phone-flip"></i></a> 
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+        {% if page_obj.has_other_pages %}
+        <nav class="lobby-room-paginator">
+            <ul>
+                {% if page_obj.has_previous %}
+                <a href="?page=1">
+                    <li><<</li>
+                </a>
+                {% endif %}
+                {% for page_number in paginator.page_range %}
+                {% if page_obj.number == page_number %}
+                <a href="?page={{ page_number }}">
+                    <li class="currant-page">{{ page_number }}</li>
+                </a>
+                {% elif page_number >= page_obj.number|add:-2 or page_number <= page_obj.number|add:2 %}
+                <a href="?page={{ page_number }}">
+                    <li>{{ page_number }}</li>
+                </a>
+                {% endif %}
+                {% endfor %}
+                
+                {% if page_obj.has_next %}
+                <a href="?page={{ page_obj.end_index }}">
+                    <li>>></li>
+                </a>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+    </div>
+    <div class="group-info">
+        <div>
+            <form method="post" class="new-room-form">
+                {% csrf_token %}
+                {{ create_form.non_field_errors }}
+                <div>
+                    {{ create_form.name.errors }}
+                    <label for="{{ create_form.name.id_for_label }}">Название комнаты:</label>
+                    {{ create_form.name }}
+                </div>
+                <div>
+                    {{ create_form.description.errors }}
+                    <label for="{{ create_form.description.id_for_label }}">Описание:</label>
+                    {{ create_form.description }}
+                </div>
+                <input type="submit" value="Создать">
+            </form>
+        </div>
+        {% for info in group_info %}
+            <div class="group-info-item hidden" name="{{ info.name }}">
+                <div>
+                    <p><b>Группа:</b></p>
+                    <p>{{ info.name }}</p>
+                </div>
+                <div>
+                    <p><b>Участники:</b></p>
+                    <p>{{ info.members }}</p>
+                </div>
+                <div>
+                    <p><b>Описание:</b></p>
+                    <p>{{ info.description }}</p>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_script %}
+<script src="{% static 'voice/js/hub.js' %}"></script>
+{% endblock %}
