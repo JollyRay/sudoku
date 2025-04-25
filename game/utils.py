@@ -432,36 +432,42 @@ class Sudoku:
                 placed -= 1
 
     @classmethod
-    def generate_sudoku_with_setting(cls, base, limit_reqest):
+    def generate_sudoku_with_setting(cls, base: int, limit_reqest: list[tuple[int, int, int]]) -> tuple[list[list[int]], list[list[int]], int]:
         """
         Generate one board on request setting
 
         :param base: inner box side
         :param limit_reqest: array of difficulties
-            difficult[0] - difficulty name
-            difficult[1] - required number of tables
-            difficult[2] - min empty limit
-            difficult[3] - pk in Difficulty table 
-        :return: list[list[int]] Sudoku board (base**2)x(base**2) size with empty cell by one request
+            difficult[0] - required number of tables
+            difficult[1] - min empty limit
+            difficult[2] - pk in Difficulty table 
+        :return:
+            tuple(
+                list[list[int]] Sudoku board (base**2)x(base**2) size with empty cell by one request,
+                list[list[int]] Filled board,
+                id              pk of difficulty
+            )
         """
         side = base * base
         sudoku = cls(side)
 
         select_difficult = None
         for difficult_index in range(len(limit_reqest) - 1, -1, -1):
-            if limit_reqest[difficult_index][1] > 0 and sudoku.empty_cell == 0:
-                sudoku.clear_board(limit_reqest[difficult_index][2])
+            if limit_reqest[difficult_index][0] > 0 and sudoku.empty_cell == 0:
+                sudoku.clear_board(limit_reqest[difficult_index][1])
 
             if sudoku.empty_cell != 0:
-                if (difficult_index == 0 or limit_reqest[difficult_index - 1][2] < sudoku.empty_cell) and limit_reqest[difficult_index][1] > 0:
+                if (difficult_index == 0 or limit_reqest[difficult_index - 1][1] < sudoku.empty_cell) and limit_reqest[difficult_index][0] > 0:
+                    limit_reqest[difficult_index] = cast(tuple[int, int, int], tuple(
+                        value - 1 if index == 0 else value for index, value in enumerate(limit_reqest[difficult_index])
+                    ))
                     select_difficult = limit_reqest[difficult_index]
-                    select_difficult[1] -= 1
                     break
         
         if select_difficult is not None:
-            if select_difficult[2] < sudoku.empty_cell:
-                sudoku.fill_up(select_difficult[2])
+            if select_difficult[1] < sudoku.empty_cell:
+                sudoku.fill_up(select_difficult[1])
 
-            return sudoku.clean_board, sudoku.board, select_difficult[0], select_difficult[3]
+            return sudoku.clean_board, sudoku.board, select_difficult[2]
         
         return cls.generate_sudoku_with_setting(base, limit_reqest)

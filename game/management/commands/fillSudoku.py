@@ -6,7 +6,7 @@ from game.models import Difficulty, SudokuBoard, SudokuCell
 
 class Command(BaseCommand):
 
-    MIN_BOARD_NEED = 100
+    MIN_BOARD_NEED = 10
 
     def handle(self, *args, **options):
         self._create_start_board()
@@ -18,23 +18,22 @@ class Command(BaseCommand):
         difficulty_info = Difficulty.objects.values('name', 'top_limit', 'pk').order_by('top_limit').annotate(count = Count('sudokuboard'))
         limit_reqest = []
         for difficulty in difficulty_info:
-            limit_reqest.append([
-                difficulty['name'],
+            limit_reqest.append((
                 max(0, self.MIN_BOARD_NEED - difficulty['count']),
                 difficulty['top_limit'], 
                 difficulty['pk'], 
-            ])
+            ))
         limit_reqest.sort(key = lambda difficulty: difficulty[2])
 
         # Fill
 
-        while (limit_reqest[0][1] or limit_reqest[1][1] or limit_reqest[2][1]):
+        while (limit_reqest[0][0] or limit_reqest[1][0] or limit_reqest[2][0]):
 
             data = Sudoku.generate_sudoku_with_setting(base, limit_reqest)
             self._add_board(*data, limit_reqest, size = base * base)
 
-    def _add_board(self, clean_board, solution_board, difficulty, difficulty_id, limit_reqest, size):
-        message = ' '.join((f'{param[0]}: {max(0, self.MIN_BOARD_NEED - param[1])}/{self.MIN_BOARD_NEED}' for param in limit_reqest))
+    def _add_board(self, clean_board, solution_board, difficulty_id, limit_reqest, size):
+        message = ' '.join((f'LvL{param[2]}: {max(0, self.MIN_BOARD_NEED - param[0])}/{self.MIN_BOARD_NEED}' for param in limit_reqest))
         self.stdout.write(message + '   ')
 
         board_in_bd = SudokuBoard.objects.create(difficulty_id = difficulty_id)
