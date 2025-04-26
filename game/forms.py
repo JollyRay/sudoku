@@ -1,4 +1,6 @@
-from django.forms import *
+from typing import Any
+from django.forms import Form, CharField, TextInput, PasswordInput, ValidationError
+
 from .models import UserSetting
 
 class ConncetLobbyForm(Form):
@@ -12,7 +14,7 @@ class ConncetLobbyForm(Form):
     )
     code = CharField(widget = PasswordInput(), max_length = 32)
 
-    def clean(self):
+    def clean(self) -> dict[str, Any]:
 
         try:
             nick = self.cleaned_data['nick']

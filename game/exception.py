@@ -1,4 +1,10 @@
-class SudokuException(Exception):
+from abc import ABC, abstractmethod
+
+class SudokuException(Exception, ABC):
+    @property
+    @abstractmethod
+    def MESSAGE(self): ...
+    
     def __init__(self, code_room, nick) -> None:
         message = self.MESSAGE % (nick, code_room)
         super().__init__(message)

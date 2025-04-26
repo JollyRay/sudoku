@@ -1,8 +1,8 @@
 import logging
+from typing import Any
 from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.db import database_sync_to_async
 from django.db.utils import IntegrityError
-from django.db.models import F, QuerySet
 from collections.abc import Callable, Awaitable
 import asyncio
 import json
@@ -27,7 +27,7 @@ class VoiceConsumer(AsyncWebsocketConsumer):
     #                           #
     #############################
 
-    async def websocket_connect(self, event):
+    async def websocket_connect(self, event: dict[str, str]) -> None:
 
         self.room_code: str = self.scope['url_route']['kwargs'].get('room_name')
         if not self.room_code:
@@ -35,22 +35,18 @@ class VoiceConsumer(AsyncWebsocketConsumer):
             return
         
         await self.accept()
-        logging.info(f'WebSocket accept {self.scope["path"]} [{self.scope["client"][0]}:{self.scope["client"][1]}]')
     
-    async def websocket_disconnect(self, event):
-        logging.info(f'WebSocket disconect {self.scope["path"]} [{self.scope["client"][0]}:{self.scope["client"][1]}]')
+    async def websocket_disconnect(self, event: dict[str, str]) -> None:
         await super().websocket_disconnect(event)
 
-    async def disconnect(self, close_code):
+    async def disconnect(self, close_code: int) -> None:
         try:
             await self.delete_voice_member()
             await self.send_data_with_restrictions(sender = self.nick, type = 'bye')
             await self.channel_layer.group_discard(self.room_code, self.channel_name)
         except AttributeError: pass
 
-        print('Disconnected', close_code)
-
-    async def dispatch(self, message):
+    async def dispatch(self, message) -> None:
         try:
             await super().dispatch(message)
         except ConnectionRefusedError as err: 
@@ -62,7 +58,7 @@ class VoiceConsumer(AsyncWebsocketConsumer):
     #                           #
     #############################
 
-    async def websocket_receive(self, event):
+    async def websocket_receive(self, event: dict[str, Any]) -> None:
         try:
             text_data_json = json.loads(event['text'])
             if not isinstance(text_data_json, dict):
@@ -77,7 +73,7 @@ class VoiceConsumer(AsyncWebsocketConsumer):
         except (KeyError, IndexError, TypeError) as e:
             logging.error(e)
 
-    async def send_data_with_restrictions(self, **data: str|bool):
+    async def send_data_with_restrictions(self, **data: str|bool) -> None:
         await self.channel_layer.group_send(
             self.room_code, {'type': 'send_message_with_exclude_self', 'data': data}
         )
@@ -95,7 +91,7 @@ class VoiceConsumer(AsyncWebsocketConsumer):
 
         await self.send(text_data = json.dumps(usefull_data))
 
-    async def send_offers(self, data: OfferData):
+    async def send_offers(self, data: OfferData) -> None:
         
         try:
             sdp_list: tuple[str|None, str|None, str|None] = (
@@ -126,7 +122,7 @@ class VoiceConsumer(AsyncWebsocketConsumer):
     #############################
 
     @user_request_handler('ready')
-    async def ready_handler(self, **_: str) -> None:
+    async def ready_handler(self, *asgs: Any, **kwargs: Any) -> None:
 
         if hasattr(self, 'nick'):
             await self.close()
@@ -149,7 +145,7 @@ class VoiceConsumer(AsyncWebsocketConsumer):
                 'members': [{"nick": member['nick'], 'hasScreen': member['has_screen_sream']} for member in members], 'nick': self.nick}))
 
     @user_request_handler('reconnect')
-    async def reconnect_handler(self, sender: str, hasScreen: bool, **_: str) -> None:
+    async def reconnect_handler(self, sender: str, hasScreen: bool, *asgs: Any, **kwargs: Any) -> None:
         if hasattr(self, 'nick'):
             await self.close()
             return
@@ -172,25 +168,25 @@ class VoiceConsumer(AsyncWebsocketConsumer):
         return True
 
     @user_request_handler('offers')
-    async def offers_handler(self, sender: str, data: str, **_: str) -> None:
+    async def offers_handler(self, sender: str, data: str, *asgs: Any, **kwargs: Any) -> None:
         await self.channel_layer.group_send(
             self.room_code, {'type': 'send_offers', 'sender': sender, 'data': data}
         )
 
     @user_request_handler('answer')
-    async def answer_handler(self, sdp: str, isScreen: bool, isProvider: bool, to: str, **_: str) -> None:
+    async def answer_handler(self, sdp: str, isScreen: bool, isProvider: bool, to: str, *asgs: Any, **kwargs: Any) -> None:
         await self.send_data_with_restrictions(sender = self.nick, sdp = sdp, isScreen = isScreen, isProvider = isProvider, to = to, type = 'answer')
 
     @user_request_handler('candidate')
-    async def candidate_handler(self, candidate: str, sdpMid: str, isProvider: bool, isScreen: bool, to: str, sdpMLineIndex: str, **_: str) -> None:
+    async def candidate_handler(self, candidate: str, sdpMid: str, isProvider: bool, isScreen: bool, to: str, sdpMLineIndex: str, *asgs: Any, **kwargs: Any) -> None:
         await self.send_data_with_restrictions(candidate = candidate, sdpMid = sdpMid, sdpMLineIndex = sdpMLineIndex, isScreen = isScreen, isProvider = isProvider, sender = self.nick, to = to, type = 'candidate')
 
     @user_request_handler('addScreen')
-    async def add_screen(self, **_: str):
+    async def add_screen(self, *asgs: Any, **kwargs: Any):
         await self.update_has_screen_stream(True)
 
     @user_request_handler('removeScreen')
-    async def remove_screen(self, **_: str):
+    async def remove_screen(self, *asgs: Any, **kwargs: Any):
         await self.update_has_screen_stream(False)
 
     #############################
@@ -199,7 +195,7 @@ class VoiceConsumer(AsyncWebsocketConsumer):
     #                           #
     #############################
 
-    @database_sync_to_async # type: ignore
+    @database_sync_to_async
     def add_voice_member(self, has_screen: bool) -> bool:
         voice_group, _ = VoiceGroup.objects.get_or_create(name = self.room_code)
 
@@ -209,7 +205,7 @@ class VoiceConsumer(AsyncWebsocketConsumer):
         except IntegrityError:
             return False
         
-    @database_sync_to_async # type: ignore
+    @database_sync_to_async
     def delete_voice_member(self) -> bool:
 
         try: 
@@ -223,16 +219,16 @@ class VoiceConsumer(AsyncWebsocketConsumer):
         except (VoiceMember.DoesNotExist, AttributeError):
             return False
         
-    @database_sync_to_async # type: ignore
+    @database_sync_to_async
     def get_voice_members(self) -> list[MemberNick]:
 
         return list(VoiceMember.objects.filter(voice_group__name = self.room_code).values('nick', 'has_screen_sream'))
         
-    @database_sync_to_async # type: ignore
+    @database_sync_to_async
     def get_voice_group_size(self) -> int:
 
         return VoiceMember.objects.filter(voice_group__name = self.room_code).count()
 
-    @database_sync_to_async # type: ignore
+    @database_sync_to_async
     def update_has_screen_stream(self, is_exist_screen: bool) -> bool:
         return VoiceMember.objects.filter(nick = self.nick).update(has_screen_sream = is_exist_screen) > 0

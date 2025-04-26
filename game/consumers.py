@@ -3,18 +3,20 @@ import json
 import logging
 import os
 from threading import Thread
+from typing import Awaitable, Callable, Any
 import requests
-from random import random
+from random import random, randint
 from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.db import database_sync_to_async
 from django.db.utils import IntegrityError
 
-from game.exception import SudokuException
-
+from .exception import SudokuException
+from .stubs import UserInLobbyInfo
 from .models import *
+from .utils import AddHandler, SudokuBoarderProxy
+
 from sudoku.settings import SECRET_WEBSOCKET_ADMIN_KEY_VALUE_BYTE, SECRET_WEBSOCKET_ADMIN_KEY_HEADER_BYTE
 
-from .utils import AddHandler, SudokuBoarderProxy
 
 userRequestHandler = AddHandler()
 bonusHandler = AddHandler()
@@ -26,32 +28,31 @@ class SudokuConsumer(AsyncWebsocketConsumer):
             if header_name == SECRET_WEBSOCKET_ADMIN_KEY_HEADER_BYTE:
                 if SECRET_WEBSOCKET_ADMIN_KEY_VALUE_BYTE != header_value:
                     return False
-                self.is_admin = True
-                self.room_code = self.scope['url_route']['kwargs'].get('room_name')
+                self.is_admin: bool = True
+                self.room_code: str = self.scope['url_route']['kwargs'].get('room_name')
                 await self.channel_layer.group_add(self.room_code, self.channel_name)
                 await self.accept()
                 return True
         return False
 
-    async def connect(self):
+    async def connect(self) -> None:
         if await self._connect_admin():
             return
         # Set settings
 
         self.is_admin = False
         self.room_code = self.scope['url_route']['kwargs'].get('room_name')
-        # self.room_code = self.scope['session'].get('room_code')
+        
         if not self.room_code:
             await self.close()
             return
         
-        self.nick = self.scope['cookies'].get('nick')
+        self.nick: str = self.scope['cookies'].get('nick')
         if not self.nick:
             await self.close()
             return
-        
-        self.solution_id = []
-        self.is_twtich_channel = False
+
+        self.is_twtich_channel: bool = False
 
         # Accept and add to group
 
@@ -61,14 +62,15 @@ class SudokuConsumer(AsyncWebsocketConsumer):
         # Generate first data
 
         await self.send_full_data(kind = 'new_user', nick = self.nick)
-        info_maps = await database_sync_to_async(SudokuBoarderProxy.get_room_info)(self.room_code)
+        info_maps: dict[str, UserInLobbyInfo] = await database_sync_to_async(SudokuBoarderProxy.get_room_info)(self.room_code)
         await self.send(text_data = json.dumps({'kind': 'first_data', 'data': info_maps}))
         await self.add_channel()
 
-    async def disconnect(self, close_code):
+    async def disconnect(self, close_code: int):
+        
         try:
             if not self.is_admin:
-                is_remove_lobby = await database_sync_to_async(SudokuBoarderProxy.delete_user)(self.room_code, self.nick)
+                is_remove_lobby: bool = await database_sync_to_async(SudokuBoarderProxy.delete_user)(self.room_code, self.nick)
 
                 if not is_remove_lobby:
                     await self.send_full_data(kind = 'disconection', nick = self.nick)
@@ -82,27 +84,26 @@ class SudokuConsumer(AsyncWebsocketConsumer):
         except AttributeError:
             pass
 
-    # async def dispatch(self, message):
-    #     try:
-    #         await super().dispatch(message)
-    #     except ValueError as err: 
-    #         logging.error('Erroe ignore')
+    async def dispatch(self, message):
+        try:
+            await super().dispatch(message)
+        except ValueError as err: 
+            logging.error(err)
 
-    async def receive(self, text_data):
-        
+    async def receive(self, text_data: str):        
 
         text_data_json = json.loads(text_data)
         if not isinstance(text_data_json, dict):
             await self.close()
             return
         
-        kind = text_data_json.get('kind')
+        kind: str | None = text_data_json.get('kind')
         if kind is None:
             await self.close()
             return
         
         logging.info(f'WebSocket {kind} {self.scope["path"]} [{self.scope["client"][0]}:{self.scope["client"][1]}]')
-        func = userRequestHandler.reqest_type_map.get(kind)
+        func: Callable[..., Awaitable[Any]] | None = userRequestHandler.reqest_type_map.get(kind)
 
         if func is None:
             return
@@ -115,16 +116,16 @@ class SudokuConsumer(AsyncWebsocketConsumer):
         except TypeError:
             logging.warning(f'User did not provide all the arguments for function "{kind}"')
 
-    async def send_full_data(self, **data):
+    async def send_full_data(self, **data: Any) -> None:
         await self.channel_layer.group_send(
             self.room_code, {'type': 'send_message', 'data': data}
         )
     
-    async def send_message(self, data):
+    async def send_message(self, data: dict[str, dict[str, Any]]) -> None:
         if self.is_admin: return
         await self.send(text_data = json.dumps(data.get('data')))
 
-    async def disconnect_lobby(self, _):
+    async def disconnect_lobby(self, _: int) -> None:
         await self.send(text_data = json.dumps({'kind': 'lobby_remove'}))
         await self.close()
 
@@ -135,9 +136,10 @@ class SudokuConsumer(AsyncWebsocketConsumer):
     #############################
 
     @userRequestHandler('generate')
-    async def generate_sudoku(self, difficulty = 'medium', *args, **kwargs):
+    async def generate_sudoku(self, difficulty: str = 'medium', *args: Any, **kwargs: Any) -> None:
 
-        if not await database_sync_to_async(SudokuBoarderProxy.add_random_board)(self.room_code, self.nick, difficulty, [*bonusHandler.reqest_type_map]):
+        can_add_board = await database_sync_to_async(SudokuBoarderProxy.add_random_board)(self.room_code, self.nick, difficulty, [*bonusHandler.reqest_type_map])
+        if not can_add_board:
             await self.close()
             return
 
@@ -154,7 +156,7 @@ class SudokuConsumer(AsyncWebsocketConsumer):
         )
 
     @userRequestHandler('set_value')
-    async def set_sudoku_value(self, cell_number: int, value: int, is_finish: bool, *args, **kwargs):
+    async def set_sudoku_value(self, cell_number: int, value: int, is_finish: bool, *args: Any, **kwargs: Any):
 
         # Protect if send None or empty string
         if not value:
@@ -165,7 +167,7 @@ class SudokuConsumer(AsyncWebsocketConsumer):
         if is_equal is None:
             return
         
-        extra_info = {}
+        extra_info: dict[str, Any] = {}
         if is_equal and bonus_name:
 
             extra_info['bonus_type'] = bonus_name
@@ -188,13 +190,13 @@ class SudokuConsumer(AsyncWebsocketConsumer):
         )
 
     @userRequestHandler('add_twitch_channel')
-    async def add_twitch_channel(self, *args, **kwargs):
+    async def add_twitch_channel(self, *args: Any, **kwargs: Any):
         if self.is_twtich_channel: return
         tempThread = Thread(target = asyncio.run, args = (self._add_twitch_channel(),))
 
         tempThread.start()
     
-    async def _add_twitch_channel(self, *args, **kwargs):
+    async def _add_twitch_channel(self, *args: Any, **kwargs: Any):
         host = os.getenv('TWITCH_BOT_HOST')
         port = os.getenv('TWITCH_BOT_PORT')
         payload = {
@@ -210,7 +212,7 @@ class SudokuConsumer(AsyncWebsocketConsumer):
             logging.error(f'Connectiob error {host}:{port}')
 
     @userRequestHandler('admin_bonus')
-    async def catch_admin_bonus(self, to, bonus_type, *args, **kwargs):
+    async def catch_admin_bonus(self, to, bonus_type, *args: Any, **kwargs: Any):
 
         if not self.is_admin:
             await self.close()
@@ -233,11 +235,11 @@ class SudokuConsumer(AsyncWebsocketConsumer):
     #############################
 
     @bonusHandler('SHADOW_BOX')
-    async def generate_roll_box_detale(self):
+    async def generate_shadow_box_detale(self):
         return {'box': randint(0, 8)}
     
     @bonusHandler('SWAP')
-    async def generate_roll_box_detale(self):
+    async def generate_swap_detale(self):
         is_row = random() > 0.5
         is_big = random() > 0.5
         first_index = randint(0, 2)
@@ -259,7 +261,7 @@ class SudokuConsumer(AsyncWebsocketConsumer):
         return {'box': randint(0, 8)}
     
     @bonusHandler('DANCE')
-    async def generate_roll_box_detale(self):
+    async def generate_dance_detale(self):
         return {'box': randint(0, 8)}
 
     #############################
@@ -269,7 +271,7 @@ class SudokuConsumer(AsyncWebsocketConsumer):
     #############################
 
     @database_sync_to_async
-    def add_channel(self):
+    def add_channel(self) -> None:
         try:
             lobby = LobbySetting.objects.get_or_create(code = self.room_code)[0]
             UserSetting.objects.create(lobby = lobby, nick = self.nick)

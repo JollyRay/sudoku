@@ -9,6 +9,6 @@ class GameConfig(AppConfig):
 
         try: 
             LobbySetting = self.get_model('LobbySetting')
-            LobbySetting.objects.all().delete()
+            LobbySetting.objects.all().delete()  # type: ignore
         except OperationalError: ...
 

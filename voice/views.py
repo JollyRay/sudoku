@@ -1,16 +1,17 @@
+from typing import Any
 from django.http import HttpRequest, HttpResponse, HttpResponseRedirect
 from django.shortcuts import render
-from django.views.generic import ListView
 from collections import namedtuple
 
-from voice.forms import CreateRoomForm
-from voice.models import VoiceGroup, VoiceMember
+from .forms import CreateRoomForm
+from .models import VoiceGroup, VoiceMember
+from .stubs import VoiceGroupListView
 
 def voice_lobby(request: HttpRequest, name: str) -> HttpResponse:
     return render(request, 'voice/voiceLobby.html', context = {'title': f'WebRTC {name}', 'room_code': name})
 
         
-class LobbyListView(ListView): # type: ignore
+class LobbyListView(VoiceGroupListView):
     model = VoiceGroup
     paginate_by = 15
     template_name = 'voice/voiceHub.html'
@@ -18,7 +19,7 @@ class LobbyListView(ListView): # type: ignore
     GroupInfo = namedtuple('GroupInfo', ['name', 'description', 'members'])
     form = CreateRoomForm
     
-    def get_context_data(self, **kwargs):
+    def get_context_data(self, **kwargs: Any):
         context = super().get_context_data(**kwargs)
 
         member_info_list = VoiceMember.objects.filter(voice_group__in = context['page_obj'].object_list).values_list('nick', 'voice_group__description', 'voice_group__name')
@@ -46,7 +47,7 @@ class LobbyListView(ListView): # type: ignore
 
         return context
     
-    def post(self, request: HttpRequest, *args, **kwargs):
+    def post(self, request: HttpRequest, *args: Any, **kwargs: Any):
         formset: CreateRoomForm = self.form(request.POST)
 
         if formset.is_valid():

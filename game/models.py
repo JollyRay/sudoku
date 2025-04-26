@@ -1,10 +1,11 @@
+from typing import Any
 from django.db.models import *
 from random import randint, sample
 from sys import maxsize
 
 # Create your models here.
 
-def genereate_seed():
+def genereate_seed() -> int:
     return randint(1, maxsize) 
 
 class LobbySetting(Model):
@@ -27,7 +28,8 @@ class LobbySetting(Model):
 class UserSetting(Model):
     nick = CharField(max_length = 32, blank = False, null = False)
     lobby = ForeignKey('LobbySetting', on_delete = CASCADE, blank = False, null = False)
-    board = ManyToManyField('SudokuBoard')
+    board = ManyToManyField('SudokuBoard')      # type: ignore
+                                                # No idea how to annotate. ManyToManyDescriptor? ManyToManyField? ManyToManyManager? BaseManager?
     time_from = DateTimeField(auto_now = False, auto_now_add = False, null = True, default = None)
     time_to = DateTimeField(auto_now = False, auto_now_add = False, null = True, default = None)
 
@@ -43,13 +45,15 @@ class UserSetting(Model):
     def __str__(self):
         return f'Lobby: {self.lobby.code} - {self.nick}'
 
-class SudokuBoardManager(Manager):
-    def random(self, filter: dict = {}, exclude: dict = {}):
+from game.stubs import BorderIdDict
+
+class SudokuBoardManager(Manager['SudokuBoard']):
+    def random(self, filter: dict[str, Any] = {}, exclude: dict[str, Any] = {}) -> QuerySet['SudokuCell'] | None:
         query = self.filter(**filter).exclude(**exclude).values('id')
         
         return self._collect_cell_by_id(query)
     
-    def random_for_user(self, room_code: str, nick: str, difficulty_name: str) -> QuerySet: 
+    def random_for_user(self, room_code: str, nick: str, difficulty_name: str) -> QuerySet['SudokuCell'] | None: 
         """
         Get 81 (or other by the number of cells on the board) cells
 
@@ -67,8 +71,7 @@ class SudokuBoardManager(Manager):
 
         return self._collect_cell_by_id(query)
 
-
-    def _collect_cell_by_id(self, query: QuerySet):
+    def _collect_cell_by_id(self, query: QuerySet['SudokuBoard', BorderIdDict]) -> QuerySet['SudokuCell'] | None:
         count = query.aggregate(count=Count('id'))['count']
         if count == 0:
             return None
@@ -110,11 +113,11 @@ class Difficulty(Model):
     def __str__(self) -> str:
         return f'{self.name} limit - {self.top_limit}'
 
-class SudokuCellManager(Manager):
+class SudokuCellManager(Manager['SudokuCell']):
 
-    def get_random_empty_cell_id(self, board_id, quantity):
+    def get_random_empty_cell_id(self, board_id, quantity) -> list[int]:
         empty_cell = self.filter(board_id = board_id, is_empty = True).values('id')
-        empty_cells_id = list(map(lambda cell: cell['id'], empty_cell))
+        empty_cells_id: list[int] = list(map(lambda cell: cell['id'], empty_cell))
         try: 
             return sample(empty_cells_id, k = quantity)
         except ValueError:

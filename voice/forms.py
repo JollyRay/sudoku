@@ -1,8 +1,8 @@
-from django.forms import ModelForm, Textarea
+from django.forms import Textarea
 from .models import VoiceGroup
+from .stubs import VoiceGroupForm
 
-
-class CreateRoomForm(ModelForm): # type: ignore
+class CreateRoomForm(VoiceGroupForm):
      
     class Meta:
         model = VoiceGroup
