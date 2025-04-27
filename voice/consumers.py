@@ -30,10 +30,12 @@ class VoiceConsumer(AsyncWebsocketConsumer):
     async def websocket_connect(self, event: dict[str, str]) -> None:
 
         self.room_code: str = self.scope['url_route']['kwargs'].get('room_name')
-        if not self.room_code:
+        if 'voice_' == self.room_code:
             await self.close()
             return
         
+        self.room_code = f'voice_{self.room_code}'
+
         await self.accept()
     
     async def websocket_disconnect(self, event: dict[str, str]) -> None:
@@ -197,7 +199,7 @@ class VoiceConsumer(AsyncWebsocketConsumer):
 
     @database_sync_to_async
     def add_voice_member(self, has_screen: bool) -> bool:
-        voice_group, _ = VoiceGroup.objects.get_or_create(name = self.room_code)
+        voice_group, _ = VoiceGroup.objects.get_or_create(name = self.room_code[6:])
 
         try: 
             VoiceMember.objects.create(nick = self.nick, voice_group = voice_group, has_screen_sream = has_screen)
@@ -209,11 +211,11 @@ class VoiceConsumer(AsyncWebsocketConsumer):
     def delete_voice_member(self) -> bool:
 
         try: 
-            VoiceMember.objects.get(nick = self.nick, voice_group__name = self.room_code).delete()
-            count = VoiceMember.objects.filter(voice_group__name = self.room_code).count()
+            VoiceMember.objects.get(nick = self.nick, voice_group__name = self.room_code[6:]).delete()
+            count = VoiceMember.objects.filter(voice_group__name = self.room_code[6:]).count()
 
             if not count:
-                VoiceGroup.objects.get(name = self.room_code).delete()
+                VoiceGroup.objects.get(name = self.room_code[6:]).delete()
 
             return True
         except (VoiceMember.DoesNotExist, AttributeError):
@@ -222,12 +224,12 @@ class VoiceConsumer(AsyncWebsocketConsumer):
     @database_sync_to_async
     def get_voice_members(self) -> list[MemberNick]:
 
-        return list(VoiceMember.objects.filter(voice_group__name = self.room_code).values('nick', 'has_screen_sream'))
+        return list(VoiceMember.objects.filter(voice_group__name = self.room_code[6:]).values('nick', 'has_screen_sream'))
         
     @database_sync_to_async
     def get_voice_group_size(self) -> int:
 
-        return VoiceMember.objects.filter(voice_group__name = self.room_code).count()
+        return VoiceMember.objects.filter(voice_group__name = self.room_code[6:]).count()
 
     @database_sync_to_async
     def update_has_screen_stream(self, is_exist_screen: bool) -> bool:

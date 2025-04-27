@@ -29,7 +29,7 @@ class SudokuConsumer(AsyncWebsocketConsumer):
                 if SECRET_WEBSOCKET_ADMIN_KEY_VALUE_BYTE != header_value:
                     return False
                 self.is_admin: bool = True
-                self.room_code: str = self.scope['url_route']['kwargs'].get('room_name')
+                self.room_code: str = f"sudoku_{self.scope['url_route']['kwargs'].get('room_name')}"
                 await self.channel_layer.group_add(self.room_code, self.channel_name)
                 await self.accept()
                 return True
@@ -41,7 +41,7 @@ class SudokuConsumer(AsyncWebsocketConsumer):
         # Set settings
 
         self.is_admin = False
-        self.room_code = self.scope['url_route']['kwargs'].get('room_name')
+        self.room_code = f"sudoku_{self.scope['url_route']['kwargs'].get('room_name')}"
         
         if not self.room_code:
             await self.close()

@@ -12,7 +12,7 @@ class ConncetLobbyForm(Form):
             }
         )
     )
-    code = CharField(widget = PasswordInput(), max_length = 32)
+    code = CharField(widget = PasswordInput(), max_length = 25)
 
     def clean(self) -> dict[str, Any]:
 
@@ -28,3 +28,5 @@ class ConncetLobbyForm(Form):
 
         except UserSetting.DoesNotExist:
             return self.cleaned_data
+        except KeyError:
+            raise ValidationError('Field restrictions not met', code = 'not pasre filed')
