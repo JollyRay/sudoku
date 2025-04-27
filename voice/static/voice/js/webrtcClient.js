@@ -421,6 +421,7 @@ function createWebSocket(){
                 makeCalls({members: [sender, ]});
                 break;
             case 'bye':
+                hangup(sender);
                 break;
             default:
                 console.log('unhandled', e);
