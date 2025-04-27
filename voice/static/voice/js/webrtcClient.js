@@ -118,17 +118,17 @@ function createPeerConnection(remoteVideo, remoteNick, stream, isScreen, isProvi
 
 function setDataChannelOffer(pc, nick){
     peerConnections[nick]['datachannel'] = pc.createDataChannel('chat');
-    setupDataChannelHandlers(peerConnections[nick]['datachannel']);
+    setupDataChannelHandlers(nick, peerConnections[nick]['datachannel']);
 }
 
 function setDataChannelAnswer(pc, nick){
     pc.ondatachannel = (event) => {
         peerConnections[nick]['datachannel'] = event.channel;
-        setupDataChannelHandlers(peerConnections[nick]['datachannel']);
+        setupDataChannelHandlers(nick, peerConnections[nick]['datachannel']);
     };
 }
 
-function setupDataChannelHandlers(channel) {
+function setupDataChannelHandlers(nick, channel) {
     
     channel.onmessage = (event) => {
       console.log('Received:', event.data);
@@ -145,11 +145,11 @@ function setupDataChannelHandlers(channel) {
     };
     
     channel.onclose = () => {
-      console.log('Data channel closed');
+        hangup(nick);
     };
     
     channel.onerror = (error) => {
-      console.error('Data channel error:', error);
+        hangup(nick);
     };
 }
 
@@ -319,20 +319,20 @@ async function hangup(sender, isPeer = true, isProvider = true, isReceiver = tru
 
     try {
         if (isPeer){
-            peerConnections[sender].peer?.close();
-            peerConnections[sender].datachannel?.close();
-            delete peerConnections[sender].peer;
-            delete peerConnections[sender].datachannel;
+            peerConnections[sender]?.peer?.close();
+            peerConnections[sender]?.datachannel?.close();
+            delete peerConnections[sender]?.peer;
+            delete peerConnections[sender]?.datachannel;
         }
         if (isReceiver){
-            peerConnections[sender].peerScreenReceiver?.close();
-            delete peerConnections[sender].peerScreenReceiver;
+            peerConnections[sender]?.peerScreenReceiver?.close();
+            delete peerConnections[sender]?.peerScreenReceiver;
         }
         if (isProvider){
-            peerConnections[sender].peerScreenProvider?.close();
-            peerConnections[sender].peerScreenProviderStream?.getTracks().forEach(track => track.stop());
-            delete peerConnections[sender].peerScreenProvider;
-            delete peerConnections[sender].peerScreenProviderStream;
+            peerConnections[sender]?.peerScreenProvider?.close();
+            peerConnections[sender]?.peerScreenProviderStream?.getTracks().forEach(track => track.stop());
+            delete peerConnections[sender]?.peerScreenProvider;
+            delete peerConnections[sender]?.peerScreenProviderStream;
             removeVideo(sender, true);
         }
         
@@ -421,7 +421,6 @@ function createWebSocket(){
                 makeCalls({members: [sender, ]});
                 break;
             case 'bye':
-                hangup(sender);
                 break;
             default:
                 console.log('unhandled', e);
