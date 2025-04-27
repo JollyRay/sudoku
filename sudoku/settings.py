@@ -27,9 +27,9 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.getenv('SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv('DEBUG') == 'True'
 
-ALLOWED_HOSTS = os.getenv('HOST_NAME').split(' ')
+ALLOWED_HOSTS = os.getenv('HOST_NAME', '').split(' ')
 CSRF_TRUSTED_ORIGINS = map(lambda url: 'https://' + url, ALLOWED_HOSTS)
 
 # Application definition
@@ -124,7 +124,7 @@ USE_TZ = True
 
 STATIC_URL = 'static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'static')
-STATICFILES_DIR = []
+STATICFILES_DIR: list[str] = []
 
 STATICFILES_STORAGE = 'django.contrib.staticfiles.storage.ManifestStaticFilesStorage'
 
@@ -144,8 +144,8 @@ CHANNEL_LAYERS = {
     },
 }
 
-SECRET_WEBSOCKET_ADMIN_KEY_HEADER_BYTE = os.getenv('SECRET_WEBSOCKET_ADMIN_HEADER_KEY').encode()
-SECRET_WEBSOCKET_ADMIN_KEY_VALUE_BYTE = os.getenv('SECRET_WEBSOCKET_ADMIN_VALUE_KEY').encode()
+SECRET_WEBSOCKET_ADMIN_KEY_HEADER_BYTE = os.getenv('SECRET_WEBSOCKET_ADMIN_HEADER_KEY', '').encode()
+SECRET_WEBSOCKET_ADMIN_KEY_VALUE_BYTE = os.getenv('SECRET_WEBSOCKET_ADMIN_VALUE_KEY', '').encode()
 
 
 LOGGING = {
