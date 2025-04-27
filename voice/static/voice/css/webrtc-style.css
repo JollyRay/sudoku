@@ -1,0 +1,301 @@
+:root{
+    --video-container-width: 85vw;
+    --video-container-height: 85vh;
+    --chat-container-width: calc(100vw - var(--video-container-width) - 3vw);
+    --chat-container-height: var(--video-container-height);
+    --video-width: var(--video-container-width);
+    --video-hight: var(--video-container-height);
+}
+body, header, main, footer, div, h1, h2, h3, h4, ul, li, p, span{
+    border: 0;
+    padding: 0;
+    margin: 0;
+}
+body{
+    min-height: 100vh;
+    width: 100vw;
+}
+header{
+    height: 7vh;
+}
+main{
+    height: 88vh;
+    width: 100vw;
+}
+.main-container{
+    height: 100%;
+    width: 100vw;
+}
+.all-media-container{
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+}
+.video-container{
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+    width: var(--video-container-width);
+    height: var(--video-container-height);
+    margin: 0 min(30px, calc((100vw - var(--video-container-width)) / 2));
+}
+.video-container:has(> :nth-child(2 of :not(.hidden))){
+    --video-width: var(--video-container-width);
+    --video-hight: calc(var(--video-container-height) / 2);
+}
+.video-container:has(> :nth-child(3 of :not(.hidden))),
+.video-container:has(> :nth-child(4 of :not(.hidden)))
+{
+    --video-width: calc(var(--video-container-width) / 2);
+    --video-hight: calc(var(--video-container-height) / 2);
+}
+
+.video-container:has(> :nth-child(5 of :not(.hidden))),
+.video-container:has(> :nth-child(6 of :not(.hidden)))
+{
+    --video-width: calc(var(--video-container-width) / 3);
+    --video-hight: calc(var(--video-container-height) / 2);
+}
+.video-container:has(> :nth-child(7 of :not(.hidden))){
+    --video-width: calc(var(--video-container-width) / 3);
+    --video-hight: calc(var(--video-container-height) / 3);
+}
+.webrtc-video{
+    border: 2px solid black;
+    border-radius: 10px;
+    margin: 2px;
+    height: min(calc(var(--video-width) / 192 * 108), var(--video-hight));
+    width: min(calc(var(--video-hight) / 108 * 192), var(--video-width));
+}
+.message-chat{
+    max-height: var(--chat-container-height);
+    max-width: var(--chat-container-width);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    margin-right: 5px;
+}
+.message-chat > textarea{
+    height: 5vh;
+}
+.old-message{
+    max-height: calc(var(--chat-container-height) - 5vh);
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+.first-message-in-row{
+    display: grid;
+    grid-template-columns: min-content 38px;
+}
+.first-message-in-row > div:first-child{
+    font-size: 1.2em;
+    font-weight: bold;
+    max-width: calc(var(--chat-container-width) - 3vw);
+    text-overflow: ellipsis;
+    overflow: hidden;
+    white-space: nowrap;
+}
+.first-message-in-row > div:nth-child(2),
+.another-message-in-row:hover > div:first-child{
+    color: gray;
+    font-size: 0.9em;
+    margin-left: 5px;
+    display: flex;
+    justify-content: end;
+    flex-direction: column;
+}
+.first-message-in-row > div:last-child{
+    grid-column-start: 1;
+    grid-column-end: 4;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+.another-message-in-row{
+    display: flex;
+    justify-content: space-between;
+    flex-direction: row;
+}
+.another-message-in-row > div:first-child{
+    display: none;
+    order: 2;
+}
+.another-message-in-row > div:last-child{
+    word-break: break-word;
+    white-space: pre-wrap;
+}
+.hidden {
+    display: none;
+}
+.button-container{
+    position: relative;
+}
+.button-absolute-container{
+    width: 100%;
+    height: 1vh;
+    bottom: 0;
+    position: absolute;
+    display: flex;
+    justify-content: center;
+    transition: height;
+    transition-duration: 1s;
+}
+.hidden-button-frame{
+    opacity: 0;
+    transition: opacity;
+    transition-duration: 1s;
+    height: 30px;
+    margin: 10px 0;
+}
+.main-container:hover .button-absolute-container{
+    height: 4vh;
+}
+.main-container:hover .hidden-button-frame{
+    opacity: 1;
+}
+.hideen-button{
+    width: 69px;
+    height: 69px;
+    border-radius: 9999px;
+    font-size: 30px;
+    border: 0;
+    background: darkgray;
+    transition: background;
+    transition-duration: 200ms;
+    margin: 0 5px;
+}
+.hideen-button:hover{
+    background: gray;
+}
+.fa-microphone-slash{
+    display: none;
+}
+.muted .fa-microphone-slash{
+    display: inline;
+}
+.fa-microphone{
+    display: inline;
+}
+.muted .fa-microphone{
+    display: none;
+}
+footer{
+    height: 5vh;
+    display: flex;
+    justify-content: end;
+    flex-direction: column;
+}
+
+/************************ * * * HUB * * * *************************/
+.groups-container{
+    height: 100%;
+    display: flex;
+    flex-direction: row;
+}
+.group-list{
+    width: 20vw;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+.group-list > div{
+    width: 100%;
+    height: min(calc(100% / 15), 48px);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    transition: background;
+    transition-duration: 1s;
+}
+.group-list > div:nth-child(2n+2){
+    background: gainsboro;
+}
+.group-list > div:nth-child(2n+1){
+    background: rgb(196, 196, 196);
+}
+.group-list > div:nth-child(n):hover{
+    background: gray;
+}
+.group-list .select-group{
+    border: 2px solid black;
+}
+.group-list .room-name-nav{
+    width: 100%;
+    display: flex;
+    flex-direction: row;
+    justify-content: space-around;
+}
+.group-list .room-name-nav a{
+    background: white;
+    width: 32px;
+    height: 32px;
+    border-radius: 30px;
+    opacity: 0;
+    transition: opacity;
+    transition-duration: 200ms;
+    text-align: center;
+    margin-right: 10px;
+    font-size: 21px;
+}
+.group-list .room-name-nav:hover a{
+    opacity: 1;
+}
+.group-list p{
+    width: calc(100% - 2px);
+    height: calc(100% - 2px);
+    padding-left: 12px;
+    font-size: 27px;
+    user-select: none;
+    text-overflow: ellipsis;
+    overflow: hidden;
+    white-space: nowrap;
+}
+.group-nav{
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+.lobby-room-paginator ul {
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+}
+.lobby-room-paginator a{
+    margin: 5px;
+    text-decoration: none;
+    color: black;
+}
+.lobby-room-paginator li {
+    list-style-type: none;
+    border: 1px black solid;
+    border-radius: 30px;
+    width: 30px;
+    height: 30px;
+    text-align: center;
+    transition-duration: 1s;
+}
+.lobby-room-paginator .currant-page{
+    box-shadow: 5px 5px 6px gray;
+}
+.lobby-room-paginator li:hover{
+
+    transform: scale(1.25);
+}
+.group-info{
+    width: 80vw;
+}
+.new-room-form > div{
+    display: flex;
+    flex-direction: row;
+    align-self: first;
+    margin: 10px;
+}
+.new-room-form label {
+    width: 200px;
+}
+.group-info-item p {
+    white-space: pre-wrap;
+    word-break: break-word;
+    width: 400px;
+}

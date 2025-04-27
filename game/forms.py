@@ -1,4 +1,6 @@
-from django.forms import *
+from typing import Any
+from django.forms import Form, CharField, TextInput, PasswordInput, ValidationError
+
 from .models import UserSetting
 
 class ConncetLobbyForm(Form):
@@ -10,9 +12,9 @@ class ConncetLobbyForm(Form):
             }
         )
     )
-    code = CharField(widget = PasswordInput(), max_length = 32)
+    code = CharField(widget = PasswordInput(), max_length = 25)
 
-    def clean(self):
+    def clean(self) -> dict[str, Any]:
 
         try:
             nick = self.cleaned_data['nick']
@@ -26,3 +28,5 @@ class ConncetLobbyForm(Form):
 
         except UserSetting.DoesNotExist:
             return self.cleaned_data
+        except KeyError:
+            raise ValidationError('Field restrictions not met', code = 'not pasre filed')

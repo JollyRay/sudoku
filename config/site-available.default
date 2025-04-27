@@ -1,3 +1,5 @@
+# /etc/nginx/sites-available/default
+
 server {
     listen 80;
     server_name www.schepka26.ru;
@@ -29,10 +31,32 @@ server {
         proxy_send_timeout 86400;
     }
 
+    location /ws/voice/ {
+        proxy_pass http://127.0.0.1:8000/ws/voice/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_read_timeout 86400;
+        proxy_connect_timeout 86400;
+        proxy_send_timeout 86400;
+    }
+
     location / {
         proxy_pass http://127.0.0.1:8000;
         proxy_set_header Host $server_name;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
     }
+}
+
+server {
+    listen 3478;
+    proxy_pass localhost:3478;
+}
+
+server {
+    listen 5349;
+    proxy_pass localhost:5349;
 }

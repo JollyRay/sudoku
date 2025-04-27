@@ -1,10 +1,9 @@
-from django.http import HttpRequest, HttpResponse
+from typing import Any
+from django.http import HttpRequest
 from django.urls import reverse_lazy
-from django.views.generic.edit import FormView
 from django.shortcuts import redirect, render
 
-from .models import Difficulty, LobbySetting, UserSetting
-
+from .models import Difficulty, UserSetting
 from .forms import ConncetLobbyForm
 
 # Create your views here.
@@ -20,17 +19,19 @@ def lobby(request: HttpRequest):
                 return render(request, 'game/sudokuLobby.html', context = {'room_code': room_code, 'difficulty_names': difficulty_names, 'nick': nick})
     return redirect('create_lobby')
 
-class CreateLobby(FormView):
+from .stubs import CreateLobbyFormView
+
+class CreateLobby(CreateLobbyFormView):
     template_name = 'game/createLobby.html'
     success_url = reverse_lazy('lobby')
     form_class = ConncetLobbyForm
 
-    def get_context_data(self, **kwargs):
+    def get_context_data(self, **kwargs: Any):
         context = super().get_context_data()
         context['title'] = 'Lobby'
         return context
     
-    def post(self, request: HttpRequest, *args, **kwargs):
+    def post(self, request: HttpRequest, *args: Any, **kwargs: Any):
 
         response = super().post(request, *args, **kwargs)
         form = self.form_class(request.POST)

@@ -7,3 +7,4 @@ requirements old.txt
 db.sqlite3
 TODO
 style.scss
+mypy.ini

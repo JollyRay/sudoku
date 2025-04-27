@@ -1,25 +1,28 @@
 from datetime import datetime
-import itertools
-import pickle
 import random
 from itertools import islice
 from copy import deepcopy
 from math import sqrt
-from time import time
 from zoneinfo import ZoneInfo
+from functools import wraps
+from typing import Any, Awaitable, Callable, Generator, ParamSpec, TypeVar, cast
 
 from game.exception import SudokuException, UserDisconnect, BoardNotReqest
-
+from game.stubs import BonusCellDict, UserInLobbyInfo
 from .models import *
+
+P = ParamSpec('P')
+R = TypeVar('R')
 
 class AddHandler:
 
     def __init__(self) -> None:
-        self.reqest_type_map = dict()
+        self.reqest_type_map: dict[str, Any] = dict()       # It's dict[str, Callable[P, Awaitable[Any]]], but mypy cant cast wrapper from Callable[P, Awaitable[R]]
 
-    def __call__(self, selector):
-        def decorator(func):
-            async def wrapper(*args, **kargs):
+    def __call__(self, selector: str) -> Callable[[Callable[P, Awaitable[R]]], Callable[P, Awaitable[R]]]:
+        def decorator(func: Callable[P, Awaitable[R]]) -> Callable[P, Awaitable[R]]:
+            @wraps(func)
+            async def wrapper(*args: P.args, **kargs: P.kwargs) -> R:
                 return await func(*args, **kargs)
             self.reqest_type_map[selector] = wrapper
             return wrapper
@@ -31,7 +34,7 @@ class SudokuBoarderProxy:
     BOARD_SIZE = BOARD_SIDE * BOARD_SIDE
 
     @classmethod
-    def add_random_board(cls, room_code: str, nick: str, difficulty_name: str, bonus_list: list[str], bonus_quantity = 6) -> bool:
+    def add_random_board(cls, room_code: str, nick: str, difficulty_name: str, bonus_list: list[str], bonus_quantity: int = 6) -> bool:
 
         cls._remove_user_cells(room_code, nick)
 
@@ -70,7 +73,7 @@ class SudokuBoarderProxy:
             return False
 
     @classmethod
-    def _find_user_setting(cls, room_code: str, nick: str):
+    def _find_user_setting(cls, room_code: str, nick: str) -> UserSetting | None:
         try:
             user_setting = UserSetting.objects.get(lobby__code = room_code, nick = nick)
             return user_setting
@@ -78,23 +81,24 @@ class SudokuBoarderProxy:
             return None
         
     @classmethod
-    def _select_cells(cls, room_code: str, nick: str, difficulty_name: str) -> QuerySet[SudokuCell]|None:
+    def _select_cells(cls, room_code: str, nick: str, difficulty_name: str) -> QuerySet[SudokuCell] | None:
         try:
-            cells: QuerySet[SudokuCell] = SudokuBoard.objects.random_for_user(room_code, nick, difficulty_name)
+            cells: QuerySet[SudokuCell] | None = SudokuBoard.objects.random_for_user(room_code, nick, difficulty_name)
             
             if cells is None:
                 user_setting = cls._find_user_setting(room_code, nick)
-                user_setting.board.through.objects.filter(sudokuboard__difficulty__name = difficulty_name).delete()
-                cells: QuerySet[SudokuCell] = SudokuBoard.objects.random_for_user(room_code, nick, difficulty_name)
+                user_setting.board.through.objects.filter(sudokuboard__difficulty__name = difficulty_name).delete() # type: ignore
+                                                                                                                    # catched AttributeError for None 
+                cells = SudokuBoard.objects.random_for_user(room_code, nick, difficulty_name)
 
             return cells
 
-        except UserSetting.DoesNotExist:
+        except (UserSetting.DoesNotExist, AttributeError):
             return None
     
     @classmethod
     def _create_bonus_map(cls, boarder_id: int, bonus_list: list[str], quantity: int) -> dict[int, str]:
-        empty_cells_id: list[SudokuCell] = SudokuCell.objects.get_random_empty_cell_id(boarder_id, quantity)
+        empty_cells_id: list[int] = SudokuCell.objects.get_random_empty_cell_id(boarder_id, quantity)
         bonuses = random.choices(bonus_list, k = len(empty_cells_id))
 
         # TODO: change string as value on link, maybe recreate bonus_list as enum
@@ -104,7 +108,7 @@ class SudokuBoarderProxy:
         }
 
     @classmethod
-    def _get_user_setting(cls, room_code: str, nick: str):
+    def _get_user_setting(cls, room_code: str, nick: str) -> UserSetting:
         user_setting = cls._find_user_setting(room_code, nick)
         if user_setting is None:
             raise UserDisconnect(room_code, nick)
@@ -124,21 +128,18 @@ class SudokuBoarderProxy:
         return user_setting, last_board
     
     @classmethod
-    def _find_user_setting_and_last_board(cls, room_code: str, nick: str) -> tuple[UserSetting, SudokuBoard]:
+    def _find_user_setting_and_last_board(cls, room_code: str, nick: str) -> tuple[UserSetting, SudokuBoard | None]:
         user_setting = cls._get_user_setting(room_code, nick)
 
         lastboard_id = user_setting.board.through.objects.filter(usersetting = user_setting).last()
         if lastboard_id is None:
             return user_setting, None
         last_board: SudokuBoard = lastboard_id.sudokuboard
-
-        # if last_board is None:
-        #     raise BoardNotReqest(room_code, nick)
         
         return user_setting, last_board
 
     @classmethod
-    def delete_user(self, room_code, nick) -> bool:
+    def delete_user(self, room_code: str, nick: str) -> bool:
         """
         delete user from lobby
 
@@ -195,7 +196,7 @@ class SudokuBoarderProxy:
         return (is_equal, user_cell.bonus_name)
     
     @classmethod
-    def get_clean_board(cls, room_code: str, nick: str) -> dict[str, int]:
+    def get_clean_board(cls, room_code: str, nick: str) -> dict[str, int] | None:
         user_setting, last_board = cls._find_user_setting_and_last_board(room_code, nick)
 
         if last_board is None:
@@ -209,15 +210,19 @@ class SudokuBoarderProxy:
             if not cell.is_empty:
                 clean_board[str(cell.number)] = cell.value
             else:
-                user_cell: UserCell|None = cell.usercell_set.first()
+                user_cell: UserCell = cell.usercell_set.get(user__nick = nick)
                 clean_board[str(cell.number)] = user_cell.value
 
         return clean_board
             
     @classmethod
     def get_bonus_map(cls, room_code: str, nick: str) -> dict[str, str]:
-        bonus_cells = UserCell.objects.filter(Q(user__nick = nick) & Q(user__lobby__code = room_code) & ~Q(bonus_name = None)).values('bonus_name', 'cell__number')
-        bonus_map = dict()
+        bonus_cells: QuerySet[UserCell, BonusCellDict] = UserCell.objects.filter(
+            user__nick = nick, user__lobby__code = room_code, bonus_name__isnull = False
+        ).values('bonus_name', 'cell__number')      # type: ignore
+                                                    # mypy thinks that bonus_name can be None with the condition "bonus_name__isnull = False"
+
+        bonus_map: dict[str, str] = dict()
 
         for bonus_cell in bonus_cells:
             bonus_map[str(bonus_cell['cell__number'])] = bonus_cell['bonus_name']
@@ -231,7 +236,7 @@ class SudokuBoarderProxy:
         return wrong_answer_list
 
     @classmethod
-    def get_static_cell_number(cls, room_code: str, nick: str) -> list[int]:
+    def get_static_cell_number(cls, room_code: str, nick: str) -> list[int] | None:
         _, last_board = cls._find_user_setting_and_last_board(room_code, nick)
         if last_board is None:
             return None
@@ -246,8 +251,8 @@ class SudokuBoarderProxy:
         if time_from is None:
             return None
         
-        time_from = int(time_from.timestamp())
-        return time_from
+        time_from_as_int = int(time_from.timestamp())
+        return time_from_as_int
 
     @classmethod
     def get_time_to(cls, room_code: str, nick: str) -> int|None:
@@ -256,8 +261,8 @@ class SudokuBoarderProxy:
         if time_to is None:
             return None
         
-        time_to = int(time_to.timestamp())
-        return time_to
+        time_to_as_int = int(time_to.timestamp())
+        return time_to_as_int
 
     @classmethod
     def finish(cls, room_code: str, nick: str) -> int|None:
@@ -275,13 +280,15 @@ class SudokuBoarderProxy:
             user_setting.time_to = finis_time
             user_setting.save()
 
-        return int(user_setting.time_to.timestamp())
+            return int(user_setting.time_to.timestamp())
+        
+        return None
 
     @classmethod
-    def get_room_info(cls, room_code):
-        info_map = dict()
+    def get_room_info(cls, room_code: str) -> dict[str, UserInLobbyInfo]:
+        info_map: dict[str, UserInLobbyInfo] = dict()
 
-        lobby_nicks = list(map(lambda user_setting: user_setting['nick'], UserSetting.objects.filter(lobby__code = room_code).values('nick')))
+        lobby_nicks: list[str] = list(map(lambda user_setting: user_setting['nick'], UserSetting.objects.filter(lobby__code = room_code).values('nick')))
         for nick in lobby_nicks:
 
             # TODO: in one query if posible
@@ -305,44 +312,44 @@ class SudokuBoarderProxy:
 # https://stackoverflow.com/a/56581709/19375794
 
 class Sudoku:
-    def __init__(self, side: int, max_empties = 60):
-        self.side = side
-        self.max_empties = max_empties
-        self.empty_cell = 0
+    def __init__(self, side: int, max_empties: int = 60):
+        self.side: int = side
+        self.max_empties: int = max_empties
+        self.empty_cell: int = 0
 
-        self.base = int(sqrt(side))
-        self.board = [[0 for _ in range(side)] for _ in range(side)]
+        self.base: int = int(sqrt(side))
+        self.board: list[list[int]] = [[0 for _ in range(side)] for _ in range(side)]
 
         self._fill_values()
 
-        self._clean_board = None
+        self._clean_board: list[list[int]] | None = None
     
-    def _fill_values(self):
+    def _fill_values(self) -> None:
         self._fill_remaining(0, 0)
 
-    def _is_safe(self, row, col, num):
+    def _is_safe(self, row: int, col: int, num: int) -> bool:
         return (self._is_use_in_row(row, num) and self._is_use_in_col(col, num) and self._is_use_un_box(row - row % self.base, col - col % self.base, num))
     
-    def _is_use_in_row(self, row, num):
+    def _is_use_in_row(self, row: int, num: int) -> bool:
         for col in range(self.side):
             if self.board[row][col] == num:
                 return False
         return True
     
-    def _is_use_in_col(self, col, num):
+    def _is_use_in_col(self, col: int, num: int) -> bool:
         for row in range(self.side):
             if self.board[row][col] == num:
                 return False
         return True
         
-    def _is_use_un_box(self, row, col, num):
+    def _is_use_un_box(self, row: int, col: int, num: int) -> bool:
         for row_inner in range(self.base):
             for col_inner in range(self.base):
                 if self.board[row + row_inner][col + col_inner] == num:
                     return False
         return True
    
-    def _fill_remaining(self, i, j):
+    def _fill_remaining(self, i: int, j: int) -> bool:
         # Check if we have reached the end of the matrix
         if i == self.side - 1 and j == self.side:
             return True
@@ -375,7 +382,7 @@ class Sudoku:
             self.clear_board()
         return self._clean_board
     
-    def clear_board(self, max_empties = None, attempts = 9):
+    def clear_board(self, max_empties: int | None = None, attempts: int = 9) -> int:
         self._clean_board = deepcopy(self.board)
         self.max_empties = max_empties or self.max_empties
 
@@ -399,7 +406,7 @@ class Sudoku:
         
         return self.empty_cell
     
-    def fill_up(self, need_empty):
+    def fill_up(self, need_empty: int) -> None:
         order_fill = list(range(self.side ** 2))
         random.shuffle(order_fill)
         while need_empty < self.empty_cell:
@@ -411,57 +418,63 @@ class Sudoku:
                 self.empty_cell -= 1
 
     @classmethod
-    def short_sudoku_solve(cls, board):
+    def short_sudoku_solve(cls, board: list[list[int]]) -> Generator[list[list[int]], list[list[int]], None]:
         side   = len(board)
         base   = int(side**0.5)
-        board  = [n for row in board for n in row ]
-        blanks = [i for i,n in enumerate(board) if n==0 ]
+        board_linear  = [n for row in board for n in row ]
+        blanks = [i for i,n in enumerate(board_linear) if n==0 ]
         cover  = { (n,p):{*zip([2*side+r, side+c, r//base*base+c//base],[n]*(n and 3))}
                     for p in range(side*side) for r,c in [divmod(p,side)] for n in range(side+1) }
-        used   = set().union(*(cover[n,p] for p,n in enumerate(board) if n))
+        used   = set().union(*(cover[n,p] for p,n in enumerate(board_linear) if n))
         placed = 0
         while placed>=0 and placed<len(blanks):
             pos        = blanks[placed]
-            used      -= cover[board[pos],pos]
-            board[pos] = next((n for n in range(board[pos]+1,side+1) if not cover[n,pos]&used),0)
-            used      |= cover[board[pos],pos]
-            placed    += 1 if board[pos] else -1
+            used      -= cover[board_linear[pos],pos]
+            board_linear[pos] = next((n for n in range(board_linear[pos]+1,side+1) if not cover[n,pos]&used),0)
+            used      |= cover[board_linear[pos],pos]
+            placed    += 1 if board_linear[pos] else -1
             if placed == len(blanks):
-                solution = [board[r:r+side] for r in range(0,side*side,side)]
+                solution = [board_linear[r:r+side] for r in range(0,side*side,side)]
                 yield solution
                 placed -= 1
 
     @classmethod
-    def generate_sudoku_with_setting(cls, base, limit_reqest):
+    def generate_sudoku_with_setting(cls, base: int, limit_reqest: list[tuple[int, int, int]]) -> tuple[list[list[int]], list[list[int]], int]:
         """
         Generate one board on request setting
 
         :param base: inner box side
         :param limit_reqest: array of difficulties
-            difficult[0] - difficulty name
-            difficult[1] - required number of tables
-            difficult[2] - min empty limit
-            difficult[3] - pk in Difficulty table 
-        :return: list[list[int]] Sudoku board (base**2)x(base**2) size with empty cell by one request
+            difficult[0] - required number of tables
+            difficult[1] - min empty limit
+            difficult[2] - pk in Difficulty table 
+        :return:
+            tuple(
+                list[list[int]] Sudoku board (base**2)x(base**2) size with empty cell by one request,
+                list[list[int]] Filled board,
+                id              pk of difficulty
+            )
         """
         side = base * base
         sudoku = cls(side)
 
         select_difficult = None
         for difficult_index in range(len(limit_reqest) - 1, -1, -1):
-            if limit_reqest[difficult_index][1] > 0 and sudoku.empty_cell == 0:
-                sudoku.clear_board(limit_reqest[difficult_index][2])
+            if limit_reqest[difficult_index][0] > 0 and sudoku.empty_cell == 0:
+                sudoku.clear_board(limit_reqest[difficult_index][1])
 
             if sudoku.empty_cell != 0:
-                if (difficult_index == 0 or limit_reqest[difficult_index - 1][2] < sudoku.empty_cell) and limit_reqest[difficult_index][1] > 0:
+                if (difficult_index == 0 or limit_reqest[difficult_index - 1][1] < sudoku.empty_cell) and limit_reqest[difficult_index][0] > 0:
+                    limit_reqest[difficult_index] = cast(tuple[int, int, int], tuple(
+                        value - 1 if index == 0 else value for index, value in enumerate(limit_reqest[difficult_index])
+                    ))
                     select_difficult = limit_reqest[difficult_index]
-                    select_difficult[1] -= 1
                     break
         
         if select_difficult is not None:
-            if select_difficult[2] < sudoku.empty_cell:
-                sudoku.fill_up(select_difficult[2])
+            if select_difficult[1] < sudoku.empty_cell:
+                sudoku.fill_up(select_difficult[1])
 
-            return sudoku.clean_board, sudoku.board, select_difficult[0], select_difficult[3]
+            return sudoku.clean_board, sudoku.board, select_difficult[2]
         
         return cls.generate_sudoku_with_setting(base, limit_reqest)
