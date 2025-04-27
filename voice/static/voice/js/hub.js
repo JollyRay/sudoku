@@ -7,7 +7,7 @@ document.addEventListener('DOMContentLoaded', (event) => {
             hideCurrentInfo()
 
             const groupName = event.currentTarget?.getAttribute('name');
-            const newGroupInfoItem = document.querySelector(`.group-info-item[name=${groupName}]`);
+            const newGroupInfoItem = document.querySelector(`.group-info-item[name="${groupName}"]`);
             newGroupInfoItem.classList.remove('hidden');
             
         });
