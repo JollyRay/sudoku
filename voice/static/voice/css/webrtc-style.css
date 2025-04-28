@@ -6,25 +6,22 @@
     --video-width: var(--video-container-width);
     --video-hight: var(--video-container-height);
 }
-body, header, main, footer, div, h1, h2, h3, h4, ul, li, p, span{
+body, header, main, footer, div, h1, h2, h3, h4, ul, li, p, span, button{
     border: 0;
     padding: 0;
     margin: 0;
 }
 body{
     min-height: 100vh;
-    width: 100vw;
 }
 header{
-    height: 7vh;
+    min-height: 7vh;
 }
 main{
-    height: 88vh;
-    width: 100vw;
+    min-height: 88vh;
 }
 .main-container{
     height: 100%;
-    width: 100vw;
 }
 .all-media-container{
     display: flex;
@@ -38,7 +35,7 @@ main{
     align-items: center;
     width: var(--video-container-width);
     height: var(--video-container-height);
-    margin: 0 min(30px, calc((100vw - var(--video-container-width)) / 2));
+    margin: 0 auto;
 }
 .video-container:has(> :nth-child(2 of :not(.hidden))){
     --video-width: var(--video-container-width);
@@ -74,10 +71,10 @@ main{
     display: flex;
     flex-direction: column;
     justify-content: space-between;
-    margin-right: 5px;
+    margin-right: 1vw;
 }
 .message-chat > textarea{
-    height: 5vh;
+    height: 4em;
 }
 .old-message{
     max-height: calc(var(--chat-container-height) - 5vh);
@@ -132,12 +129,12 @@ main{
 }
 .button-absolute-container{
     width: 100%;
-    height: 1vh;
+    height: 4vh;
     bottom: 0;
     position: absolute;
     display: flex;
     justify-content: center;
-    transition: height;
+    transition: transform;
     transition-duration: 1s;
 }
 .hidden-button-frame{
@@ -145,19 +142,19 @@ main{
     transition: opacity;
     transition-duration: 1s;
     height: 30px;
-    margin: 10px 0;
+    margin: 0 0.33vh;
 }
 .main-container:hover .button-absolute-container{
-    height: 4vh;
+    transform: translateY(-4vh);
 }
 .main-container:hover .hidden-button-frame{
     opacity: 1;
 }
 .hideen-button{
-    width: 69px;
-    height: 69px;
+    width: 4vw;
+    height: 4vw;
     border-radius: 9999px;
-    font-size: 30px;
+    font-size: 2vw;
     border: 0;
     background: darkgray;
     transition: background;
@@ -180,7 +177,7 @@ main{
     display: none;
 }
 footer{
-    height: 5vh;
+    min-height: 5vh;
     display: flex;
     justify-content: end;
     flex-direction: column;
