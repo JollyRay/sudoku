@@ -500,6 +500,10 @@ function selectNewCell(event){
     selectedCellNode = event.currentTarget;
     selectedCellNode.classList.add('sudoku-cell-select');
 
+    if (!isGenereate){
+        return;
+    }
+
     let cellValue = selectedCellNode.querySelector('p').innerText;
     if (isDigitMode && lastDigitSelect && !selectedCellNode.classList.contains('static-answer')){
         let value = Number(lastDigitSelect.innerText);

@@ -391,6 +391,7 @@ header {
     display: flex;
     flex-direction: column;
     justify-content: space-between;
+    position: relative;
 }
 .self-options .extra-sudoku-message {
     color: black;
