@@ -97,13 +97,22 @@ class Difficulty(Model):
         MEDIUM = 'medium'
         HARD = 'hard'
 
+    class DifficultyTopLimit(IntegerChoices):
+        EASY = 30
+        MEDIUM = 55
+        HARD = 81
+
     name = CharField(
         max_length = 32,
         blank = False,
         null = False,
         choices = DifficultyName,
     )
-    top_limit = IntegerField(blank = False, null = False)
+    top_limit = IntegerField(
+        blank = False,
+        null = False,
+        choices = DifficultyTopLimit,
+    )
 
     class Meta:
         unique_together = ('name',)

@@ -11,10 +11,18 @@ class Command(BaseCommand):
     def handle(self, *args, **options) -> None:
         self._create_start_board()
 
+    def _fill_difficulty(self) -> None:
+        for name, limit in zip(Difficulty.DifficultyName.values, Difficulty.DifficultyTopLimit.values):
+            Difficulty.objects.create(name=name, top_limit=limit)
+
+
     def _create_start_board(self, base: int = 3) -> None:
 
         # Init settings
 
+        difficulty_info = Difficulty.objects.values('name', 'top_limit', 'pk').order_by('top_limit').annotate(count = Count('sudokuboard'))
+        if not difficulty_info:
+            self._fill_difficulty()
         difficulty_info = Difficulty.objects.values('name', 'top_limit', 'pk').order_by('top_limit').annotate(count = Count('sudokuboard'))
         limit_reqest = []
         for difficulty in difficulty_info:
