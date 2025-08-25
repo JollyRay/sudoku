@@ -2,16 +2,23 @@
 
 server {
     listen 80;
-    server_name www.schepka26.ru;
-    return 301 https://schepka26.ru$request_uri;
+    server_name schepka26.ru www.schepka26.ru; # Не факт, что нужно
+
+    location /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+        allow all;
+    }
+
+    location / {
+        return 301 https://$host$request_uri;
+    }
 }
 
 server {
     listen 443 ssl;
     server_name schepka26.ru;
-
-    ssl_certificate     /etc/letsencrypt/live/schepka26.ru/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/schepka26.ru/privkey.pem;
+    ssl_certificate /etc/letsencrypt/live/schepka26.ru/fullchain.pem; # managed by Certbot
+    ssl_certificate_key /etc/letsencrypt/live/schepka26.ru/privkey.pem; # managed by Certbot
     access_log  /var/log/nginx/example.log;
 
     location /static/ {
@@ -19,7 +26,7 @@ server {
         expires 30d;
     }
 
-     location /ws/sudoku/ {
+    location /ws/sudoku/ {
         proxy_pass http://127.0.0.1:8000/ws/sudoku/;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
@@ -53,10 +60,20 @@ server {
 
 server {
     listen 3478;
-    proxy_pass localhost:3478;
+    location / {
+        proxy_pass http://localhost:3478;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    }
 }
 
 server {
     listen 5349;
-    proxy_pass localhost:5349;
+    location / {
+        proxy_pass http://localhost:5349;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    }
 }
