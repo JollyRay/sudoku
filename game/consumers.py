@@ -30,7 +30,6 @@ class SudokuConsumer(AsyncWebsocketConsumer):
                     return False
                 self.is_admin: bool = True
                 self.room_code: str = f"{self.scope['url_route']['kwargs'].get('room_name')}"
-                print(self.room_code)
                 await self.channel_layer.group_add(self.room_code, self.channel_name)
                 await self.accept()
                 return True
@@ -43,7 +42,6 @@ class SudokuConsumer(AsyncWebsocketConsumer):
 
         self.is_admin = False
         self.room_code = f"sudoku_{self.scope['url_route']['kwargs'].get('room_name')}"
-        print(self.room_code)
         
         if not self.room_code:
             await self.close()
@@ -215,12 +213,10 @@ class SudokuConsumer(AsyncWebsocketConsumer):
 
     @userRequestHandler('admin_bonus')
     async def catch_admin_bonus(self, to, bonus_type, *args: Any, **kwargs: Any):
-        print('jhfkjd')
         if not self.is_admin:
             await self.close()
             return
 
-        print('123123213123')
         try:
             await self.send_full_data(
                 kind = 'admin_bonus',
