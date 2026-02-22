@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+<div class="table-container">
+    <h2>Bunker Game Table</h2>
+    <div class="grid-table" id="gameTable">
+        <!-- Header Row -->
+        <div class="grid-row">
+            <div class="grid-header">Username</div>
+            <div class="grid-header">Living Creature</div>
+            <div class="grid-header">Physique</div>
+            <div class="grid-header">Trait</div>
+            <div class="grid-header">Profession</div>
+            <div class="grid-header">Health</div>
+            <div class="grid-header">Enthusiasm</div>
+            <div class="grid-header">Fear</div>
+            <div class="grid-header">Inventory</div>
+            <div class="grid-header">Backpack</div>
+            <div class="grid-header">Additional Info</div>
+        </div>
+        <!-- Data rows will be added here by JavaScript -->
+    </div>
+
+    <!-- Controls Section -->
+    <div class="table-controls">
+        <button class="btn-add-row" id="addRowBtn">+ Add Row</button>
+        <input type="text" class="row-id-input" id="rowIdInput" placeholder="Enter row ID to remove">
+        <button class="btn-remove-row" id="removeRowBtn">- Remove Row</button>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_style %}
+<link rel="stylesheet" href="{% static 'bunker/css/bunker-style.css' %}">
+{% endblock %}
+
+{% block extra_script %}
+{{ room_code|json_script:"room-code" }}
+<script src="{% static 'bunker/js/bunkerWebsocket.js' %}"></script>
+{% endblock %}

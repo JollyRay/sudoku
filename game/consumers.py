@@ -3,10 +3,10 @@ import json
 import logging
 import os
 from threading import Thread
-from typing import Awaitable, Callable, Any
+from typing import Awaitable, Callable, Any, Optional
 import requests
 from random import random, randint
-from channels.generic.websocket import AsyncWebsocketConsumer
+from channels.generic.websocket import AsyncWebsocketConsumer  # type: ignore[import-untyped]
 from channels.db import database_sync_to_async
 from django.db.utils import IntegrityError
 
@@ -21,7 +21,7 @@ from sudoku.settings import SECRET_WEBSOCKET_ADMIN_KEY_VALUE_BYTE, SECRET_WEBSOC
 userRequestHandler = AddHandler()
 bonusHandler = AddHandler()
 
-class SudokuConsumer(AsyncWebsocketConsumer):
+class SudokuConsumer(AsyncWebsocketConsumer):  # type: ignore[misc]
 
     async def _connect_admin(self) -> bool:
         for header_name, header_value in self.scope['headers']:
@@ -29,7 +29,7 @@ class SudokuConsumer(AsyncWebsocketConsumer):
                 if SECRET_WEBSOCKET_ADMIN_KEY_VALUE_BYTE != header_value:
                     return False
                 self.is_admin: bool = True
-                self.room_code: str = f"{self.scope['url_route']['kwargs'].get('room_name')}"
+                self.room_code: str = str(self.scope.get('url_route', {}).get('kwargs', {}).get('room_name'))
                 await self.channel_layer.group_add(self.room_code, self.channel_name)
                 await self.accept()
                 return True
@@ -38,36 +38,31 @@ class SudokuConsumer(AsyncWebsocketConsumer):
     async def connect(self) -> None:
         if await self._connect_admin():
             return
-        # Set settings
 
         self.is_admin = False
-        self.room_code = f"sudoku_{self.scope['url_route']['kwargs'].get('room_name')}"
+        self.room_code = f'sudoku_{self.scope.get("url_route", {}).get("kwargs", {}).get("room_name", "")}'
         
         if not self.room_code:
             await self.close()
             return
         
-        self.nick: str = self.scope['cookies'].get('nick')
-        if not self.nick:
+        nick: Optional[str] = self.scope.get('cookies', {}).get('nick')
+        if nick is None:
             await self.close()
             return
 
+        self.nick: str = nick
         self.is_twtich_channel: bool = False
-
-        # Accept and add to group
 
         await self.channel_layer.group_add(self.room_code, self.channel_name)
         await self.accept()
-
-        # Generate first data
 
         await self.send_full_data(kind = 'new_user', nick = self.nick)
         info_maps: dict[str, UserInLobbyInfo] = await database_sync_to_async(SudokuBoarderProxy.get_room_info)(self.room_code)
         await self.send(text_data = json.dumps({'kind': 'first_data', 'data': info_maps}))
         await self.add_channel()
 
-    async def disconnect(self, close_code: int):
-        
+    async def disconnect(self, close_code: int) -> None:
         try:
             if not self.is_admin:
                 is_remove_lobby: bool = await database_sync_to_async(SudokuBoarderProxy.delete_user)(self.room_code, self.nick)
@@ -84,13 +79,13 @@ class SudokuConsumer(AsyncWebsocketConsumer):
         except AttributeError:
             pass
 
-    async def dispatch(self, message):
+    async def dispatch(self, message: dict[str, Any]) -> None:
         try:
             await super().dispatch(message)
         except ValueError as err: 
             logging.error(err)
 
-    async def receive(self, text_data: str):        
+    async def receive(self, text_data: str) -> None:
 
         text_data_json = json.loads(text_data)
         if not isinstance(text_data_json, dict):
@@ -102,7 +97,7 @@ class SudokuConsumer(AsyncWebsocketConsumer):
             await self.close()
             return
         
-        logging.info(f'WebSocket {kind} {self.scope["path"]} [{self.scope["client"][0]}:{self.scope["client"][1]}]')
+        logging.info(f'WebSocket {kind} {self.scope.get("path")} [{self.nick}]')
         func: Callable[..., Awaitable[Any]] | None = userRequestHandler.reqest_type_map.get(kind)
 
         if func is None:
@@ -112,7 +107,7 @@ class SudokuConsumer(AsyncWebsocketConsumer):
             await func(self, **text_data_json)
         except SudokuException as e:
             logging.error(e)
-            self.close()
+            await self.close()
         except TypeError:
             logging.warning(f'User did not provide all the arguments for function "{kind}"')
 
@@ -156,7 +151,7 @@ class SudokuConsumer(AsyncWebsocketConsumer):
         )
 
     @userRequestHandler('set_value')
-    async def set_sudoku_value(self, cell_number: int, value: int, is_finish: bool, *args: Any, **kwargs: Any):
+    async def set_sudoku_value(self, cell_number: int, value: int, is_finish: bool, *args: Any, **kwargs: Any) -> None:
 
         # Protect if send None or empty string
         if not value:
@@ -190,19 +185,19 @@ class SudokuConsumer(AsyncWebsocketConsumer):
         )
 
     @userRequestHandler('add_twitch_channel')
-    async def add_twitch_channel(self, *args: Any, **kwargs: Any):
+    async def add_twitch_channel(self, *args: Any, **kwargs: Any) -> None:
         if self.is_twtich_channel: return
         tempThread = Thread(target = asyncio.run, args = (self._add_twitch_channel(),))
 
         tempThread.start()
     
-    async def _add_twitch_channel(self, *args: Any, **kwargs: Any):
+    async def _add_twitch_channel(self, *args: Any, **kwargs: Any) -> None:
         host = os.getenv('TWITCH_BOT_HOST')
         port = os.getenv('TWITCH_BOT_PORT')
         payload = {
-            "is_add": True,
-            "channel_name": self.nick,
-            "room_code": self.room_code
+            'is_add': True,
+            'channel_name': self.nick,
+            'room_code': self.room_code
         }
         try:
             respond = requests.post(f'http://{host}:{port}', json = payload)
@@ -212,7 +207,7 @@ class SudokuConsumer(AsyncWebsocketConsumer):
             logging.error(f'Connectiob error {host}:{port}')
 
     @userRequestHandler('admin_bonus')
-    async def catch_admin_bonus(self, to, bonus_type, *args: Any, **kwargs: Any):
+    async def catch_admin_bonus(self, to: str, bonus_type: str, *args: Any, **kwargs: Any) -> None:
         if not self.is_admin:
             await self.close()
             return
@@ -234,11 +229,11 @@ class SudokuConsumer(AsyncWebsocketConsumer):
     #############################
 
     @bonusHandler('SHADOW_BOX')
-    async def generate_shadow_box_detale(self):
+    async def generate_shadow_box_detale(self) -> dict[str, int]:
         return {'box': randint(0, 8)}
     
     @bonusHandler('SWAP')
-    async def generate_swap_detale(self):
+    async def generate_swap_detale(self) -> dict[str, int | bool]:
         is_row = random() > 0.5
         is_big = random() > 0.5
         first_index = randint(0, 2)
@@ -256,11 +251,11 @@ class SudokuConsumer(AsyncWebsocketConsumer):
         }
     
     @bonusHandler('ROLL')
-    async def generate_roll_box_detale(self):
+    async def generate_roll_box_detale(self) -> dict[str, int]:
         return {'box': randint(0, 8)}
     
     @bonusHandler('DANCE')
-    async def generate_dance_detale(self):
+    async def generate_dance_detale(self) -> dict[str, int]:
         return {'box': randint(0, 8)}
 
     #############################

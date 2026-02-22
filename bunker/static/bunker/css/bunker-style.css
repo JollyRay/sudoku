@@ -1,0 +1,205 @@
+/* Table Container Styling */
+.table-container {
+    margin: 2rem 0;
+    padding: 1.5rem;
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Grid Table Styling */
+.grid-table {
+    display: grid;
+    grid-template-columns: repeat(11, 1fr);
+    gap: 0;
+    border: 2px solid #dee2e6;
+    border-radius: 4px;
+    overflow: hidden;
+    background-color: #ffffff;
+    margin-bottom: 2rem;
+}
+
+/* Table Header Cells */
+.grid-header {
+    background-color: #007bff;
+    color: #ffffff;
+    padding: 1rem;
+    font-weight: 600;
+    text-align: center;
+    border-right: 1px solid #dee2e6;
+    font-size: 0.9rem;
+    word-wrap: break-word;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.grid-header:last-child {
+    border-right: none;
+}
+
+/* Table Data Cells */
+.grid-cell {
+    padding: 1rem;
+    border-right: 1px solid #dee2e6;
+    border-bottom: 1px solid #dee2e6;
+    text-align: center;
+    min-height: 3rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #ffffff;
+}
+
+.grid-cell:last-child {
+    border-right: none;
+}
+
+/* Table Row Container */
+.grid-row {
+    display: contents;
+}
+
+/* Hover effect for rows */
+.grid-row:hover .grid-cell {
+    background-color: #f0f8ff;
+}
+
+/* Data Row Styling */
+.data-row {
+    display: contents;
+}
+
+.data-row .grid-cell {
+    border-bottom: 1px solid #dee2e6;
+}
+
+.data-row:last-child .grid-cell {
+    border-bottom: none;
+}
+
+/* Empty State */
+.empty-message {
+    grid-column: 1 / -1;
+    padding: 2rem;
+    text-align: center;
+    color: #6c757d;
+    font-style: italic;
+}
+
+/* Controls Section */
+.table-controls {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-start;
+}
+
+/* Button Styling */
+.btn-add-row,
+.btn-remove-row {
+    padding: 0.75rem 1.5rem;
+    font-size: 1rem;
+    font-weight: 600;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.btn-add-row {
+    background-color: #28a745;
+    color: #ffffff;
+}
+
+.btn-add-row:hover {
+    background-color: #218838;
+    box-shadow: 0 4px 8px rgba(40, 167, 69, 0.3);
+    transform: translateY(-2px);
+}
+
+.btn-add-row:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 4px rgba(40, 167, 69, 0.3);
+}
+
+.btn-remove-row {
+    background-color: #dc3545;
+    color: #ffffff;
+}
+
+.btn-remove-row:hover {
+    background-color: #c82333;
+    box-shadow: 0 4px 8px rgba(220, 53, 69, 0.3);
+    transform: translateY(-2px);
+}
+
+.btn-remove-row:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 4px rgba(220, 53, 69, 0.3);
+}
+
+/* Input Field Styling */
+.row-id-input {
+    padding: 0.75rem 1rem;
+    font-size: 1rem;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    min-width: 150px;
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.row-id-input:focus {
+    outline: none;
+    border-color: #80bdff;
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
+.row-id-input::placeholder {
+    color: #6c757d;
+}
+
+/* Responsive Design */
+@media (max-width: 1200px) {
+    .grid-table {
+        font-size: 0.9rem;
+    }
+    
+    .grid-header,
+    .grid-cell {
+        padding: 0.75rem 0.5rem;
+    }
+}
+
+@media (max-width: 768px) {
+    .table-container {
+        padding: 1rem;
+        margin: 1rem 0;
+    }
+    
+    .grid-table {
+        gap: 0;
+    }
+    
+    .grid-header,
+    .grid-cell {
+        padding: 0.5rem 0.25rem;
+        font-size: 0.8rem;
+    }
+    
+    .table-controls {
+        gap: 0.5rem;
+    }
+    
+    .btn-add-row,
+    .btn-remove-row {
+        padding: 0.5rem 1rem;
+        font-size: 0.9rem;
+    }
+    
+    .row-id-input {
+        min-width: 120px;
+        padding: 0.5rem 0.75rem;
+        font-size: 0.9rem;
+    }
+}
