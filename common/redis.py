@@ -2,6 +2,7 @@ import logging
 from dataclasses import dataclass
 from typing import Any
 
+from redis import Redis as SyncRedis  # type: ignore
 from redis.asyncio import Redis
 from redis.exceptions import ConnectionError, ResponseError, TimeoutError
 
@@ -27,10 +28,26 @@ class RedisClient(metaclass=Singleton):
     def __init__(self: "RedisClient", config: RedisConfig | None = None) -> None:
         self._config: RedisConfig = config or RedisConfig()
         self._redis_client: Redis = self._create_connection()
+        self._create_connection_sync().flushdb()
 
     def _create_connection(self: "RedisClient") -> Redis:
         try:
             return Redis(
+                host=self._config.host,
+                port=self._config.port,
+                db=self._config.db,
+                password=self._config.password,
+                decode_responses=True,
+                max_connections=self._config.max_connections,
+                socket_keepalive=self._config.socket_keepalive,
+            )
+        except Exception as e:
+            logger.error(f"Failed to create Redis connection: {e}")
+            raise
+
+    def _create_connection_sync(self: "RedisClient") -> SyncRedis:
+        try:
+            return SyncRedis(
                 host=self._config.host,
                 port=self._config.port,
                 db=self._config.db,

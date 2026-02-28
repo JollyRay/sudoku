@@ -19,4 +19,4 @@ def lobby(request: HttpRequest) -> HttpResponse:
     room_code = request.session.get('room_code', False)
     if nick and room_code:
         return render(request, 'bunker/lobby.html', context = {'room_code': room_code, 'nick': nick})
-    return redirect('create_lobby')
+    return redirect('bunber_hub')
