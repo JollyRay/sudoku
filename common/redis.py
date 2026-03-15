@@ -406,6 +406,18 @@ class RedisClient(metaclass=Singleton):
             logger.error(f"Error deleting key '{key}': {e}")
             raise
 
+    async def delete_pattern(self: "RedisClient", pattern: str) -> int:
+        try:
+            keys = self._redis_client.scan_iter(match=pattern)
+            counter = 0
+            async for key in keys:
+                await self._redis_client.delete(key)
+                counter += 1
+            return counter
+        except (ResponseError, ConnectionError, TimeoutError) as e:
+            logger.error(f"Error deleting keys matching pattern '{pattern}': {e}")
+            raise
+
     async def expire(self: "RedisClient", key: str, time: int) -> bool:
         try:
             result: bool = await self._redis_client.expire(key, time)  # type: ignore[unused-ignore]
@@ -476,12 +488,3 @@ class RedisClient(metaclass=Singleton):
         except (ResponseError, ConnectionError, TimeoutError) as e:
             logger.error(f"Error getting random key: {e}")
             raise
-
-    async def has(self: "RedisClient", name: str) -> bool:
-        logger.warning("has() is deprecated, use exists() instead")
-        return await self.exists(name)
-
-    async def lenght(self: "RedisClient", name: str) -> int:
-        logger.warning("lenght() is deprecated, use length() instead")
-        return await self.length(name)
-        

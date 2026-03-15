@@ -1,12 +1,16 @@
 import json
+import logging
 from typing import Any, Final, Optional
-from urllib import response
+from random import shuffle
 
 from channels.db import database_sync_to_async
 from channels.generic.websocket import AsyncWebsocketConsumer  # type: ignore[import-untyped]
 
 from bunker.models import Parameter
 from common.redis import RedisClient
+
+
+logger = logging.getLogger(__name__)
 
 
 class BunkerConsumer(AsyncWebsocketConsumer):  # type: ignore[misc]
@@ -28,36 +32,46 @@ class BunkerConsumer(AsyncWebsocketConsumer):  # type: ignore[misc]
 
             await self.channel_layer.group_add(self.room_group_name, self.channel_name)
 
-            self._is_admin_lobby = not self._REDIS_CLIENT.has(self.admin_key)
+            self._is_admin_lobby = not await self._REDIS_CLIENT.exists(self.admin_key)
             if self._is_admin_lobby:
                 await self._REDIS_CLIENT.set(self.admin_key, self.nick)
             await self._REDIS_CLIENT.push(self.members_key, self.nick)
 
             await self.accept()
         except Exception as e:
-            print(f'Error during connection: {e}')
+            logger.error(f'Error during connection: {e}')
             await self.close()
 
     async def disconnect(self, code: int) -> None:
         try:
             await self._REDIS_CLIENT.rem(self.members_key, self.nick)
-            counter = await self._REDIS_CLIENT.lenght(self.members_key)
-            if counter == 0:
+            counter = await self._REDIS_CLIENT.length(self.members_key)
+            if counter <= 0:
                 await self._REDIS_CLIENT.delete(self.members_key)
                 await self._REDIS_CLIENT.delete(self.admin_key)
+                await self._REDIS_CLIENT.delete_pattern(pattern=f'{self.members_key}:*')
             await self.channel_layer.group_discard(self.room_group_name, self.channel_name)
         except Exception as e:
-            print(f'Error during disconnection: {e}')
+            logger.error(f'Error during disconnection: {e}')
     
-    async def send_full_data(self, receiver: Optional[str] = None, **data: Any) -> None:
+    async def send_full_data(
+        self,
+        receiver: Optional[str] = None,
+        not_receiver: Optional[str] = None,
+        data: dict[str, Any] = {},
+    ) -> None:
         await self.channel_layer.group_send(
-            self.room_group_name, {'type': 'send_message_receiver', 'data': data, 'receiver': receiver}
+            self.room_group_name, {
+                'type': 'send_message_receiver',
+                'data': data,
+                'receiver': receiver,
+                'not_receiver': not_receiver
+            }
         )
     
     async def send_message_receiver(self, data: dict[str, Any]) -> None:
-        if data['receiver'] != self.nick and data['receiver'] is not None:
-            return
-        await self.send(text_data = json.dumps(data.get('data')))
+        if data['receiver'] == self.nick or data['receiver'] is None and data['not_receiver'] != self.nick:
+            await self.send(text_data = json.dumps(data['data']))
 
     async def receive(self, text_data: str | None = None, bytes_data: bytes | None = None) -> None:
         if text_data is None:
@@ -82,24 +96,28 @@ class ClientEventService(BunkerConsumer):
                 await self.init_board(user_data)
             case 'get_board_data':
                 await self.get_board_data(user_data)
-            case 'set_field_value':
-                await self.set_field_value(user_data)
-            case 'swap_field_value':
-                await self.swap_field_value(user_data)
-            case 'steal_field_value':
-                await self.steal_field_value(user_data)
-            case 'open_field':
-                await self.open_field(user_data)
+            case 'set_param_value':
+                await self.set_param_value(user_data)
+            case 'swap_param_value':
+                await self.swap_param_value(user_data)
+            case 'steal_param_value':
+                await self.steal_param_value(user_data)
+            case 'open_param':
+                await self.open_param(user_data)
             case _:
-                print(f'Unknown kind: {kind}')
+                logger.warning(f'Unknown kind: {kind}')
 
     async def init_board(self, user_data: dict[str, Any]) -> None:
         try:
             members: list[Any] = await self._REDIS_CLIENT.range(self.members_key)
+            shuffle(members)
+            await self._REDIS_CLIENT.delete(self.members_key)
+            for member_nick in members:
+                await self._REDIS_CLIENT.push(self.members_key, member_nick)
+            await self._REDIS_CLIENT.delete_pattern(pattern=f'{self.members_key}:*')
 
             for member_nick in members:
                 member_key: str = self.get_member_key(member_nick)
-                await self._REDIS_CLIENT.delete(member_key)
 
                 character_set: dict[str, str] = await database_sync_to_async(Parameter.objects.get_character_set)()
                 character_data: list[dict[str, Any]] = [
@@ -110,7 +128,7 @@ class ClientEventService(BunkerConsumer):
                     }
                     for column_name, value in character_set.items()
                 ]
-                await self._REDIS_CLIENT.set(member_key, json.dumps(character_data))
+                await self._REDIS_CLIENT.set(member_key, json.dumps({"params": character_data}))
                 await self.send_full_data(
                     receiver=member_nick,
                     data={
@@ -121,15 +139,16 @@ class ClientEventService(BunkerConsumer):
                     }
                 )
         except Exception as e:
-            print(f'Error initializing board: {e}')
+            logger.error(f'Error initializing board: {e}')
 
     async def get_board_data(self, user_data: dict[str, Any]) -> None:
         try:
             members: list[Any] = await self._REDIS_CLIENT.range(self.members_key)
+            exist_members: list[str] = []
             admin: str = await self._REDIS_CLIENT.get(self.admin_key)
             is_host: bool = admin == self.nick
             
-            board_data: list[dict[str, Any]] = []
+            board_data: dict[str, Any] = {}
             self_data: list[dict[str, Any]] = []
             
             for member_nick in members:
@@ -139,59 +158,60 @@ class ClientEventService(BunkerConsumer):
                 if member_data_json is None:
                     continue
                 
-                member_data: list[dict[str, Any]] = json.loads(member_data_json)
+                exist_members.append(member_nick)
+                member_data: dict[str, list[dict[str, Any]]] = json.loads(member_data_json)
 
                 open_params: list[dict[str, str]] = [
                     {
                         'param_name': item['param_name'],
                         'value': item['value']
                     }
-                    for item in member_data
+                    for item in member_data['params']
                     if item.get('is_open', False)
                 ]
                 
                 if open_params:
-                    board_data.append({member_nick: open_params})
+                    board_data[member_nick] = open_params
 
                 if member_nick == self.nick:
                     self_data = [
                         {
-                            'field_name': item['param_name'],
+                            'param_name': item['param_name'],
                             'value': item['value'],
                             'is_open': item.get('is_open', False)
                         }
-                        for item in member_data
+                        for item in member_data['params']
                     ]
             
             response: dict[str, Any] = {
                 'kind': 'set_board_data',
-                'members': members,
+                'members': exist_members,
                 'is_host': is_host,
                 'board_data': board_data,
                 'self_data': self_data
             }
             await self.send(text_data=json.dumps(response))
         except Exception as e:
-            print(f'Error getting board data: {e}')
+            logger.error(f'Error getting board data: {e}', exc_info=True)
 
-    async def set_field_value(self, user_data: dict[str, str]) -> None:
+    async def set_param_value(self, user_data: dict[str, str]) -> None:
         try:
             admin: str = await self._REDIS_CLIENT.get(self.admin_key)
             if admin != self.nick:
                 return
             
             member: str = user_data['member']
-            field_name: str = user_data['field_name']
+            param_name: str = user_data['param_name']
             new_value: str = user_data['new_value']
 
-            is_update = await self._set_member_field_value(member, field_name, new_value)
+            is_update = await self._set_member_param_value(member, param_name, new_value)
             if not is_update:
                 return
-            await self._send_data_to_members_with_scope(member=member, field_name=field_name)
+            await self._send_data_to_members_with_scope(member=member, param_name=param_name)
         except Exception as e:
-            print(f'Error setting field value: {e}')
+            logger.error(f'Error setting param value: {e}')
 
-    async def swap_field_value(self, user_data: dict[str, str]) -> None:
+    async def swap_param_value(self, user_data: dict[str, str]) -> None:
         try:
             admin: str = await self._REDIS_CLIENT.get(self.admin_key)
             if admin != self.nick:
@@ -199,109 +219,108 @@ class ClientEventService(BunkerConsumer):
             
             member1: str = user_data['member1']
             member2: str = user_data['member2']
-            field_name: str = user_data['field_name']
+            param_name: str = user_data['param_name']
 
-            member1_field_value = await self._get_member_field_parameter(member1, field_name)
-            member2_field_value = await self._get_member_field_parameter(member2, field_name)
-            if member1_field_value is None or member2_field_value is None:
+            member1_param_value = await self._get_member_param_parameter(member1, param_name)
+            member2_param_value = await self._get_member_param_parameter(member2, param_name)
+            if member1_param_value is None or member2_param_value is None:
                 return
             
-            await self._set_member_field_value(
+            await self._set_member_param_value(
                 member1,
-                field_name,
-                member2_field_value['value'],
-                member2_field_value['is_open'],
+                param_name,
+                member2_param_value['value'],
+                member2_param_value['is_open'],
             )
-            await self._set_member_field_value(
+            await self._set_member_param_value(
                 member2,
-                field_name,
-                member1_field_value['value'],
-                member1_field_value['is_open'],
+                param_name,
+                member1_param_value['value'],
+                member1_param_value['is_open'],
             )
-            await self._send_data_to_members_with_scope(member=member1, field_name=field_name)
-            await self._send_data_to_members_with_scope(member=member2, field_name=field_name)
+            await self._send_data_to_members_with_scope(member=member1, param_name=param_name)
+            await self._send_data_to_members_with_scope(member=member2, param_name=param_name)
         except Exception as e:
-            print(f'Error swapping field value: {e}')
+            logger.error(f'Error swapping param value: {e}')
 
-    async def steal_field_value(self, user_data: dict[str, str]) -> None:
+    async def steal_param_value(self, user_data: dict[str, str]) -> None:
         try:
             admin: str = await self._REDIS_CLIENT.get(self.admin_key)
             if admin != self.nick:
                 return
             
-            member1: str = user_data['member1']
-            member2: str = user_data['member2']
-            field_name: str = user_data['field_name']
+            member1: str = user_data['member_from']
+            member2: str = user_data['member_to']
+            param_name: str = user_data['param_name']
 
-            member1_field_value = await self._get_member_field_parameter(member1, field_name)
-            member2_field_value = await self._get_member_field_parameter(member2, field_name)
-            if member1_field_value is None or member2_field_value is None:
+            member1_param_value = await self._get_member_param_parameter(member1, param_name)
+            member2_param_value = await self._get_member_param_parameter(member2, param_name)
+            if member1_param_value is None or member2_param_value is None:
                 return
             
-            stolen_value = member1_field_value['value']
-            old_value = member2_field_value['value']
+            stolen_value = member1_param_value['value']
+            old_value = member2_param_value['value']
             new_value = ', '.join(filter(None, [old_value, stolen_value]))
 
-            await self._set_member_field_value(
+            await self._set_member_param_value(
                 member1,
-                field_name,
+                param_name,
                 '',
-                member1_field_value['is_open'],
+                member1_param_value['is_open'],
             )
-            await self._set_member_field_value(
+            await self._set_member_param_value(
                 member2,
-                field_name,
+                param_name,
                 new_value,
-                member2_field_value['is_open'],
+                member2_param_value['is_open'],
             )
-            await self._send_data_to_members_with_scope(member=member1, field_name=field_name)
-            await self._send_data_to_members_with_scope(member=member2, field_name=field_name)
+            await self._send_data_to_members_with_scope(member=member1, param_name=param_name)
+            await self._send_data_to_members_with_scope(member=member2, param_name=param_name)
         except Exception as e:
-            print(f'Error stealing field value: {e}')
+            logger.error(f'Error stealing param value: {e}')
 
-    async def open_field(self, user_data: dict[str, str]) -> None:
+    async def open_param(self, user_data: dict[str, str]) -> None:
         try:
-            member = user_data['member']
-            field_name= user_data['field_name']
-            
-            if member != self.nick:
-                return
+            param_name = user_data['param_name']
 
-            member_field_value = await self._get_member_field_parameter(member, field_name)
-            if member_field_value is None:
+            member_param_value = await self._get_member_param_parameter(self.nick, param_name)
+            if member_param_value is None:
                 return
-            is_open = not member_field_value.get('is_open', True)
-            await self._set_member_field_value(
-                member,
-                field_name,
-                member_field_value['value'],
+            is_open = not member_param_value.get('is_open', True)
+            await self._set_member_param_value(
+                self.nick,
+                param_name,
+                member_param_value['value'],
                 is_open,
             )
             response = self._add_set_value_response(
-                member,
-                field_name,
-                member_field_value['value'] if is_open else ''
+                self.nick,
+                param_name,
+                member_param_value['value'] if is_open else ''
             )
-            await self.send_full_data(member=member, data=response)
+
+            await self.send_full_data(not_receiver=self.nick, data=response)
+            self_open_response = {'kind': 'open_param', 'param_name': param_name, 'is_open': is_open}
+            await self.send_full_data(receiver=self.nick, data=self_open_response)
 
         except Exception as e:
-            print(f'Error opening field: {e}')
+            logger.error(f'Error opening param: {e}')
 
     def _add_set_value_response(
         self,
         member: str,
-        field_name: str,
+        param_name: str,
         new_value: str,
         response: Optional[dict[str, Any]] = None,
     ) -> dict[str, Any]:
         if response is None:
             response = {
-                'kind': 'set_field_value',
+                'kind': 'set_param_value',
                 'updates': []
             }
         response['updates'].append({
             'member': member,
-            'field_name': field_name,
+            'param_name': param_name,
             'new_value': new_value
         })
         return response
@@ -316,21 +335,27 @@ class ClientEventService(BunkerConsumer):
             return data
         return None
     
-    async def _get_member_field_parameter(self, member: str, field_name: str) -> Optional[dict[str, Any]]:
+    async def _get_member_param_parameter(self, member: str, param_name: str) -> Optional[dict[str, Any]]:
         member_data = await self._get_member_data(member)
         if not member_data:
             return None
-        for parameter in member_data['fields']:
-            if isinstance(parameter, dict) and parameter.get('param_name') == field_name:
+        for parameter in member_data['params']:
+            if isinstance(parameter, dict) and parameter.get('param_name') == param_name:
                 return parameter
         return None
     
-    async def _set_member_field_value(self, member: str, field_name: str, new_value: str, is_open: Optional[bool] = None) -> bool:
+    async def _set_member_param_value(
+        self,
+        member: str,
+        param_name: str,
+        new_value: str,
+        is_open: Optional[bool] = None,
+    ) -> bool:
         member_data = await self._get_member_data(member)
         if not member_data:
             return False
-        for parameter in member_data['fields']:
-            if parameter['param_name'] == field_name:
+        for parameter in member_data['params']:
+            if parameter['param_name'] == param_name:
                 parameter['value'] = new_value
                 if is_open is not None:
                     parameter['is_open'] = is_open
@@ -338,11 +363,11 @@ class ClientEventService(BunkerConsumer):
                 return True
         return False
     
-    async def _send_data_to_members_with_scope(self, member: str, field_name: str) -> None:
-        parameter_data = await self._get_member_field_parameter(member, field_name)
+    async def _send_data_to_members_with_scope(self, member: str, param_name: str) -> None:
+        parameter_data = await self._get_member_param_parameter(member, param_name)
         if parameter_data is None:
             return
-        data = self._add_set_value_response(member, field_name, parameter_data.get('value', ''))
+        data = self._add_set_value_response(member, param_name, parameter_data.get('value', ''))
         if parameter_data.get('is_open', False):
             receiver = None
         else:

@@ -2,6 +2,118 @@
 {% load static %}
 
 {% block content %}
+
+<!-- Admin Menu Section -->
+<div class="admin-menu" id="adminMenu" style="display: none;">
+    <h2>Admin Controls</h2>
+    <div class="admin-controls">
+        <button class="btn-admin" id="initLobbyBtn">🔄 Initialize Lobby</button>
+        
+        <!-- Swap Parameters Section -->
+        <div class="admin-control-group">
+            <label for="swapMember1">Player 1:</label>
+            <select id="swapMember1" class="admin-select">
+                <option value="">Select player</option>
+            </select>
+            
+            <label for="swapMember2">Player 2:</label>
+            <select id="swapMember2" class="admin-select">
+                <option value="">Select player</option>
+            </select>
+            
+            <label for="swapParam">Parameter:</label>
+            <select id="swapParam" class="admin-select">
+                <option value="">Select parameter</option>
+                <option value="living_creature">Living Creature</option>
+                <option value="physique">Physique</option>
+                <option value="trait">Trait</option>
+                <option value="profession">Profession</option>
+                <option value="health">Health</option>
+                <option value="enthusiasm">Enthusiasm</option>
+                <option value="fear">Fear</option>
+                <option value="inventory">Inventory</option>
+                <option value="backpack">Backpack</option>
+                <option value="additional_information">Additional Info</option>
+            </select>
+            
+            <button class="btn-admin" id="swapParamBtn">⇄ Swap Parameters</button>
+        </div>
+        
+        <!-- Steal Parameters Section -->
+        <div class="admin-control-group">
+            <label for="stealFromMember">Steal From:</label>
+            <select id="stealFromMember" class="admin-select">
+                <option value="">Select player</option>
+            </select>
+            
+            <label for="stealToMember">Steal To:</label>
+            <select id="stealToMember" class="admin-select">
+                <option value="">Select player</option>
+            </select>
+            
+            <label for="stealParam">Parameter:</label>
+            <select id="stealParam" class="admin-select">
+                <option value="">Select parameter</option>
+                <option value="living_creature">Living Creature</option>
+                <option value="physique">Physique</option>
+                <option value="trait">Trait</option>
+                <option value="profession">Profession</option>
+                <option value="health">Health</option>
+                <option value="enthusiasm">Enthusiasm</option>
+                <option value="fear">Fear</option>
+                <option value="inventory">Inventory</option>
+                <option value="backpack">Backpack</option>
+                <option value="additional_information">Additional Info</option>
+            </select>
+            
+            <button class="btn-admin" id="stealParamBtn">→ Steal Parameter</button>
+        </div>
+        
+        <!-- Set Parameters Section -->
+        <div class="admin-control-group">
+            <label for="setMember">Player:</label>
+            <select id="setMember" class="admin-select">
+                <option value="">Select player</option>
+            </select>
+            
+            <label for="setParam">Parameter:</label>
+            <select id="setParam" class="admin-select">
+                <option value="">Select parameter</option>
+                <option value="living_creature">Living Creature</option>
+                <option value="physique">Physique</option>
+                <option value="trait">Trait</option>
+                <option value="profession">Profession</option>
+                <option value="health">Health</option>
+                <option value="enthusiasm">Enthusiasm</option>
+                <option value="fear">Fear</option>
+                <option value="inventory">Inventory</option>
+                <option value="backpack">Backpack</option>
+                <option value="additional_information">Additional Info</option>
+            </select>
+            
+            <label for="setParamValue">Value:</label>
+            <input type="text" id="setParamValue" class="admin-input" placeholder="Enter new value">
+            
+            <button class="btn-admin" id="setParamBtn">✎ Set Parameter</button>
+        </div>
+    </div>
+</div>
+
+<!-- Personal Data Section -->
+<div class="personal-data-container">
+    <h2>Your Character</h2>
+    <div class="personal-grid-table" id="personalTable">
+        <!-- Header Row -->
+        <div class="grid-row">
+            <div class="grid-header">Attribute</div>
+            <div class="grid-header">Value</div>
+            <div class="grid-header">Action</div>
+        </div>
+        <!-- Personal data rows will be added here by JavaScript -->
+    </div>
+</div>
+
+<!-- Game Table Section -->
 <div class="table-container">
     <h2>Bunker Game Table</h2>
     <div class="grid-table" id="gameTable">
@@ -20,13 +132,6 @@
             <div class="grid-header">Additional Info</div>
         </div>
         <!-- Data rows will be added here by JavaScript -->
-    </div>
-
-    <!-- Controls Section -->
-    <div class="table-controls">
-        <button class="btn-add-row" id="addRowBtn">+ Add Row</button>
-        <input type="text" class="row-id-input" id="rowIdInput" placeholder="Enter row ID to remove">
-        <button class="btn-remove-row" id="removeRowBtn">- Remove Row</button>
     </div>
 </div>
 {% endblock %}
