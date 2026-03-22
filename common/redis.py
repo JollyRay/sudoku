@@ -1,6 +1,6 @@
 import logging
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Set
 
 from redis import Redis as SyncRedis  # type: ignore
 from redis.asyncio import Redis
@@ -102,6 +102,38 @@ class RedisClient(metaclass=Singleton):
             return result
         except (ResponseError, ConnectionError, TimeoutError) as e:
             logger.error(f"Error decrementing key '{key}': {e}")
+            raise
+
+    async def sadd(self: "RedisClient", key: str, value: Any) -> int:
+        try:
+            result: int = await self._redis_client.sadd(key, value)  # type: ignore
+            return result
+        except (ResponseError, ConnectionError, TimeoutError) as e:
+            logger.error(f"Error adding to set '{key}': {e}")
+            raise
+
+    async def srem(self: "RedisClient", key: str, *value: Any) -> int:
+        try:
+            result: int = await self._redis_client.srem(key, *value) # type: ignore
+            return result
+        except (ResponseError, ConnectionError, TimeoutError) as e:
+            logger.error(f"Error removing from set '{key}': {e}")
+            raise
+    
+    async def sismember(self: "RedisClient", key: str, value: Any) -> bool:
+        try:
+            result: bool = await self._redis_client.sismember(key, value)  # type: ignore
+            return result
+        except (ResponseError, ConnectionError, TimeoutError) as e:
+            logger.error(f"Error checking membership in set '{key}': {e}")
+            raise
+    
+    async def smembers(self: "RedisClient", key: str) -> Set[Any]:
+        try:
+            result: set[Any] = await self._redis_client.smembers(key)  # type: ignore
+            return result
+        except (ResponseError, ConnectionError, TimeoutError) as e:
+            logger.error(f"Error getting members of set '{key}': {e}")
             raise
 
     async def append(self: "RedisClient", key: str, value: str) -> int:

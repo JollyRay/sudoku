@@ -19,6 +19,7 @@ class BunkerConsumer(AsyncWebsocketConsumer):  # type: ignore[misc]
     GROUP_NAME_TEMPLATE: Final[str] = 'bunker_{room_name}'
     ADMIN_KEY_TEMPLATE: Final[str] = 'bunker:{room_name}:admin'
     MEMBERS_KEY_TEMPLATE: Final[str] = 'bunker:{room_name}:members'
+    MEMBERS_BAN_KEY_TEMPLATE: Final[str] = 'bunker:{room_name}:ban_members'
     MEMBERS_OPEN_KEY_TEMPLATE: Final[str] = 'bunker:{room_name}:param_open'
 
     async def connect(self) -> None:
@@ -32,8 +33,9 @@ class BunkerConsumer(AsyncWebsocketConsumer):  # type: ignore[misc]
 
             await self.channel_layer.group_add(self.room_group_name, self.channel_name)
 
-            self._is_admin_lobby = not await self._REDIS_CLIENT.exists(self.admin_key)
-            if self._is_admin_lobby:
+            admin_nick = await self._REDIS_CLIENT.get(self.admin_key)
+            self._is_admin_lobby = admin_nick is None or self.nick == admin_nick
+            if admin_nick is None:
                 await self._REDIS_CLIENT.set(self.admin_key, self.nick)
             await self._REDIS_CLIENT.push(self.members_key, self.nick)
 
@@ -49,6 +51,7 @@ class BunkerConsumer(AsyncWebsocketConsumer):  # type: ignore[misc]
             if counter <= 0:
                 await self._REDIS_CLIENT.delete(self.members_key)
                 await self._REDIS_CLIENT.delete(self.admin_key)
+                await self._REDIS_CLIENT.delete(self.ban_member_key)
                 await self._REDIS_CLIENT.delete_pattern(pattern=f'{self.members_key}:*')
             await self.channel_layer.group_discard(self.room_group_name, self.channel_name)
         except Exception as e:
@@ -84,6 +87,10 @@ class BunkerConsumer(AsyncWebsocketConsumer):  # type: ignore[misc]
 
     def get_member_key(self, member_nick: str) -> str:
         return f'{self.members_key}:{member_nick}'
+    
+    @property
+    def ban_member_key(self) -> str:
+        return self.MEMBERS_BAN_KEY_TEMPLATE.format(room_name=self.room_name)
 
 
 class ClientEventService(BunkerConsumer):
@@ -104,6 +111,8 @@ class ClientEventService(BunkerConsumer):
                 await self.steal_param_value(user_data)
             case 'open_param':
                 await self.open_param(user_data)
+            case 'toggle_status':
+                await self.toggle_status(user_data)
             case _:
                 logger.warning(f'Unknown kind: {kind}')
 
@@ -147,6 +156,7 @@ class ClientEventService(BunkerConsumer):
             exist_members: list[str] = []
             admin: str = await self._REDIS_CLIENT.get(self.admin_key)
             is_host: bool = admin == self.nick
+            baned_members: list[str] = list(await self._REDIS_CLIENT.smembers(self.ban_member_key))
             
             board_data: dict[str, Any] = {}
             self_data: list[dict[str, Any]] = []
@@ -186,6 +196,7 @@ class ClientEventService(BunkerConsumer):
             response: dict[str, Any] = {
                 'kind': 'set_board_data',
                 'members': exist_members,
+                'baned_members': baned_members,
                 'is_host': is_host,
                 'board_data': board_data,
                 'self_data': self_data
@@ -305,6 +316,21 @@ class ClientEventService(BunkerConsumer):
 
         except Exception as e:
             logger.error(f'Error opening param: {e}')
+
+    async def toggle_status(self, user_data: dict[str, str]) -> None:
+        admin: str = await self._REDIS_CLIENT.get(self.admin_key)
+        if admin != self.nick:
+            return
+        try:
+            member: str = user_data['member']
+            is_banned: bool = await self._REDIS_CLIENT.sismember(self.ban_member_key, member)
+            if is_banned:
+                await self._REDIS_CLIENT.srem(self.ban_member_key, member)
+            else:
+                await self._REDIS_CLIENT.sadd(self.ban_member_key, member)
+            await self.send_full_data(data={'kind': 'toggle_status', 'member': member, 'is_banned': not is_banned})
+        except Exception as e:
+            logger.error(f'Error checking member status: {e}')
 
     def _add_set_value_response(
         self,
