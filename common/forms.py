@@ -1,7 +1,7 @@
 from typing import Any
 from django.forms import Form, CharField, TextInput, PasswordInput, ValidationError
 
-from .models import UserSetting
+from game.models import UserSetting
 
 class ConncetLobbyForm(Form):
     nick = CharField(

@@ -1,7 +1,5 @@
-from typing import TypedDict, TYPE_CHECKING
-from django.views.generic.edit import FormView
+from typing import TypedDict
 
-from .forms import ConncetLobbyForm
 
 class BonusCellDict(TypedDict):
     bonus_name: str
@@ -17,9 +15,3 @@ class UserInLobbyInfo(TypedDict):
     wrong_answer: list[int]
     time_from: int | None
     time_to: int | None
-
-
-if TYPE_CHECKING:
-    CreateLobbyFormView = FormView[ConncetLobbyForm]
-else:
-    CreateLobbyFormView = FormView

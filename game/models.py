@@ -45,7 +45,7 @@ class UserSetting(Model):
     def __str__(self):
         return f'Lobby: {self.lobby.code} - {self.nick}'
 
-from game.stubs import BorderIdDict
+from .stubs import BorderIdDict
 
 class SudokuBoardManager(Manager['SudokuBoard']):
     def random(self, filter: dict[str, Any] = {}, exclude: dict[str, Any] = {}) -> QuerySet['SudokuCell'] | None:

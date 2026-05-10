@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<form method="post" class="create-lobby-form">
+    {% csrf_token %}
+    {{ form.non_field_errors }}
+    <div>
+        <label for="{{ form.nick.id_for_label }}">Nick:</label>{{ form.nick }}
+    </div>
+    <div>
+        <label for="{{ form.code.id_for_label }}">Code:</label>{{ form.code }}
+    </div>
+    <input type="submit" value="Угусь!">
+</form>
+
+{% endblock %}
