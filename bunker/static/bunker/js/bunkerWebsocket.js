@@ -55,15 +55,15 @@ bunkerSocket.onmessage = function(e) {
 
 const parameterOptions = {
     'living_creature': 'Живое существо',
-    'physique': 'Physique',
-    'trait': 'Trait',
-    'profession': 'Profession',
-    'health': 'Health',
-    'enthusiasm': 'Enthusiasm',
-    'fear': 'Fear',
-    'inventory': 'Inventory',
-    'backpack': 'Backpack',
-    'additional_information': 'Additional Info',
+    'physique': 'Самочувствие',
+    'trait': 'Черта',
+    'profession': 'Профессия',
+    'health': 'Здоровье',
+    'enthusiasm': 'Боевой дух',
+    'fear': 'Страх',
+    'inventory': 'Инвентарь',
+    'backpack': 'Рюкзак',
+    'additional_information': 'Дополнительная информация',
 };
 
 // View mode: 'card' or 'table'
