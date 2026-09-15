@@ -1,0 +1,73 @@
+{% load static %}
+<!doctype html>
+<html lang="ru">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Взлом протокола</title>
+    <link rel="stylesheet" href="{% static 'breach_protocol/css/game.css' %}">
+    <script src="{% static 'breach_protocol/js/game.js' %}" defer></script>
+</head>
+<body>
+    <main class="terminal-shell">
+        <header class="title-bar">
+            <p class="eyebrow">NETWATCH // ACCESS POINT</p>
+            <h1>Взлом протокола</h1>
+        </header>
+
+        <section class="game-panel" aria-labelledby="game-heading">
+            <div class="panel-heading">
+                <h2 id="game-heading">Матрица кода</h2>
+                <p class="timer-line">Время <output id="timer">—</output></p>
+            </div>
+
+            <div class="game-layout">
+                <div class="matrix-column">
+                    <div id="code-matrix" aria-label="Матрица кода"></div>
+                    <div class="matrix-actions">
+                        <button id="reset-buffer" type="button" disabled>Сбросить буфер</button>
+                        <button id="new-game-mobile" class="mobile-only" type="button">Новая игра</button>
+                    </div>
+                </div>
+
+                <aside class="data-panel" aria-label="Буфер и комбинации">
+                    <h3>Буфер</h3>
+                    <output id="buffer" class="buffer-output">—</output>
+                    <h3>Комбинации</h3>
+                    <ol id="target-sequences"></ol>
+                </aside>
+            </div>
+        </section>
+
+        <form id="game-settings" class="settings-panel">
+            <h2>Настройки</h2>
+            <div class="settings-grid">
+            <p>
+                <label for="grid-size">Размер сетки:</label>
+                <input id="grid-size" name="grid-size" type="number" min="3" max="10" value="5" required>
+            </p>
+            <p>
+                <label for="sequence-count">Количество последовательностей:</label>
+                <input id="sequence-count" name="sequence-count" type="number" min="1" max="6" value="3" required>
+            </p>
+            <p>
+                <label for="sequence-length">Максимальная длина последовательности:</label>
+                <input id="sequence-length" name="sequence-length" type="number" min="2" max="8" value="4" required>
+            </p>
+            <p>
+                <label for="symbol-count">Количество различных символов:</label>
+                <input id="symbol-count" name="symbol-count" type="number" min="2" max="25" value="5" required>
+            </p>
+            <p>
+                <label for="time-limit">Максимальное время игры, секунд:</label>
+                <input id="time-limit" name="time-limit" type="number" min="1" max="3600" value="60" required>
+            </p>
+            </div>
+            <div class="settings-actions">
+                <button type="submit">Сгенерировать</button>
+                <button id="reset-timer" type="button" disabled>Сбросить таймер</button>
+            </div>
+        </form>
+    </main>
+</body>
+</html>
