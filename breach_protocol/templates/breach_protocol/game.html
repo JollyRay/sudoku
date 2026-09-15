@@ -1,0 +1,53 @@
+{% load static %}
+<!doctype html>
+<html lang="ru">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Взлом протокола</title>
+    <script src="{% static 'breach_protocol/js/game.js' %}" defer></script>
+</head>
+<body>
+    <main>
+        <h1>Взлом протокола</h1>
+
+        <form id="game-settings">
+            <p>
+                <label for="grid-size">Размер сетки:</label>
+                <input id="grid-size" name="grid-size" type="number" min="3" max="10" value="5" required>
+            </p>
+            <p>
+                <label for="sequence-length">Длина последовательности:</label>
+                <input id="sequence-length" name="sequence-length" type="number" min="2" max="8" value="4" required>
+            </p>
+            <p>
+                <label for="symbol-count">Количество различных символов:</label>
+                <input id="symbol-count" name="symbol-count" type="number" min="2" max="25" value="5" required>
+            </p>
+            <p>
+                <label for="time-limit">Максимальное время игры, секунд:</label>
+                <input id="time-limit" name="time-limit" type="number" min="1" max="3600" value="60" required>
+            </p>
+            <button type="submit">Сгенерировать</button>
+        </form>
+
+        <section aria-labelledby="game-heading">
+            <h2 id="game-heading">Матрица кода</h2>
+            <p id="status" role="status" aria-live="polite">Настройте параметры и сгенерируйте игру.</p>
+            <p>Время: <output id="timer">—</output></p>
+            <p>Целевая последовательность: <output id="target-sequence">—</output></p>
+            <p>Буфер: <output id="buffer">—</output></p>
+            <div id="code-matrix" aria-label="Матрица кода"></div>
+        </section>
+
+        <section aria-labelledby="rules-heading">
+            <h2 id="rules-heading">Правила</h2>
+            <p>
+                Первый символ выбирается из верхней строки. Затем доступная область
+                чередуется: столбец последней ячейки, строка последней ячейки и так далее.
+                Каждую ячейку можно выбрать только один раз. Таймер запускается первым ходом.
+            </p>
+        </section>
+    </main>
+</body>
+</html>

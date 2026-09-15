@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     'bunker.apps.BunkerConfig',
     'game.apps.GameConfig',
     'voice.apps.VoiceConfig',
+    'breach_protocol.apps.BreachProtocolConfig',
 ]
 
 MIDDLEWARE = [
