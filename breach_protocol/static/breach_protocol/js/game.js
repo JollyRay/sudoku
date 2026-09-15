@@ -4,15 +4,22 @@
     /** @typedef {{row: number, column: number}} Cell */
     /** @typedef {"first-row" | "column" | "row"} SelectionAxis */
     /**
+     * @typedef {Object} TargetSequence
+     * @property {string[]} values
+     * @property {boolean} matched
+     */
+    /**
      * @typedef {Object} GameState
      * @property {number} size
-     * @property {string[]} target
+     * @property {TargetSequence[]} sequences
      * @property {string[][]} board
      * @property {string[]} buffer
+     * @property {number} bufferCapacity
      * @property {Set<string>} selected
      * @property {SelectionAxis} nextAxis
      * @property {number} activeIndex
      * @property {number} timeLeft
+     * @property {number} timeLimit
      * @property {number | null} timerId
      * @property {boolean} started
      * @property {boolean} finished
@@ -20,14 +27,16 @@
 
     const form = /** @type {HTMLFormElement} */ (document.getElementById("game-settings"));
     const gridSizeInput = /** @type {HTMLInputElement} */ (document.getElementById("grid-size"));
+    const sequenceCountInput = /** @type {HTMLInputElement} */ (document.getElementById("sequence-count"));
     const sequenceLengthInput = /** @type {HTMLInputElement} */ (document.getElementById("sequence-length"));
     const symbolCountInput = /** @type {HTMLInputElement} */ (document.getElementById("symbol-count"));
     const timeLimitInput = /** @type {HTMLInputElement} */ (document.getElementById("time-limit"));
     const matrixElement = /** @type {HTMLDivElement} */ (document.getElementById("code-matrix"));
-    const targetElement = /** @type {HTMLOutputElement} */ (document.getElementById("target-sequence"));
+    const sequencesElement = /** @type {HTMLOListElement} */ (document.getElementById("target-sequences"));
     const bufferElement = /** @type {HTMLOutputElement} */ (document.getElementById("buffer"));
     const timerElement = /** @type {HTMLOutputElement} */ (document.getElementById("timer"));
-    const statusElement = /** @type {HTMLParagraphElement} */ (document.getElementById("status"));
+    const resetBufferButton = /** @type {HTMLButtonElement} */ (document.getElementById("reset-buffer"));
+    const resetTimerButton = /** @type {HTMLButtonElement} */ (document.getElementById("reset-timer"));
 
     /** @type {GameState | null} */
     let state = null;
@@ -71,20 +80,20 @@
      */
     function buildPath(size, length) {
         for (let attempt = 0; attempt < 500; attempt += 1) {
+            /** @type {Cell[]} */
             const path = [];
             const used = new Set();
             let row = 0;
             let column = randomInt(size);
 
             for (let step = 0; step < length; step += 1) {
-                const key = `${row}:${column}`;
                 path.push({ row, column });
-                used.add(key);
-
+                used.add(`${row}:${column}`);
                 if (step === length - 1) {
                     return path;
                 }
 
+                /** @type {Cell[]} */
                 const candidates = [];
                 if (step % 2 === 0) {
                     for (let nextRow = 0; nextRow < size; nextRow += 1) {
@@ -106,60 +115,74 @@
                 ({ row, column } = candidates[randomInt(candidates.length)]);
             }
         }
-        throw new Error("Не удалось построить маршрут для выбранных параметров.");
+        throw new Error("Не удалось построить последовательность для выбранных параметров.");
+    }
+
+    /**
+     * @param {number} count
+     * @param {number} maximumLength
+     * @returns {number[]}
+     */
+    function makeSequenceLengths(count, maximumLength) {
+        const availableLengths = Array.from(
+            { length: maximumLength - 1 },
+            (_, index) => index + 2
+        );
+        const result = [];
+        while (result.length < count) {
+            result.push(...shuffled(availableLengths));
+        }
+        return result.slice(0, count);
     }
 
     /**
      * @param {number} size
-     * @param {number} sequenceLength
+     * @param {number} symbolCount
+     * @returns {string[][]}
+     */
+    function buildBoard(size, symbolCount) {
+        const symbols = makeSymbols(symbolCount);
+        const values = [
+            ...symbols,
+            ...Array.from(
+                { length: (size * size) - symbolCount },
+                () => symbols[randomInt(symbols.length)]
+            ),
+        ];
+        const shuffledValues = shuffled(values);
+        return Array.from(
+            { length: size },
+            (_, row) => shuffledValues.slice(row * size, (row + 1) * size)
+        );
+    }
+
+    /**
+     * @param {number} size
+     * @param {number} sequenceCount
+     * @param {number} maximumSequenceLength
      * @param {number} symbolCount
      * @param {number} timeLimit
      * @returns {GameState}
      */
-    function buildGame(size, sequenceLength, symbolCount, timeLimit) {
-        const symbols = makeSymbols(symbolCount);
-        const path = buildPath(size, sequenceLength);
-        const distinctTargetSymbols = shuffled(symbols).slice(0, Math.min(symbolCount, sequenceLength));
-        const target = [...distinctTargetSymbols];
-
-        while (target.length < sequenceLength) {
-            target.push(symbols[randomInt(symbols.length)]);
-        }
-        const orderedTarget = shuffled(target);
-        const pathKeys = new Set(path.map(({ row, column }) => `${row}:${column}`));
-        const remainingSymbols = symbols.filter((symbol) => !orderedTarget.includes(symbol));
-        const spareValues = [
-            ...remainingSymbols,
-            ...Array.from(
-                { length: (size * size) - sequenceLength - remainingSymbols.length },
-                () => symbols[randomInt(symbols.length)]
-            ),
-        ];
-        const shuffledSpareValues = shuffled(spareValues);
-        const board = Array.from({ length: size }, () => Array(size));
-        let spareIndex = 0;
-
-        for (let row = 0; row < size; row += 1) {
-            for (let column = 0; column < size; column += 1) {
-                if (!pathKeys.has(`${row}:${column}`)) {
-                    board[row][column] = shuffledSpareValues[spareIndex];
-                    spareIndex += 1;
-                }
-            }
-        }
-        path.forEach(({ row, column }, index) => {
-            board[row][column] = orderedTarget[index];
-        });
+    function buildGame(size, sequenceCount, maximumSequenceLength, symbolCount, timeLimit) {
+        const board = buildBoard(size, symbolCount);
+        const sequenceLengths = makeSequenceLengths(sequenceCount, maximumSequenceLength);
+        const sequences = sequenceLengths.map((length) => ({
+            values: buildPath(size, length).map(({ row, column }) => board[row][column]),
+            matched: false,
+        }));
 
         return {
             size,
-            target: orderedTarget,
+            sequences,
             board,
             buffer: [],
+            bufferCapacity: maximumSequenceLength,
             selected: new Set(),
             nextAxis: "first-row",
             activeIndex: 0,
             timeLeft: timeLimit,
+            timeLimit,
             timerId: null,
             started: false,
             finished: false,
@@ -172,7 +195,12 @@
      * @returns {boolean}
      */
     function isAllowed(row, column) {
-        if (!state || state.finished || state.selected.has(`${row}:${column}`)) {
+        if (
+            !state
+            || state.finished
+            || state.buffer.length >= state.bufferCapacity
+            || state.selected.has(`${row}:${column}`)
+        ) {
             return false;
         }
         if (state.nextAxis === "first-row") {
@@ -184,45 +212,100 @@
         return row === state.activeIndex;
     }
 
-    /** @returns {boolean} */
-    function containsTarget() {
-        const target = state.target;
-        if (state.buffer.length < target.length) {
+    /**
+     * @param {string[]} sequence
+     * @returns {boolean}
+     */
+    function bufferContains(sequence) {
+        if (!state || state.buffer.length < sequence.length) {
             return false;
         }
         return state.buffer.some((_, start) =>
-            target.every((symbol, offset) => state.buffer[start + offset] === symbol)
+            sequence.every((symbol, offset) => state.buffer[start + offset] === symbol)
         );
     }
 
-    /**
-     * @param {string} message
-     * @returns {void}
-     */
-    function finish(message) {
-        state.finished = true;
-        if (state.timerId !== null) {
+    /** @returns {void} */
+    function stopTimer() {
+        if (state && state.timerId !== null) {
             window.clearInterval(state.timerId);
             state.timerId = null;
         }
-        statusElement.textContent = message;
-        renderMatrix();
     }
 
     /** @returns {void} */
     function updateTimer() {
+        if (!state) {
+            timerElement.value = "—";
+            timerElement.textContent = "—";
+            return;
+        }
         timerElement.value = `${state.timeLeft} с`;
         timerElement.textContent = `${state.timeLeft} с`;
     }
 
     /** @returns {void} */
+    function updateBuffer() {
+        if (!state) {
+            bufferElement.value = "—";
+            bufferElement.textContent = "—";
+            return;
+        }
+        const values = state.buffer.length > 0 ? state.buffer.join(" ") : "—";
+        const rendered = `${values} (${state.buffer.length}/${state.bufferCapacity})`;
+        bufferElement.value = rendered;
+        bufferElement.textContent = rendered;
+    }
+
+    /** @returns {void} */
+    function renderSequences() {
+        sequencesElement.replaceChildren();
+        if (!state) {
+            return;
+        }
+        state.sequences.forEach((sequence) => {
+            const item = document.createElement("li");
+            if (sequence.matched) {
+                const highlight = document.createElement("mark");
+                highlight.textContent = sequence.values.join(" ");
+                item.appendChild(highlight);
+            } else {
+                item.textContent = sequence.values.join(" ");
+            }
+            sequencesElement.appendChild(item);
+        });
+    }
+
+    /** @returns {void} */
+    function finishBuffer() {
+        if (!state) {
+            return;
+        }
+        state.finished = true;
+        stopTimer();
+        state.sequences.forEach((sequence) => {
+            sequence.matched = bufferContains(sequence.values);
+        });
+        renderSequences();
+        renderMatrix();
+    }
+
+    /** @returns {void} */
     function startTimer() {
+        if (!state || state.timerId !== null || state.timeLeft <= 0) {
+            return;
+        }
         state.started = true;
         state.timerId = window.setInterval(() => {
+            if (!state) {
+                return;
+            }
             state.timeLeft -= 1;
             updateTimer();
             if (state.timeLeft <= 0) {
-                finish("Время вышло. Выбор ячеек заблокирован.");
+                state.finished = true;
+                stopTimer();
+                renderMatrix();
             }
         }, 1000);
     }
@@ -233,13 +316,12 @@
      * @returns {void}
      */
     function selectCell(row, column) {
-        if (!isAllowed(row, column)) {
+        if (!state || !isAllowed(row, column)) {
             return;
         }
         if (!state.started) {
             startTimer();
         }
-
         state.selected.add(`${row}:${column}`);
         state.buffer.push(state.board[row][column]);
 
@@ -251,17 +333,17 @@
             state.activeIndex = row;
         }
 
-        bufferElement.value = state.buffer.join(" ");
-        bufferElement.textContent = state.buffer.join(" ");
-
-        if (containsTarget()) {
-            finish("Последовательность загружена. Взлом выполнен.");
+        updateBuffer();
+        if (state.buffer.length >= state.bufferCapacity) {
+            finishBuffer();
             return;
         }
 
         renderMatrix();
         if (!matrixElement.querySelector("button:not(:disabled)")) {
-            finish("Доступных ходов не осталось. Сгенерируйте новое поле.");
+            state.finished = true;
+            stopTimer();
+            renderMatrix();
         }
     }
 
@@ -271,7 +353,6 @@
         if (!state) {
             return;
         }
-
         const table = document.createElement("table");
         const body = document.createElement("tbody");
         for (let row = 0; row < state.size; row += 1) {
@@ -282,7 +363,10 @@
                 button.type = "button";
                 button.textContent = state.board[row][column];
                 button.disabled = !isAllowed(row, column);
-                button.setAttribute("aria-label", `Строка ${row + 1}, столбец ${column + 1}: ${state.board[row][column]}`);
+                button.setAttribute(
+                    "aria-label",
+                    `Строка ${row + 1}, столбец ${column + 1}: ${state.board[row][column]}`
+                );
                 if (state.selected.has(`${row}:${column}`)) {
                     button.setAttribute("aria-pressed", "true");
                 }
@@ -297,6 +381,42 @@
     }
 
     /** @returns {void} */
+    function resetBuffer() {
+        if (!state) {
+            return;
+        }
+        state.buffer = [];
+        state.selected.clear();
+        state.nextAxis = "first-row";
+        state.activeIndex = 0;
+        state.sequences.forEach((sequence) => {
+            sequence.matched = false;
+        });
+        state.finished = state.timeLeft <= 0;
+        updateBuffer();
+        renderSequences();
+        renderMatrix();
+
+        if (!state.finished && state.started) {
+            startTimer();
+        }
+    }
+
+    /** @returns {void} */
+    function resetTimer() {
+        if (!state) {
+            return;
+        }
+        stopTimer();
+        state.timeLimit = Number(timeLimitInput.value);
+        state.timeLeft = state.timeLimit;
+        state.started = false;
+        state.finished = state.buffer.length >= state.bufferCapacity;
+        updateTimer();
+        renderMatrix();
+    }
+
+    /** @returns {void} */
     function syncSymbolMaximum() {
         const cellCount = Number(gridSizeInput.value) ** 2;
         symbolCountInput.max = String(cellCount);
@@ -306,6 +426,8 @@
     }
 
     gridSizeInput.addEventListener("input", syncSymbolMaximum);
+    resetBufferButton.addEventListener("click", resetBuffer);
+    resetTimerButton.addEventListener("click", resetTimer);
     form.addEventListener("submit", (event) => {
         event.preventDefault();
         syncSymbolMaximum();
@@ -313,21 +435,19 @@
             return;
         }
 
-        if (state && state.timerId !== null) {
-            window.clearInterval(state.timerId);
-        }
+        stopTimer();
         state = buildGame(
             Number(gridSizeInput.value),
+            Number(sequenceCountInput.value),
             Number(sequenceLengthInput.value),
             Number(symbolCountInput.value),
             Number(timeLimitInput.value)
         );
-        targetElement.value = state.target.join(" ");
-        targetElement.textContent = state.target.join(" ");
-        bufferElement.value = "—";
-        bufferElement.textContent = "—";
-        statusElement.textContent = "Поле готово. Выберите ячейку в верхней строке.";
+        resetBufferButton.disabled = false;
+        resetTimerButton.disabled = false;
         updateTimer();
+        updateBuffer();
+        renderSequences();
         renderMatrix();
     });
 
