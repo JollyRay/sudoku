@@ -30,7 +30,16 @@ SECRET_KEY = os.getenv('SECRET_KEY')
 DEBUG = os.getenv('DEBUG') == 'True'
 
 ALLOWED_HOSTS = os.getenv('HOST_NAME', '').split(' ')
-CSRF_TRUSTED_ORIGINS = map(lambda url: 'https://' + url, ALLOWED_HOSTS)
+CSRF_TRUSTED_ORIGINS = [
+    'https://schepka26.ru',
+    'http://schepka26.ru',
+    'https://www.schepka26.ru',
+]
+
+CSRF_COOKIE_SECURE = True
+CSRF_COOKIE_DOMAIN = '.schepka26.ru'
+SESSION_COOKIE_SECURE = True
+SESSION_COOKIE_DOMAIN = '.schepka26.ru'
 
 # Application definition
 
