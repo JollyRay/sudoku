@@ -344,6 +344,10 @@ mark {
         display: none;
     }
 
+    .settings-panel.is-open {
+        display: block;
+    }
+
     .mobile-only {
         display: inline-block;
     }
