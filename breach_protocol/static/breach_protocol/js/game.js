@@ -37,9 +37,14 @@
     const timerElement = /** @type {HTMLOutputElement} */ (document.getElementById("timer"));
     const resetBufferButton = /** @type {HTMLButtonElement} */ (document.getElementById("reset-buffer"));
     const resetTimerButton = /** @type {HTMLButtonElement} */ (document.getElementById("reset-timer"));
+    const newGameMobileButton = /** @type {HTMLButtonElement} */ (document.getElementById("new-game-mobile"));
 
     /** @type {GameState | null} */
     let state = null;
+    /** @type {string | null} */
+    let pinnedSymbol = null;
+    /** @type {string | null} */
+    let hoveredSymbol = null;
 
     /**
      * @param {number} maximum
@@ -258,6 +263,41 @@
     }
 
     /** @returns {void} */
+    function updateSymbolHighlights() {
+        const activeSymbol = hoveredSymbol ?? pinnedSymbol;
+        matrixElement.querySelectorAll("button[data-symbol]").forEach((button) => {
+            const isHighlighted = activeSymbol !== null && button.getAttribute("data-symbol") === activeSymbol;
+            button.classList.toggle("symbol-highlight", isHighlighted);
+        });
+        sequencesElement.querySelectorAll("button[data-symbol]").forEach((button) => {
+            button.setAttribute(
+                "aria-pressed",
+                String(pinnedSymbol !== null && button.getAttribute("data-symbol") === pinnedSymbol)
+            );
+        });
+    }
+
+    /**
+     * @param {string | null} symbol
+     * @returns {void}
+     */
+    function setHoveredSymbol(symbol) {
+        hoveredSymbol = symbol;
+        updateSymbolHighlights();
+    }
+
+    /**
+     * @param {string} symbol
+     * @param {MouseEvent} event
+     * @returns {void}
+     */
+    function togglePinnedSymbol(symbol, event) {
+        event.stopPropagation();
+        pinnedSymbol = pinnedSymbol === symbol ? null : symbol;
+        updateSymbolHighlights();
+    }
+
+    /** @returns {void} */
     function renderSequences() {
         sequencesElement.replaceChildren();
         if (!state) {
@@ -265,15 +305,29 @@
         }
         state.sequences.forEach((sequence) => {
             const item = document.createElement("li");
-            if (sequence.matched) {
-                const highlight = document.createElement("mark");
-                highlight.textContent = sequence.values.join(" ");
-                item.appendChild(highlight);
-            } else {
-                item.textContent = sequence.values.join(" ");
-            }
+            const container = document.createElement(sequence.matched ? "mark" : "span");
+            sequence.values.forEach((symbol, index) => {
+                const button = document.createElement("button");
+                button.type = "button";
+                button.className = "sequence-symbol";
+                button.textContent = symbol;
+                button.setAttribute("data-symbol", symbol);
+                button.setAttribute("aria-label", `Подсветить символ ${symbol} в матрице`);
+                button.setAttribute("aria-pressed", String(pinnedSymbol === symbol));
+                button.addEventListener("mouseenter", () => setHoveredSymbol(symbol));
+                button.addEventListener("mouseleave", () => setHoveredSymbol(null));
+                button.addEventListener("focus", () => setHoveredSymbol(symbol));
+                button.addEventListener("blur", () => setHoveredSymbol(null));
+                button.addEventListener("click", (event) => togglePinnedSymbol(symbol, event));
+                container.appendChild(button);
+                if (index < sequence.values.length - 1) {
+                    container.appendChild(document.createTextNode(" "));
+                }
+            });
+            item.appendChild(container);
             sequencesElement.appendChild(item);
         });
+        updateSymbolHighlights();
     }
 
     /** @returns {void} */
@@ -353,6 +407,7 @@
         if (!state) {
             return;
         }
+        matrixElement.style.setProperty("--grid-size", String(state.size));
         const table = document.createElement("table");
         const body = document.createElement("tbody");
         for (let row = 0; row < state.size; row += 1) {
@@ -362,6 +417,7 @@
                 const button = document.createElement("button");
                 button.type = "button";
                 button.textContent = state.board[row][column];
+                button.setAttribute("data-symbol", state.board[row][column]);
                 button.disabled = !isAllowed(row, column);
                 button.setAttribute(
                     "aria-label",
@@ -378,6 +434,7 @@
         }
         table.appendChild(body);
         matrixElement.appendChild(table);
+        updateSymbolHighlights();
     }
 
     /** @returns {void} */
@@ -425,17 +482,16 @@
         }
     }
 
-    gridSizeInput.addEventListener("input", syncSymbolMaximum);
-    resetBufferButton.addEventListener("click", resetBuffer);
-    resetTimerButton.addEventListener("click", resetTimer);
-    form.addEventListener("submit", (event) => {
-        event.preventDefault();
+    /** @returns {void} */
+    function generateGame() {
         syncSymbolMaximum();
         if (!form.reportValidity()) {
             return;
         }
 
         stopTimer();
+        pinnedSymbol = null;
+        hoveredSymbol = null;
         state = buildGame(
             Number(gridSizeInput.value),
             Number(sequenceCountInput.value),
@@ -449,7 +505,22 @@
         updateBuffer();
         renderSequences();
         renderMatrix();
+    }
+
+    gridSizeInput.addEventListener("input", syncSymbolMaximum);
+    resetBufferButton.addEventListener("click", resetBuffer);
+    resetTimerButton.addEventListener("click", resetTimer);
+    newGameMobileButton.addEventListener("click", generateGame);
+    document.addEventListener("click", () => {
+        pinnedSymbol = null;
+        hoveredSymbol = null;
+        updateSymbolHighlights();
+    });
+    form.addEventListener("submit", (event) => {
+        event.preventDefault();
+        generateGame();
     });
 
     syncSymbolMaximum();
+    generateGame();
 }());

@@ -12,6 +12,7 @@ class BreachProtocolPageTests(SimpleTestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Взлом протокола")
         self.assertContains(response, 'id="code-matrix"')
+        self.assertContains(response, "breach_protocol/css/game.css")
         self.assertContains(response, "breach_protocol/js/game.js")
         self.assertNotContains(response, "<h2>Правила</h2>")
 
@@ -24,3 +25,4 @@ class BreachProtocolPageTests(SimpleTestCase):
         self.assertContains(response, 'id="symbol-count" name="symbol-count" type="number" min="2"')
         self.assertContains(response, 'id="reset-buffer"')
         self.assertContains(response, 'id="reset-timer"')
+        self.assertContains(response, 'id="new-game-mobile"')
