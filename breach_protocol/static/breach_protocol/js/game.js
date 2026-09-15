@@ -395,9 +395,7 @@
 
         renderMatrix();
         if (!matrixElement.querySelector("button:not(:disabled)")) {
-            state.finished = true;
-            stopTimer();
-            renderMatrix();
+            finishBuffer();
         }
     }
 
@@ -461,7 +459,7 @@
 
     /** @returns {void} */
     function resetTimer() {
-        if (!state) {
+        if (!state || !timeLimitInput.reportValidity()) {
             return;
         }
         stopTimer();
@@ -474,17 +472,28 @@
     }
 
     /** @returns {void} */
-    function syncSymbolMaximum() {
-        const cellCount = Number(gridSizeInput.value) ** 2;
+    function syncDynamicLimits() {
+        const gridSize = Number(gridSizeInput.value);
+        if (!Number.isInteger(gridSize) || gridSize < 3 || gridSize > 10) {
+            return;
+        }
+
+        const cellCount = gridSize ** 2;
         symbolCountInput.max = String(cellCount);
         if (Number(symbolCountInput.value) > cellCount) {
             symbolCountInput.value = String(cellCount);
+        }
+
+        const maximumSequenceLength = Math.min(8, Math.floor(cellCount / 2));
+        sequenceLengthInput.max = String(maximumSequenceLength);
+        if (Number(sequenceLengthInput.value) > maximumSequenceLength) {
+            sequenceLengthInput.value = String(maximumSequenceLength);
         }
     }
 
     /** @returns {void} */
     function generateGame() {
-        syncSymbolMaximum();
+        syncDynamicLimits();
         if (!form.reportValidity()) {
             return;
         }
@@ -507,7 +516,7 @@
         renderMatrix();
     }
 
-    gridSizeInput.addEventListener("input", syncSymbolMaximum);
+    gridSizeInput.addEventListener("input", syncDynamicLimits);
     resetBufferButton.addEventListener("click", resetBuffer);
     resetTimerButton.addEventListener("click", resetTimer);
     newGameMobileButton.addEventListener("click", generateGame);
@@ -521,6 +530,6 @@
         generateGame();
     });
 
-    syncSymbolMaximum();
+    syncDynamicLimits();
     generateGame();
 }());
