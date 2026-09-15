@@ -38,6 +38,7 @@
     const resetBufferButton = /** @type {HTMLButtonElement} */ (document.getElementById("reset-buffer"));
     const resetTimerButton = /** @type {HTMLButtonElement} */ (document.getElementById("reset-timer"));
     const newGameMobileButton = /** @type {HTMLButtonElement} */ (document.getElementById("new-game-mobile"));
+    const toggleSettingsButton = /** @type {HTMLButtonElement} */ (document.getElementById("toggle-settings"));
 
     /** @type {GameState | null} */
     let state = null;
@@ -516,10 +517,18 @@
         renderMatrix();
     }
 
+    /** @returns {void} */
+    function toggleSettings() {
+        const isOpen = form.classList.toggle("is-open");
+        toggleSettingsButton.setAttribute("aria-expanded", String(isOpen));
+        toggleSettingsButton.textContent = isOpen ? "Скрыть настройки" : "Показать настройки";
+    }
+
     gridSizeInput.addEventListener("input", syncDynamicLimits);
     resetBufferButton.addEventListener("click", resetBuffer);
     resetTimerButton.addEventListener("click", resetTimer);
     newGameMobileButton.addEventListener("click", generateGame);
+    toggleSettingsButton.addEventListener("click", toggleSettings);
     document.addEventListener("click", () => {
         pinnedSymbol = null;
         hoveredSymbol = null;

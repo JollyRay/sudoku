@@ -26,3 +26,4 @@ class BreachProtocolPageTests(SimpleTestCase):
         self.assertContains(response, 'id="reset-buffer"')
         self.assertContains(response, 'id="reset-timer"')
         self.assertContains(response, 'id="new-game-mobile"')
+        self.assertContains(response, 'id="toggle-settings"')
