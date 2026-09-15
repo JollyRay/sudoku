@@ -42,8 +42,10 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'bunker.apps.BunkerConfig',
     'game.apps.GameConfig',
     'voice.apps.VoiceConfig',
+    'breach_protocol.apps.BreachProtocolConfig',
 ]
 
 MIDDLEWARE = [
@@ -143,6 +145,17 @@ CHANNEL_LAYERS = {
         },
     },
 }
+
+CACHES = {
+    "default": {
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": f"redis://{REDIS_HOST}:6379/1",
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+        }
+    }
+}
+
 
 SECRET_WEBSOCKET_ADMIN_KEY_HEADER_BYTE = os.getenv('SECRET_WEBSOCKET_ADMIN_HEADER_KEY', '').encode()
 SECRET_WEBSOCKET_ADMIN_KEY_VALUE_BYTE = os.getenv('SECRET_WEBSOCKET_ADMIN_VALUE_KEY', '').encode()

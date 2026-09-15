@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+
+<!-- Admin Menu Section -->
+<div class="admin-menu" id="adminMenu" style="display: none;">
+    <h2>Admin Controls</h2>
+    <div class="admin-controls">
+        <button class="btn-admin" id="initLobbyBtn">🔄 Initialize Lobby</button>
+        
+        <!-- Swap Parameters Section -->
+        <div class="admin-control-group">
+            <label for="swapMember1">Player 1:</label>
+            <select id="swapMember1" class="admin-select">
+                <option value="">Select player</option>
+            </select>
+            
+            <label for="swapMember2">Player 2:</label>
+            <select id="swapMember2" class="admin-select">
+                <option value="">Select player</option>
+            </select>
+            
+            <label for="swapParam">Parameter:</label>
+            <select id="swapParam" class="admin-select param-select">
+                <option value="">Select parameter</option>
+            </select>
+            
+            <button class="btn-admin" id="swapParamBtn">⇄ Swap Parameters</button>
+        </div>
+        
+        <!-- Steal Parameters Section -->
+        <div class="admin-control-group">
+            <label for="stealFromMember">Steal From:</label>
+            <select id="stealFromMember" class="admin-select">
+                <option value="">Select player</option>
+            </select>
+            
+            <label for="stealToMember">Steal To:</label>
+            <select id="stealToMember" class="admin-select">
+                <option value="">Select player</option>
+            </select>
+            
+            <label for="stealParam">Parameter:</label>
+            <select id="stealParam" class="admin-select param-select">
+                <option value="">Select parameter</option>
+            </select>
+            
+            <button class="btn-admin" id="stealParamBtn">→ Steal Parameter</button>
+        </div>
+        
+        <!-- Set Parameters Section -->
+        <div class="admin-control-group">
+            <label for="setMember">Player:</label>
+            <select id="setMember" class="admin-select">
+                <option value="">Select player</option>
+            </select>
+            
+            <label for="setParam">Parameter:</label>
+            <select id="setParam" class="admin-select param-select">
+                <option value="">Select parameter</option>
+            </select>
+            
+            <label for="setParamValue">Value:</label>
+            <input type="text" id="setParamValue" class="admin-input" placeholder="Enter new value">
+            
+            <button class="btn-admin" id="setParamBtn">✎ Set Parameter</button>
+        </div>
+    </div>
+</div>
+
+<!-- Personal Data Section -->
+<div class="personal-data-container">
+    <h2>Your Character</h2>
+    <div class="personal-param-grid" id="personalTable">
+        <!-- Personal parameters will be added here by JavaScript -->
+    </div>
+</div>
+
+<!-- Game Table Section -->
+<div class="table-container">
+    <div class="table-header">
+        <h2>Bunker Game Table</h2>
+        <button class="btn-admin" id="toggleViewBtn" type="button">Switch to table view</button>
+    </div>
+    <div class="grid-table card-mode" id="gameTable" data-view="card">
+        <!-- Member cards will be added here by JavaScript -->
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_style %}
+<link rel="stylesheet" href="{% static 'bunker/css/bunker-style.css' %}">
+{% endblock %}
+
+{% block extra_script %}
+{{ room_code|json_script:"room-code" }}
+<script src="{% static 'bunker/js/bunkerWebsocket.js' %}"></script>
+{% endblock %}
