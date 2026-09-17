@@ -29,8 +29,10 @@
     const gridSizeInput = /** @type {HTMLInputElement} */ (document.getElementById("grid-size"));
     const sequenceCountInput = /** @type {HTMLInputElement} */ (document.getElementById("sequence-count"));
     const sequenceLengthInput = /** @type {HTMLInputElement} */ (document.getElementById("sequence-length"));
+    const bufferLengthInput = /** @type {HTMLInputElement} */ (document.getElementById("buffer-length"));
     const symbolCountInput = /** @type {HTMLInputElement} */ (document.getElementById("symbol-count"));
     const timeLimitInput = /** @type {HTMLInputElement} */ (document.getElementById("time-limit"));
+    const fitAllSequencesInput = /** @type {HTMLInputElement} */ (document.getElementById("fit-all-sequences"));
     const matrixElement = /** @type {HTMLDivElement} */ (document.getElementById("code-matrix"));
     const sequencesElement = /** @type {HTMLOListElement} */ (document.getElementById("target-sequences"));
     const bufferElement = /** @type {HTMLOutputElement} */ (document.getElementById("buffer"));
@@ -163,27 +165,84 @@
     }
 
     /**
+     * @param {string[][]} board
      * @param {number} size
      * @param {number} sequenceCount
      * @param {number} maximumSequenceLength
+     * @param {number} bufferCapacity
+     * @returns {TargetSequence[]}
+     */
+    function buildGuaranteedSequences(
+        board,
+        size,
+        sequenceCount,
+        maximumSequenceLength,
+        bufferCapacity
+    ) {
+        const masterSequence = buildPath(size, bufferCapacity).map(
+            ({ row, column }) => board[row][column]
+        );
+        /** @type {TargetSequence[]} */
+        const sequences = [{
+            values: masterSequence.slice(0, maximumSequenceLength),
+            matched: false,
+        }];
+        if (sequenceCount === 1) {
+            return sequences;
+        }
+
+        const fragmentMaximum = Math.max(2, maximumSequenceLength - 1);
+        const fragmentLengths = makeSequenceLengths(sequenceCount - 1, fragmentMaximum);
+        fragmentLengths.forEach((length) => {
+            const start = randomInt((masterSequence.length - length) + 1);
+            sequences.push({
+                values: masterSequence.slice(start, start + length),
+                matched: false,
+            });
+        });
+        return sequences;
+    }
+
+    /**
+     * @param {number} size
+     * @param {number} sequenceCount
+     * @param {number} maximumSequenceLength
+     * @param {number} bufferCapacity
      * @param {number} symbolCount
      * @param {number} timeLimit
+     * @param {boolean} fitAllSequences
      * @returns {GameState}
      */
-    function buildGame(size, sequenceCount, maximumSequenceLength, symbolCount, timeLimit) {
+    function buildGame(
+        size,
+        sequenceCount,
+        maximumSequenceLength,
+        bufferCapacity,
+        symbolCount,
+        timeLimit,
+        fitAllSequences
+    ) {
         const board = buildBoard(size, symbolCount);
-        const sequenceLengths = makeSequenceLengths(sequenceCount, maximumSequenceLength);
-        const sequences = sequenceLengths.map((length) => ({
-            values: buildPath(size, length).map(({ row, column }) => board[row][column]),
-            matched: false,
-        }));
+        const canFitAllSequences = fitAllSequences && bufferCapacity >= maximumSequenceLength;
+        const sequences = canFitAllSequences
+            ? buildGuaranteedSequences(
+                board,
+                size,
+                sequenceCount,
+                maximumSequenceLength,
+                bufferCapacity
+            )
+            : makeSequenceLengths(sequenceCount, maximumSequenceLength).map((length) => ({
+                values: buildPath(size, length).map(({ row, column }) => board[row][column]),
+                matched: false,
+            }));
 
         return {
             size,
             sequences,
             board,
             buffer: [],
-            bufferCapacity: maximumSequenceLength,
+            bufferCapacity,
             selected: new Set(),
             nextAxis: "first-row",
             activeIndex: 0,
@@ -304,8 +363,10 @@
         if (!state) {
             return;
         }
-        state.sequences.forEach((sequence) => {
+        state.sequences.forEach((sequence, sequenceIndex) => {
             const item = document.createElement("li");
+            item.setAttribute("data-sequence-index", String(sequenceIndex));
+            item.classList.toggle("sequence-matched", sequence.matched);
             const container = document.createElement(sequence.matched ? "mark" : "span");
             sequence.values.forEach((symbol, index) => {
                 const button = document.createElement("button");
@@ -490,6 +551,10 @@
         if (Number(sequenceLengthInput.value) > maximumSequenceLength) {
             sequenceLengthInput.value = String(maximumSequenceLength);
         }
+        bufferLengthInput.max = String(maximumSequenceLength);
+        if (Number(bufferLengthInput.value) > maximumSequenceLength) {
+            bufferLengthInput.value = String(maximumSequenceLength);
+        }
     }
 
     /** @returns {void} */
@@ -506,8 +571,10 @@
             Number(gridSizeInput.value),
             Number(sequenceCountInput.value),
             Number(sequenceLengthInput.value),
+            Number(bufferLengthInput.value),
             Number(symbolCountInput.value),
-            Number(timeLimitInput.value)
+            Number(timeLimitInput.value),
+            fitAllSequencesInput.checked
         );
         resetBufferButton.disabled = false;
         resetTimerButton.disabled = false;
