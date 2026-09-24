@@ -1,13 +1,124 @@
+{% load static %}
 <!doctype html>
 <html lang="en">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Sudoku Vibe</title>
+    <link rel="stylesheet" href="{% static 'sudoku_vibe/css/sudoku.css' %}">
 </head>
 <body>
     <main>
         <h1>Sudoku Vibe</h1>
+        <table
+            class="sudoku-board"
+            data-board-name="{{ board_name }}"
+            aria-label="Sudoku board {{ board_name }}"
+        >
+            <caption>{{ board_name }}</caption>
+            <tbody>
+                <tr data-row-index="0">
+                    <td data-cell-index="0" data-column-index="0"></td>
+                    <td data-cell-index="1" data-column-index="1"></td>
+                    <td data-cell-index="2" data-column-index="2"></td>
+                    <td data-cell-index="3" data-column-index="3"></td>
+                    <td data-cell-index="4" data-column-index="4"></td>
+                    <td data-cell-index="5" data-column-index="5"></td>
+                    <td data-cell-index="6" data-column-index="6"></td>
+                    <td data-cell-index="7" data-column-index="7"></td>
+                    <td data-cell-index="8" data-column-index="8"></td>
+                </tr>
+                <tr data-row-index="1">
+                    <td data-cell-index="9" data-column-index="0"></td>
+                    <td data-cell-index="10" data-column-index="1"></td>
+                    <td data-cell-index="11" data-column-index="2"></td>
+                    <td data-cell-index="12" data-column-index="3"></td>
+                    <td data-cell-index="13" data-column-index="4"></td>
+                    <td data-cell-index="14" data-column-index="5"></td>
+                    <td data-cell-index="15" data-column-index="6"></td>
+                    <td data-cell-index="16" data-column-index="7"></td>
+                    <td data-cell-index="17" data-column-index="8"></td>
+                </tr>
+                <tr data-row-index="2">
+                    <td data-cell-index="18" data-column-index="0"></td>
+                    <td data-cell-index="19" data-column-index="1"></td>
+                    <td data-cell-index="20" data-column-index="2"></td>
+                    <td data-cell-index="21" data-column-index="3"></td>
+                    <td data-cell-index="22" data-column-index="4"></td>
+                    <td data-cell-index="23" data-column-index="5"></td>
+                    <td data-cell-index="24" data-column-index="6"></td>
+                    <td data-cell-index="25" data-column-index="7"></td>
+                    <td data-cell-index="26" data-column-index="8"></td>
+                </tr>
+                <tr data-row-index="3">
+                    <td data-cell-index="27" data-column-index="0"></td>
+                    <td data-cell-index="28" data-column-index="1"></td>
+                    <td data-cell-index="29" data-column-index="2"></td>
+                    <td data-cell-index="30" data-column-index="3"></td>
+                    <td data-cell-index="31" data-column-index="4"></td>
+                    <td data-cell-index="32" data-column-index="5"></td>
+                    <td data-cell-index="33" data-column-index="6"></td>
+                    <td data-cell-index="34" data-column-index="7"></td>
+                    <td data-cell-index="35" data-column-index="8"></td>
+                </tr>
+                <tr data-row-index="4">
+                    <td data-cell-index="36" data-column-index="0"></td>
+                    <td data-cell-index="37" data-column-index="1"></td>
+                    <td data-cell-index="38" data-column-index="2"></td>
+                    <td data-cell-index="39" data-column-index="3"></td>
+                    <td data-cell-index="40" data-column-index="4"></td>
+                    <td data-cell-index="41" data-column-index="5"></td>
+                    <td data-cell-index="42" data-column-index="6"></td>
+                    <td data-cell-index="43" data-column-index="7"></td>
+                    <td data-cell-index="44" data-column-index="8"></td>
+                </tr>
+                <tr data-row-index="5">
+                    <td data-cell-index="45" data-column-index="0"></td>
+                    <td data-cell-index="46" data-column-index="1"></td>
+                    <td data-cell-index="47" data-column-index="2"></td>
+                    <td data-cell-index="48" data-column-index="3"></td>
+                    <td data-cell-index="49" data-column-index="4"></td>
+                    <td data-cell-index="50" data-column-index="5"></td>
+                    <td data-cell-index="51" data-column-index="6"></td>
+                    <td data-cell-index="52" data-column-index="7"></td>
+                    <td data-cell-index="53" data-column-index="8"></td>
+                </tr>
+                <tr data-row-index="6">
+                    <td data-cell-index="54" data-column-index="0"></td>
+                    <td data-cell-index="55" data-column-index="1"></td>
+                    <td data-cell-index="56" data-column-index="2"></td>
+                    <td data-cell-index="57" data-column-index="3"></td>
+                    <td data-cell-index="58" data-column-index="4"></td>
+                    <td data-cell-index="59" data-column-index="5"></td>
+                    <td data-cell-index="60" data-column-index="6"></td>
+                    <td data-cell-index="61" data-column-index="7"></td>
+                    <td data-cell-index="62" data-column-index="8"></td>
+                </tr>
+                <tr data-row-index="7">
+                    <td data-cell-index="63" data-column-index="0"></td>
+                    <td data-cell-index="64" data-column-index="1"></td>
+                    <td data-cell-index="65" data-column-index="2"></td>
+                    <td data-cell-index="66" data-column-index="3"></td>
+                    <td data-cell-index="67" data-column-index="4"></td>
+                    <td data-cell-index="68" data-column-index="5"></td>
+                    <td data-cell-index="69" data-column-index="6"></td>
+                    <td data-cell-index="70" data-column-index="7"></td>
+                    <td data-cell-index="71" data-column-index="8"></td>
+                </tr>
+                <tr data-row-index="8">
+                    <td data-cell-index="72" data-column-index="0"></td>
+                    <td data-cell-index="73" data-column-index="1"></td>
+                    <td data-cell-index="74" data-column-index="2"></td>
+                    <td data-cell-index="75" data-column-index="3"></td>
+                    <td data-cell-index="76" data-column-index="4"></td>
+                    <td data-cell-index="77" data-column-index="5"></td>
+                    <td data-cell-index="78" data-column-index="6"></td>
+                    <td data-cell-index="79" data-column-index="7"></td>
+                    <td data-cell-index="80" data-column-index="8"></td>
+                </tr>
+            </tbody>
+        </table>
     </main>
+    <script src="{% static 'sudoku_vibe/js/sudoku.js' %}"></script>
 </body>
 </html>

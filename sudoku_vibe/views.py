@@ -3,4 +3,9 @@ from django.shortcuts import render
 
 
 def index(request: HttpRequest) -> HttpResponse:
-    return render(request, "sudoku_vibe/index.html")
+    board_name = request.COOKIES.get("nick", "undefined")
+    return render(
+        request,
+        "sudoku_vibe/index.html",
+        context={"board_name": board_name},
+    )
