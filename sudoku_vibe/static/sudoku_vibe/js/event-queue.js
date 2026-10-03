@@ -1,4 +1,7 @@
-export const availableEvents = new Map();
+import { availableEvents } from "./events.js";
+
+
+export { availableEvents } from "./events.js";
 
 export class EventQueue {
     constructor(events = availableEvents) {

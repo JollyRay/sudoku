@@ -1,8 +1,10 @@
 import { config } from "./config.js";
+import { connectWebsocket } from "./network.js";
 
 const board = document.querySelector(".sudoku-board");
 
 config.setUsername(board?.dataset.boardName ?? "undefined");
+connectWebsocket();
 
 export { config } from "./config.js";
 export { setCellValue, swapColumns, swapRows } from "./board.js";
@@ -12,3 +14,10 @@ export {
     availableEvents,
     eventQueue,
 } from "./event-queue.js";
+export {
+    connectWebsocket,
+    requestBoardData,
+    requestBoardGeneration,
+    sendCellValue,
+    sendContext,
+} from "./network.js";
