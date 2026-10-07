@@ -7,6 +7,7 @@ const incomingHandlers = new Map([
     ["set_value", receiveSetValue],
     ["bonus", receiveBonus],
     ["board_data", receiveBoardData],
+    ["error", receiveError],
 ]);
 
 function getWebsocket() {
@@ -70,6 +71,10 @@ function receiveBoardData({ board, config: receivedConfig = {} }) {
     for (const [cellIndex, value] of Object.entries(board.values ?? {})) {
         setCellValue(boardName, Number(cellIndex), value);
     }
+}
+
+function receiveError({ code, message }) {
+    console.error(`WebSocket error (${String(code)}): ${String(message)}`);
 }
 
 function receiveMessage(message) {

@@ -2,7 +2,7 @@ import logging
 from dataclasses import dataclass
 from typing import Any, Set
 
-from redis import Redis as SyncRedis  # type: ignore
+from redis import Redis as SyncRedis
 from redis.asyncio import Redis
 from redis.exceptions import ConnectionError, ResponseError, TimeoutError
 
@@ -28,7 +28,6 @@ class RedisClient(metaclass=Singleton):
     def __init__(self: "RedisClient", config: RedisConfig | None = None) -> None:
         self._config: RedisConfig = config or RedisConfig()
         self._redis_client: Redis = self._create_connection()
-        self._create_connection_sync().flushdb()
 
     def _create_connection(self: "RedisClient") -> Redis:
         try:
