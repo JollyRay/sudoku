@@ -7,7 +7,13 @@ config.setUsername(board?.dataset.boardName ?? "undefined");
 connectWebsocket();
 
 export { config } from "./config.js";
-export { setCellValue, swapColumns, swapRows } from "./board.js";
+export {
+    ensureBoard,
+    setCellValue,
+    setFixedCells,
+    swapColumns,
+    swapRows,
+} from "./board.js";
 export {
     EventQueue,
     addEvent,

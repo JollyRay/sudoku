@@ -16,6 +16,37 @@ function getBoard(boardName) {
     return board;
 }
 
+export function ensureBoard(boardName) {
+    try {
+        return getBoard(boardName);
+    } catch (error) {
+        if (!(error instanceof ReferenceError)) {
+            throw error;
+        }
+    }
+
+    const source = document.querySelector(".sudoku-board");
+    if (source === null || source.parentNode === null) {
+        throw new ReferenceError("Sudoku board template not found");
+    }
+
+    const board = source.cloneNode(true);
+    board.dataset.boardName = boardName;
+    board.setAttribute("aria-label", `Sudoku board ${boardName}`);
+
+    const caption = board.querySelector("caption");
+    if (caption !== null) {
+        caption.textContent = boardName;
+    }
+    for (const cell of board.querySelectorAll("[data-cell-index]")) {
+        cell.textContent = "";
+        delete cell.dataset.fixed;
+    }
+
+    source.parentNode.appendChild(board);
+    return board;
+}
+
 function validateIndex(index, upperBound, indexName) {
     if (!Number.isInteger(index) || index < 0 || index >= upperBound) {
         throw new RangeError(
@@ -68,6 +99,20 @@ export function setCellValue(boardName, cellIndex, value) {
     );
 
     cell.textContent = String(value);
+}
+
+export function setFixedCells(boardName, fixedCells = []) {
+    const board = ensureBoard(boardName);
+    const fixedCellSet = new Set(fixedCells);
+
+    for (const cell of board.querySelectorAll("[data-cell-index]")) {
+        const cellIndex = Number(cell.dataset.cellIndex);
+        if (fixedCellSet.has(cellIndex)) {
+            cell.dataset.fixed = "true";
+        } else {
+            delete cell.dataset.fixed;
+        }
+    }
 }
 
 export function swapRows(boardName, firstRow, secondRow) {

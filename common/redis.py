@@ -4,7 +4,7 @@ from typing import Any, Set
 
 from redis import Redis as SyncRedis
 from redis.asyncio import Redis
-from redis.exceptions import ConnectionError, ResponseError, TimeoutError
+from redis.exceptions import ConnectionError, ResponseError, TimeoutError, WatchError
 
 from common.dataclass.singleton import Singleton
 from sudoku.settings import REDIS_HOST
@@ -85,6 +85,194 @@ class RedisClient(metaclass=Singleton):
             await self._redis_client.set(key, value, ex=expire_time)
         except (ResponseError, ConnectionError, TimeoutError) as e:
             logger.error(f"Error setting key '{key}': {e}")
+            raise
+
+    async def set_if_absent(
+        self,
+        key: str,
+        value: Any,
+        expiry: int,
+    ) -> bool:
+        try:
+            result = await self._redis_client.set(
+                key,
+                value,
+                ex=expiry,
+                nx=True,
+            )
+            return bool(result)
+        except (ResponseError, ConnectionError, TimeoutError) as e:
+            logger.error(f"Error reserving key '{key}': {e}")
+            raise
+
+    async def expire_if_value(
+        self,
+        key: str,
+        value: str,
+        expiry: int,
+    ) -> bool:
+        script = """
+            if redis.call('get', KEYS[1]) == ARGV[1] then
+                return redis.call('expire', KEYS[1], ARGV[2])
+            end
+            return 0
+        """
+        try:
+            result = await self._redis_client.eval(  # type: ignore[misc]
+                script,
+                1,
+                key,
+                value,
+                str(expiry),
+            )
+            return bool(result)
+        except (ResponseError, ConnectionError, TimeoutError) as e:
+            logger.error(f"Error renewing key '{key}': {e}")
+            raise
+
+    async def delete_if_value(self, key: str, value: str) -> bool:
+        script = """
+            if redis.call('get', KEYS[1]) == ARGV[1] then
+                return redis.call('del', KEYS[1])
+            end
+            return 0
+        """
+        try:
+            result = await self._redis_client.eval(  # type: ignore[misc]
+                script,
+                1,
+                key,
+                value,
+            )
+            return bool(result)
+        except (ResponseError, ConnectionError, TimeoutError) as e:
+            logger.error(f"Error releasing key '{key}': {e}")
+            raise
+
+    def exists_sync(self, key: str) -> bool:
+        client = self._create_connection_sync()
+        try:
+            return bool(client.exists(key))
+        except (ResponseError, ConnectionError, TimeoutError) as e:
+            logger.error(f"Error checking key '{key}': {e}")
+            raise
+        finally:
+            client.close()  # type: ignore[no-untyped-call]
+
+    async def atomic_replace_hashes(
+        self,
+        hashes: dict[str, dict[str, Any]],
+        set_members: dict[str, Any],
+    ) -> None:
+        try:
+            async with self._redis_client.pipeline(transaction=True) as pipeline:
+                for key, mapping in hashes.items():
+                    pipeline.delete(key)
+                    if mapping:
+                        pipeline.hset(key, mapping=mapping)
+                for key, value in set_members.items():
+                    pipeline.sadd(key, value)
+                await pipeline.execute()
+        except (ResponseError, ConnectionError, TimeoutError) as e:
+            logger.error(f"Error replacing hashes atomically: {e}")
+            raise
+
+    async def atomic_replace_hashes_if_value(
+        self,
+        condition_key: str,
+        expected_value: str,
+        hashes: dict[str, dict[str, Any]],
+        set_members: dict[str, Any],
+    ) -> bool:
+        while True:
+            try:
+                async with self._redis_client.pipeline(transaction=True) as pipeline:
+                    await pipeline.watch(condition_key)
+                    current_value = await pipeline.get(condition_key)
+                    if current_value != expected_value:
+                        return False
+
+                    pipeline.multi()  # type: ignore[no-untyped-call]
+                    for key, mapping in hashes.items():
+                        pipeline.delete(key)
+                        if mapping:
+                            pipeline.hset(key, mapping=mapping)
+                    for key, value in set_members.items():
+                        pipeline.sadd(key, value)
+                    await pipeline.execute()
+                    return True
+            except WatchError:
+                continue
+            except (ResponseError, ConnectionError, TimeoutError) as e:
+                logger.error(f"Error replacing fenced hashes: {e}")
+                raise
+
+    async def hset_if_value(
+        self,
+        condition_key: str,
+        expected_value: str,
+        key: str,
+        field: str,
+        value: Any,
+    ) -> bool:
+        script = """
+            if redis.call('get', KEYS[1]) ~= ARGV[1] then
+                return 0
+            end
+            redis.call('hset', KEYS[2], ARGV[2], ARGV[3])
+            return 1
+        """
+        try:
+            result = await self._redis_client.eval(  # type: ignore[misc]
+                script,
+                2,
+                condition_key,
+                key,
+                expected_value,
+                field,
+                value,
+            )
+            return bool(result)
+        except (ResponseError, ConnectionError, TimeoutError) as e:
+            logger.error(f"Error updating fenced hash field '{field}': {e}")
+            raise
+
+    async def hset_if_mutable(
+        self,
+        condition_key: str,
+        expected_value: str,
+        key: str,
+        field: str,
+        value: Any,
+        fixed_fields_key: str,
+    ) -> int:
+        script = """
+            if KEYS[1] ~= '' and redis.call('get', KEYS[1]) ~= ARGV[1] then
+                return -2
+            end
+            if redis.call('exists', KEYS[2]) == 0 then
+                return -1
+            end
+            if redis.call('hexists', KEYS[3], ARGV[2]) == 1 then
+                return 0
+            end
+            redis.call('hset', KEYS[2], ARGV[2], ARGV[3])
+            return 1
+        """
+        try:
+            result = await self._redis_client.eval(  # type: ignore[misc]
+                script,
+                3,
+                condition_key,
+                key,
+                fixed_fields_key,
+                expected_value,
+                field,
+                value,
+            )
+            return int(result)
+        except (ResponseError, ConnectionError, TimeoutError) as e:
+            logger.error(f"Error updating mutable hash field '{field}': {e}")
             raise
 
     async def incr(self: "RedisClient", key: str) -> int:

@@ -1,14 +1,15 @@
+import asyncio
 import hashlib
 import json
+import secrets
+from contextlib import suppress
 from dataclasses import dataclass
 from typing import Any, Awaitable, Callable
 
 from channels.generic.websocket import AsyncWebsocketConsumer  # type: ignore[import-untyped]
-from django.db import IntegrityError
-
-from game.models import LobbySetting, UserSetting
 
 from .service import SudokuVibeError, SudokuVibeService
+from .storage import SudokuVibeStorage
 
 
 @dataclass(frozen=True)
@@ -23,7 +24,11 @@ class SudokuVibeConsumer(AsyncWebsocketConsumer):  # type: ignore[misc]
         "get_board_data": RequestRoute("get_board_data", "board_data"),
         "set_value": RequestRoute("set_value", "set_value", broadcast=True),
         "set_context": RequestRoute("set_context", None),
-        "generate_board": RequestRoute("generate_board", "board_data"),
+        "generate_board": RequestRoute(
+            "generate_board",
+            "board_data",
+            broadcast=True,
+        ),
     }
 
     async def connect(self) -> None:
@@ -37,33 +42,90 @@ class SudokuVibeConsumer(AsyncWebsocketConsumer):  # type: ignore[misc]
         if not isinstance(username, str) or not username:
             username = "undefined"
 
-        lobby_setting, _ = await LobbySetting.objects.aget_or_create(code=lobby)
-        try:
-            user_setting = await UserSetting.objects.acreate(
-                lobby=lobby_setting,
-                nick=username,
-            )
-        except IntegrityError:
+        self.lobby = lobby
+        self.username = username
+        self.connection_id = secrets.token_urlsafe(32)
+        self.storage = SudokuVibeStorage()
+        self.presence_acquired = await self.storage.acquire_presence(
+            lobby,
+            username,
+            self.connection_id,
+        )
+        if not self.presence_acquired:
             await self.close(code=4409)
             return
 
-        self.user_setting_id = user_setting.pk
-
-        self.service = SudokuVibeService(lobby, username)
+        self.service = SudokuVibeService(
+            lobby,
+            username,
+            self.storage,
+            self.connection_id,
+        )
         lobby_digest = hashlib.sha256(lobby.encode()).hexdigest()
         self.group_name = f"sudoku_vibe_{lobby_digest}"
 
-        await self.channel_layer.group_add(self.group_name, self.channel_name)
-        await self.accept()
+        try:
+            await self.channel_layer.group_add(self.group_name, self.channel_name)
+            self.group_joined = True
+            await self.accept()
+        except BaseException:
+            if getattr(self, "group_joined", False):
+                with suppress(Exception):
+                    await self.channel_layer.group_discard(
+                        self.group_name,
+                        self.channel_name,
+                    )
+            await self.release_presence()
+            raise
+
+        self.presence_task = asyncio.create_task(self.keep_presence_alive())
 
     async def disconnect(self, close_code: int) -> None:
-        group_name = getattr(self, "group_name", None)
-        if group_name is not None:
-            await self.channel_layer.group_discard(group_name, self.channel_name)
+        presence_task = getattr(self, "presence_task", None)
+        if presence_task is not None:
+            presence_task.cancel()
+            with suppress(asyncio.CancelledError):
+                await presence_task
 
-        user_setting_id = getattr(self, "user_setting_id", None)
-        if user_setting_id is not None:
-            await UserSetting.objects.filter(pk=user_setting_id).adelete()
+        try:
+            if getattr(self, "group_joined", False):
+                await self.channel_layer.group_discard(
+                    self.group_name,
+                    self.channel_name,
+                )
+        finally:
+            await self.release_presence()
+
+    async def keep_presence_alive(self) -> None:
+        renewal_interval = self.storage.PRESENCE_EXPIRY_SECONDS / 3
+        while True:
+            await asyncio.sleep(renewal_interval)
+            try:
+                renewed = await self.storage.renew_presence(
+                    self.lobby,
+                    self.username,
+                    self.connection_id,
+                )
+            except Exception:
+                await self.close(code=1011)
+                return
+
+            if not renewed:
+                await self.close(code=4409)
+                return
+
+    async def release_presence(self) -> None:
+        if not getattr(self, "presence_acquired", False):
+            return
+
+        try:
+            await self.storage.release_presence(
+                self.lobby,
+                self.username,
+                self.connection_id,
+            )
+        finally:
+            self.presence_acquired = False
 
     async def receive(
         self,
@@ -102,6 +164,9 @@ class SudokuVibeConsumer(AsyncWebsocketConsumer):  # type: ignore[misc]
         route: RequestRoute,
         data: dict[str, Any],
     ) -> None:
+        if not await self.ensure_current_presence():
+            return
+
         handler: Callable[
             [dict[str, Any]],
             Awaitable[dict[str, Any] | None],
@@ -111,6 +176,8 @@ class SudokuVibeConsumer(AsyncWebsocketConsumer):  # type: ignore[misc]
             response_data = await handler(data)
         except SudokuVibeError as error:
             await self.send_error(error.code, error.message)
+            if error.code == "connection_replaced":
+                await self.close(code=4409)
             return
 
         if route.response_kind is None or response_data is None:
@@ -118,6 +185,7 @@ class SudokuVibeConsumer(AsyncWebsocketConsumer):  # type: ignore[misc]
 
         message = {"kind": route.response_kind, "data": response_data}
         if route.broadcast:
+            await self.send(text_data=json.dumps(message))
             await self.channel_layer.group_send(
                 self.group_name,
                 {
@@ -129,6 +197,31 @@ class SudokuVibeConsumer(AsyncWebsocketConsumer):  # type: ignore[misc]
             return
 
         await self.send(text_data=json.dumps(message))
+
+    async def ensure_current_presence(self) -> bool:
+        try:
+            renewed = await self.storage.renew_presence(
+                self.lobby,
+                self.username,
+                self.connection_id,
+            )
+        except Exception:
+            await self.send_error(
+                "presence_unavailable",
+                "Unable to verify connection ownership",
+            )
+            await self.close(code=1011)
+            return False
+
+        if renewed:
+            return True
+
+        await self.send_error(
+            "connection_replaced",
+            "This user is connected from another client",
+        )
+        await self.close(code=4409)
+        return False
 
     async def forward_message(self, event: dict[str, Any]) -> None:
         if event.get("sender") == self.channel_name:

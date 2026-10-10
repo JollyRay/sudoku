@@ -23,10 +23,12 @@ class SudokuVibeService:
         lobby: str,
         username: str,
         storage: SudokuVibeStorage | None = None,
+        connection_id: str | None = None,
     ) -> None:
         self.lobby = lobby
         self.username = username
         self.storage = storage or SudokuVibeStorage()
+        self.connection_id = connection_id
 
     async def get_board_data(self, data: dict[str, Any]) -> dict[str, Any]:
         context, boards = await self.storage.get_lobby_state(
@@ -34,23 +36,36 @@ class SudokuVibeService:
             self.username,
         )
         own_board = boards.get(self.username, {})
+        board_data = []
+        for name, values in boards.items():
+            board_data.append(
+                {
+                    "name": name,
+                    "values": values,
+                    "fixedCells": sorted(
+                        await self.storage.get_fixed_cells(self.lobby, name)
+                    ),
+                }
+            )
+
+        own_fixed_cells = await self.storage.get_fixed_cells(
+            self.lobby,
+            self.username,
+        )
 
         return {
-            "board": {"name": self.username, "values": own_board},
-            "boards": [
-                {"name": name, "values": values}
-                for name, values in boards.items()
-            ],
+            "board": {
+                "name": self.username,
+                "values": own_board,
+                "fixedCells": sorted(own_fixed_cells),
+            },
+            "boards": board_data,
             "config": context or self.default_context(),
         }
 
     async def set_value(self, data: dict[str, Any]) -> dict[str, Any]:
         board_name = data.get("boardName")
-        owns_board = (
-            board_name == self.username
-            and await self.storage.has_board(self.lobby, self.username)
-        )
-        if not owns_board:
+        if board_name != self.username:
             raise SudokuVibeError(
                 "board_access_denied",
                 "User does not own this board",
@@ -66,22 +81,28 @@ class SudokuVibeService:
 
         valid_cell_index = cast(int, cell_index)
         valid_value = cast(int | str, value)
-        if await self.storage.is_fixed_cell(
-            self.lobby,
-            self.username,
-            valid_cell_index,
-        ):
-            raise SudokuVibeError(
-                "immutable_cell",
-                "Generated cell cannot be changed",
-            )
-
-        await self.storage.set_cell(
+        update_result = await self.storage.set_cell(
             self.lobby,
             self.username,
             valid_cell_index,
             valid_value,
+            self.connection_id,
         )
+        if update_result == -2:
+            raise SudokuVibeError(
+                "connection_replaced",
+                "This user is connected from another client",
+            )
+        if update_result == -1:
+            raise SudokuVibeError(
+                "board_access_denied",
+                "User does not own this board",
+            )
+        if update_result == 0:
+            raise SudokuVibeError(
+                "immutable_cell",
+                "Generated cell cannot be changed",
+            )
 
         return {
             "boardName": self.username,
@@ -98,7 +119,17 @@ class SudokuVibeService:
             raise SudokuVibeError("invalid_context", "Invalid allowedValues")
 
         context["allowedValues"] = allowed_values
-        await self.storage.save_context(self.lobby, self.username, context)
+        saved = await self.storage.save_context(
+            self.lobby,
+            self.username,
+            context,
+            self.connection_id,
+        )
+        if not saved:
+            raise SudokuVibeError(
+                "connection_replaced",
+                "This user is connected from another client",
+            )
 
     async def generate_board(self, data: dict[str, Any]) -> dict[str, Any]:
         difficulty = data.get("difficulty", "medium")
@@ -115,12 +146,18 @@ class SudokuVibeService:
 
         board_values, fixed_cells = generated_board
 
-        await self.storage.replace_board(
+        replaced = await self.storage.replace_board(
             self.lobby,
             self.username,
             board_values,
             fixed_cells,
+            self.connection_id,
         )
+        if not replaced:
+            raise SudokuVibeError(
+                "connection_replaced",
+                "This user is connected from another client",
+            )
         context = await self.storage.get_context(self.lobby, self.username)
 
         return {

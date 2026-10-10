@@ -1,4 +1,4 @@
-import { setCellValue } from "./board.js";
+import { ensureBoard, setCellValue, setFixedCells } from "./board.js";
 import { config } from "./config.js";
 import { addEvent } from "./event-queue.js";
 
@@ -28,7 +28,6 @@ export function requestBoardData() {
 }
 
 export function sendCellValue(boardName, cellIndex, value) {
-    setCellValue(boardName, cellIndex, value);
     send("set_value", {
         boardName,
         cellIndex,
@@ -45,6 +44,7 @@ export function requestBoardGeneration(difficulty, size = 9) {
 }
 
 function receiveSetValue({ boardName, cellIndex, value }) {
+    ensureBoard(boardName);
     setCellValue(boardName, cellIndex, value);
 }
 
@@ -64,13 +64,28 @@ function applyConfig(context) {
     }
 }
 
-function receiveBoardData({ board, config: receivedConfig = {} }) {
-    applyConfig(receivedConfig);
+function applyBoard(board) {
+    if (board === undefined || board === null) {
+        return;
+    }
 
     const boardName = board.name ?? config.username;
+    ensureBoard(boardName);
     for (const [cellIndex, value] of Object.entries(board.values ?? {})) {
         setCellValue(boardName, Number(cellIndex), value);
     }
+    setFixedCells(boardName, board.fixedCells ?? []);
+}
+
+function receiveBoardData({ board, boards = [], config: receivedConfig = {} }) {
+    if (board?.name === config.username) {
+        applyConfig(receivedConfig);
+    }
+
+    for (const lobbyBoard of boards) {
+        applyBoard(lobbyBoard);
+    }
+    applyBoard(board);
 }
 
 function receiveError({ code, message }) {

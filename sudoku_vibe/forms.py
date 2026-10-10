@@ -2,7 +2,7 @@ from typing import Any
 
 from django import forms
 
-from game.models import UserSetting
+from .storage import SudokuVibeStorage
 
 
 class JoinLobbyForm(forms.Form):
@@ -23,10 +23,7 @@ class JoinLobbyForm(forms.Form):
         if (
             username
             and room_name
-            and UserSetting.objects.filter(
-                nick=username,
-                lobby__code=room_name,
-            ).exists()
+            and SudokuVibeStorage().is_username_active(room_name, username)
         ):
             raise forms.ValidationError(
                 "Пользователь с таким именем уже находится в этой комнате.",

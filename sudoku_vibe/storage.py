@@ -6,7 +6,7 @@ from common.redis import RedisClient
 
 
 class SudokuVibeStorage:
-    EXPIRY_SECONDS = 7200
+    PRESENCE_EXPIRY_SECONDS = 90
 
     def __init__(self, redis: RedisClient | None = None) -> None:
         self.redis = redis or RedisClient()
@@ -31,15 +31,70 @@ class SudokuVibeStorage:
     def _fixed_cells_key(cls, lobby: str, board_name: str) -> str:
         return f"{cls._board_key(lobby, board_name)}:fixed-cells"
 
+    @classmethod
+    def _presence_key(cls, lobby: str, username: str) -> str:
+        return (
+            f"{cls._lobby_prefix(lobby)}:presence:"
+            f"{quote(username, safe='')}"
+        )
+
+    async def acquire_presence(
+        self,
+        lobby: str,
+        username: str,
+        connection_id: str,
+    ) -> bool:
+        return await self.redis.set_if_absent(
+            self._presence_key(lobby, username),
+            connection_id,
+            self.PRESENCE_EXPIRY_SECONDS,
+        )
+
+    async def renew_presence(
+        self,
+        lobby: str,
+        username: str,
+        connection_id: str,
+    ) -> bool:
+        return await self.redis.expire_if_value(
+            self._presence_key(lobby, username),
+            connection_id,
+            self.PRESENCE_EXPIRY_SECONDS,
+        )
+
+    async def release_presence(
+        self,
+        lobby: str,
+        username: str,
+        connection_id: str,
+    ) -> bool:
+        return await self.redis.delete_if_value(
+            self._presence_key(lobby, username),
+            connection_id,
+        )
+
+    def is_username_active(self, lobby: str, username: str) -> bool:
+        return self.redis.exists_sync(self._presence_key(lobby, username))
+
     async def save_context(
         self,
         lobby: str,
         username: str,
         context: dict[str, Any],
-    ) -> None:
+        connection_id: str | None = None,
+    ) -> bool:
         key = self._contexts_key(lobby)
+        if connection_id is not None:
+            return await self.redis.hset_if_value(
+                self._presence_key(lobby, username),
+                connection_id,
+                key,
+                username,
+                json.dumps(context),
+            )
+
         await self.redis.hset(key, username, json.dumps(context))
-        await self.redis.expire(key, self.EXPIRY_SECONDS)
+        return True
 
     async def get_context(
         self,
@@ -63,7 +118,8 @@ class SudokuVibeStorage:
         board_name: str,
         values: dict[str, int | str],
         fixed_cells: set[int],
-    ) -> None:
+        connection_id: str | None = None,
+    ) -> bool:
         board_key = self._board_key(lobby, board_name)
         fixed_cells_key = self._fixed_cells_key(lobby, board_name)
         board_names_key = self._board_names_key(lobby)
@@ -72,19 +128,23 @@ class SudokuVibeStorage:
             for cell_index, value in values.items()
         }
 
-        await self.redis.delete(board_key)
-        await self.redis.delete(fixed_cells_key)
-        if serialized_values:
-            await self.redis.hmset(board_key, serialized_values)
-        if fixed_cells:
-            await self.redis.hmset(
-                fixed_cells_key,
-                {str(cell_index): "1" for cell_index in fixed_cells},
+        hashes = {
+            board_key: serialized_values,
+            fixed_cells_key: {
+                str(cell_index): "1" for cell_index in fixed_cells
+            },
+        }
+        set_members = {board_names_key: board_name}
+        if connection_id is not None:
+            return await self.redis.atomic_replace_hashes_if_value(
+                self._presence_key(lobby, board_name),
+                connection_id,
+                hashes,
+                set_members,
             )
-        await self.redis.sadd(board_names_key, board_name)
-        await self.redis.expire(board_key, self.EXPIRY_SECONDS)
-        await self.redis.expire(fixed_cells_key, self.EXPIRY_SECONDS)
-        await self.redis.expire(board_names_key, self.EXPIRY_SECONDS)
+
+        await self.redis.atomic_replace_hashes(hashes, set_members)
+        return True
 
     async def set_cell(
         self,
@@ -92,21 +152,29 @@ class SudokuVibeStorage:
         board_name: str,
         cell_index: int,
         value: int | str,
-    ) -> None:
+        connection_id: str | None = None,
+    ) -> int:
         board_key = self._board_key(lobby, board_name)
-        fixed_cells_key = self._fixed_cells_key(lobby, board_name)
-        board_names_key = self._board_names_key(lobby)
-
-        await self.redis.hset(board_key, str(cell_index), json.dumps(value))
-        await self.redis.sadd(board_names_key, board_name)
-        await self.redis.expire(board_key, self.EXPIRY_SECONDS)
-        await self.redis.expire(fixed_cells_key, self.EXPIRY_SECONDS)
-        await self.redis.expire(board_names_key, self.EXPIRY_SECONDS)
+        return await self.redis.hset_if_mutable(
+            (
+                self._presence_key(lobby, board_name)
+                if connection_id is not None
+                else ""
+            ),
+            connection_id or "",
+            board_key,
+            str(cell_index),
+            json.dumps(value),
+            self._fixed_cells_key(lobby, board_name),
+        )
 
     async def has_board(self, lobby: str, board_name: str) -> bool:
-        return await self.redis.sismember(
-            self._board_names_key(lobby),
-            board_name,
+        return (
+            await self.redis.sismember(
+                self._board_names_key(lobby),
+                board_name,
+            )
+            and await self.redis.exists(self._board_key(lobby, board_name))
         )
 
     async def is_fixed_cell(
@@ -137,6 +205,18 @@ class SudokuVibeStorage:
             }
 
         return boards
+
+    async def get_fixed_cells(
+        self,
+        lobby: str,
+        board_name: str,
+    ) -> set[int]:
+        return {
+            int(cell_index)
+            for cell_index in await self.redis.hkeys(
+                self._fixed_cells_key(lobby, board_name)
+            )
+        }
 
     async def get_lobby_state(
         self,
