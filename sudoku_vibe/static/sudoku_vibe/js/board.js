@@ -90,7 +90,7 @@ export function setCellValue(boardName, cellIndex, value) {
     }
     validateIndex(cellIndex, BOARD_CELL_COUNT, "cellIndex");
 
-    const board = getBoard(boardName);
+    const board = ensureBoard(boardName);
     const cell = getIndexedElement(
         board,
         "[data-cell-index]",

@@ -68,6 +68,7 @@ class SudokuVibeConsumer(AsyncWebsocketConsumer):  # type: ignore[misc]
             await self.channel_layer.group_add(self.group_name, self.channel_name)
             self.group_joined = True
             await self.accept()
+            await self.broadcast_joined_player()
         except BaseException:
             if getattr(self, "group_joined", False):
                 with suppress(Exception):
@@ -79,6 +80,20 @@ class SudokuVibeConsumer(AsyncWebsocketConsumer):  # type: ignore[misc]
             raise
 
         self.presence_task = asyncio.create_task(self.keep_presence_alive())
+
+    async def broadcast_joined_player(self) -> None:
+        lobby_state = await self.service.get_board_data({})
+        await self.channel_layer.group_send(
+            self.group_name,
+            {
+                "type": "forward_message",
+                "sender": self.channel_name,
+                "message": {
+                    "kind": "board_data",
+                    "data": {"board": lobby_state["board"]},
+                },
+            },
+        )
 
     async def disconnect(self, close_code: int) -> None:
         presence_task = getattr(self, "presence_task", None)

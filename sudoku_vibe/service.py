@@ -35,6 +35,9 @@ class SudokuVibeService:
             self.lobby,
             self.username,
         )
+        active_usernames = await self.storage.get_active_usernames(self.lobby)
+        for active_username in active_usernames:
+            boards.setdefault(active_username, {})
         own_board = boards.get(self.username, {})
         board_data = []
         for name, values in boards.items():

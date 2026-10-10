@@ -1,6 +1,6 @@
 import json
 from typing import Any
-from urllib.parse import quote
+from urllib.parse import quote, unquote
 
 from common.redis import RedisClient
 
@@ -33,10 +33,11 @@ class SudokuVibeStorage:
 
     @classmethod
     def _presence_key(cls, lobby: str, username: str) -> str:
-        return (
-            f"{cls._lobby_prefix(lobby)}:presence:"
-            f"{quote(username, safe='')}"
-        )
+        return f"{cls._presence_prefix(lobby)}{quote(username, safe='')}"
+
+    @classmethod
+    def _presence_prefix(cls, lobby: str) -> str:
+        return f"{cls._lobby_prefix(lobby)}:presence:"
 
     async def acquire_presence(
         self,
@@ -75,6 +76,11 @@ class SudokuVibeStorage:
 
     def is_username_active(self, lobby: str, username: str) -> bool:
         return self.redis.exists_sync(self._presence_key(lobby, username))
+
+    async def get_active_usernames(self, lobby: str) -> set[str]:
+        prefix = self._presence_prefix(lobby)
+        keys = await self.redis.keys(f"{prefix}*")
+        return {unquote(key.removeprefix(prefix)) for key in keys}
 
     async def save_context(
         self,
