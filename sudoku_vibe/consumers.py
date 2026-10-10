@@ -4,6 +4,9 @@ from dataclasses import dataclass
 from typing import Any, Awaitable, Callable
 
 from channels.generic.websocket import AsyncWebsocketConsumer  # type: ignore[import-untyped]
+from django.db import IntegrityError
+
+from game.models import LobbySetting, UserSetting
 
 from .service import SudokuVibeError, SudokuVibeService
 
@@ -34,6 +37,18 @@ class SudokuVibeConsumer(AsyncWebsocketConsumer):  # type: ignore[misc]
         if not isinstance(username, str) or not username:
             username = "undefined"
 
+        lobby_setting, _ = await LobbySetting.objects.aget_or_create(code=lobby)
+        try:
+            user_setting = await UserSetting.objects.acreate(
+                lobby=lobby_setting,
+                nick=username,
+            )
+        except IntegrityError:
+            await self.close(code=4409)
+            return
+
+        self.user_setting_id = user_setting.pk
+
         self.service = SudokuVibeService(lobby, username)
         lobby_digest = hashlib.sha256(lobby.encode()).hexdigest()
         self.group_name = f"sudoku_vibe_{lobby_digest}"
@@ -45,6 +60,10 @@ class SudokuVibeConsumer(AsyncWebsocketConsumer):  # type: ignore[misc]
         group_name = getattr(self, "group_name", None)
         if group_name is not None:
             await self.channel_layer.group_discard(group_name, self.channel_name)
+
+        user_setting_id = getattr(self, "user_setting_id", None)
+        if user_setting_id is not None:
+            await UserSetting.objects.filter(pk=user_setting_id).adelete()
 
     async def receive(
         self,
