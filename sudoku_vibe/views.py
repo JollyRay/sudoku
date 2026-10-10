@@ -9,17 +9,15 @@ def join_lobby(request: HttpRequest) -> HttpResponse:
         form = JoinLobbyForm(request.POST)
         if form.is_valid():
             request.session["room_code"] = form.cleaned_data["room_name"]
-            response = redirect("sudoku_vibe:lobby")
-            response.set_cookie(
-                "nick",
-                form.cleaned_data["username"],
-                max_age=3600,
-                samesite="Lax",
-            )
-            return response
+            request.session["sudoku_vibe_username"] = form.cleaned_data["username"]
+            return redirect("sudoku_vibe:lobby")
     else:
         form = JoinLobbyForm(
-            initial={"username": request.COOKIES.get("nick", "")},
+            initial={
+                "username": request.session.get(
+                    "sudoku_vibe_username", request.COOKIES.get("nick", "")
+                ),
+            },
         )
 
     return render(
@@ -30,7 +28,9 @@ def join_lobby(request: HttpRequest) -> HttpResponse:
 
 
 def lobby(request: HttpRequest) -> HttpResponse:
-    board_name = request.COOKIES.get("nick", "undefined")
+    board_name = request.session.get(
+        "sudoku_vibe_username", request.COOKIES.get("nick", "undefined")
+    )
     return render(
         request,
         "sudoku_vibe/index.html",

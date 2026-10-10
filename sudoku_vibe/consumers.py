@@ -38,7 +38,10 @@ class SudokuVibeConsumer(AsyncWebsocketConsumer):  # type: ignore[misc]
             await self.close(code=4401)
             return
 
-        username = self.scope.get("cookies", {}).get("nick", "undefined")
+        username = session.get(
+            "sudoku_vibe_username",
+            self.scope.get("cookies", {}).get("nick", "undefined"),
+        )
         if not isinstance(username, str) or not username:
             username = "undefined"
 
