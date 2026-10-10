@@ -1,10 +1,11 @@
 from django.urls import path
 
-from .views import index
+from .views import join_lobby, lobby
 
 
 app_name = "sudoku_vibe"
 
 urlpatterns = [
-    path("lobby", index, name="lobby"),
+    path("", join_lobby, name="join"),
+    path("lobby", lobby, name="lobby"),
 ]

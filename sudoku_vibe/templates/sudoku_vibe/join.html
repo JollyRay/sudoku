@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="ru">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Войти в Sudoku Vibe</title>
+</head>
+<body>
+    <main>
+        <h1>Войти в лобби</h1>
+        <form method="post">
+            {% csrf_token %}
+            {{ form.non_field_errors }}
+            <div>
+                {{ form.username.label_tag }}
+                {{ form.username }}
+                {{ form.username.errors }}
+            </div>
+            <div>
+                {{ form.room_name.label_tag }}
+                {{ form.room_name }}
+                {{ form.room_name.errors }}
+            </div>
+            <button type="submit">Войти</button>
+        </form>
+    </main>
+</body>
+</html>
