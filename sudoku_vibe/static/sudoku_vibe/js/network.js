@@ -1,6 +1,6 @@
-import { ensureBoard, setCellValue, setFixedCells } from "./board.js";
-import { config } from "./config.js";
-import { addEvent } from "./event-queue.js";
+import { ensureBoard, setCellValue, setFixedCells } from "./board.js?v=3";
+import { config } from "./config.js?v=3";
+import { addEvent } from "./event-queue.js?v=3";
 
 
 const incomingHandlers = new Map([

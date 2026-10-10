@@ -1,4 +1,4 @@
-import { config } from "./config.js";
+import { config } from "./config.js?v=3";
 
 
 const BOARD_SIDE = 9;

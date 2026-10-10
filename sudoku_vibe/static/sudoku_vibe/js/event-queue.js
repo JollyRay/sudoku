@@ -1,7 +1,7 @@
-import { availableEvents } from "./events.js";
+import { availableEvents } from "./events.js?v=3";
 
 
-export { availableEvents } from "./events.js";
+export { availableEvents } from "./events.js?v=3";
 
 export class EventQueue {
     constructor(events = availableEvents) {
