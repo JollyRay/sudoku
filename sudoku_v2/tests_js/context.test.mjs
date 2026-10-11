@@ -32,6 +32,46 @@ class Socket extends EventTarget {
     close(){this.fire('close',{code:1006});}
 }
 
+test('busy context retries latest preferences without acknowledging a move or generation',t=>{
+    t.mock.timers.enable({apis:['setTimeout']});
+    const config=new SudokuConfig({username:'Иван',storage:null}),store=createGameState(config);
+    const net=connectWebsocket({store,config,WebSocketClass:Socket,url:'ws://test',reconnect:false});
+    const ws=Socket.instances.at(-1);ws.fire('open');
+    ws.fire('message',{kind:'board_data',data:{board:board(),config:{username:'Иван',preferences:{}}}});
+    config.setPreference('showErrors',true);
+    net.sendCellValue('Иван','A',0,3);net.requestBoardGeneration('medium',16);
+    config.setPreference('notesMode',true);
+    ws.fire('message',{kind:'error',data:{code:'board_busy',requestKind:'set_context'}});
+    assert.equal(store.getBoard('Иван').values[0],3);
+    assert.equal(config.runtime.pending,true);
+    assert.equal(ws.sent.filter(m=>m.kind==='set_context').length,1);
+    t.mock.timers.tick(250);
+    const saves=ws.sent.filter(m=>m.kind==='set_context');
+    assert.equal(saves.length,2);
+    assert.equal(saves[1].data.preferences.showErrors,true);
+    assert.equal(saves[1].data.preferences.notesMode,true);
+    ws.fire('message',{kind:'context_data',data:{config:{username:'Иван',preferences:saves[1].data.preferences}}});
+    config.setPreference('showErrors',false);
+    assert.equal(ws.sent.filter(m=>m.kind==='set_context').length,3);
+    ws.fire('message',{kind:'set_value',data:{board:board({revision:2,values:{0:3,1:2}})}});
+    assert.equal(store.getBoard('Иван').values[0],3);
+    ws.fire('message',{kind:'error',data:{code:'board_busy',requestKind:'set_context'}});
+    net.dispose();const count=ws.sent.length;t.mock.timers.tick(1000);
+    assert.equal(ws.sent.length,count);
+});
+
+test('generation error only releases its pending flag while a move is awaiting its reply',()=>{
+    const config=new SudokuConfig({username:'Иван',storage:null}),store=createGameState(config);
+    const net=connectWebsocket({store,config,WebSocketClass:Socket,url:'ws://test',reconnect:false});
+    const ws=Socket.instances.at(-1);ws.fire('open');
+    ws.fire('message',{kind:'board_data',data:{board:board(),config:{username:'Иван',preferences:{}}}});
+    net.sendCellValue('Иван','A',0,3);net.requestBoardGeneration('medium',16);
+    ws.fire('message',{kind:'error',data:{code:'board_busy',requestKind:'generate_board'}});
+    assert.equal(store.getBoard('Иван').values[0],3);
+    assert.equal(config.runtime.pending,false);
+    net.dispose();
+});
+
 test('context sent during generation is fenced by its original board; stale context preserves move acknowledgements',()=>{
     const c=new SudokuConfig({username:'Иван',storage:null}),store=createGameState(c);
     const net=connectWebsocket({store,config:c,WebSocketClass:Socket,url:'ws://test',reconnect:false});

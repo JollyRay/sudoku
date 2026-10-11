@@ -126,8 +126,8 @@ class TwitchIRCClient:
                         else:
                             self.subscriptions[channel]={'binding':binding,'sent':self.clock(),'state':'connecting'}
                             used_channels.add(channel)
-                            await send('JOIN #'+channel)
                             await on_status(binding,'connecting','join')
+                            await send('JOIN #'+channel)
                 await asyncio.sleep(self.reconcile_seconds)
 
         async def read():

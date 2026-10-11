@@ -5,6 +5,38 @@ import {createGameState} from '../static/sudoku_v2/js/state.js?v=12';
 import {getNoteLayout} from '../static/sudoku_v2/js/board.js?v=12';
 import {createEffectsController} from '../static/sudoku_v2/js/effects.js?v=12';
 
+test('late ordinary snapshots cannot extend a newer bonus effect',t=>{
+    t.mock.timers.enable({apis:['Date','setTimeout'],now:100000});
+    for(const key of ['board','boards']){
+        const config=new SudokuConfig({username:'me',storage:null}),store=createGameState(config);
+        const effects=createEffectsController({now:()=>Date.now()+config.runtime.clockOffset});
+        const start=Date.now(),board={name:'me',size:9,generationId:'A',revision:1,values:{},fixedCells:[]};
+        store.subscribe(()=>effects.reconcile(store.getBoard('me')));
+        store.applySnapshot({board,serverNow:start});
+        const effect={id:'A',kind:'ROLL',params:{box:0},startsAt:start,expiresAt:start+30000};
+        store.applyBonusEvent({serverNow:start,targets:[{...board,revision:2,activeEffects:[effect]}]});
+        t.mock.timers.tick(10000);
+        store.applySnapshot({[key]:key==='boards'?[board]:board,serverNow:start});
+        assert.equal(store.getBoard('me').revision,2);
+        t.mock.timers.tick(20001);
+        assert.deepEqual(effects.activeFor('me','A'),[]);
+        effects.dispose();
+    }
+});
+
+test('first clock sync accepts a server behind the client on either message path',t=>{
+    t.mock.timers.enable({apis:['Date'],now:100000});
+    for(const method of ['applySnapshot','applyBonusEvent']){
+        const config=new SudokuConfig({username:'me',storage:null}),store=createGameState(config);
+        store[method]({serverNow:90000});
+        assert.equal(config.runtime.clockOffset,-10000);
+        store.applySnapshot({serverNow:80000});
+        assert.equal(config.runtime.clockOffset,-10000);
+        store.applyBonusEvent({serverNow:95000});
+        assert.equal(config.runtime.clockOffset,-5000);
+    }
+});
+
 test('late and duplicate bonus events cannot rewind server time or extend effects',t=>{
     t.mock.timers.enable({apis:['Date','setTimeout'],now:100000});
     const config=new SudokuConfig({username:'me',storage:null}),store=createGameState(config);

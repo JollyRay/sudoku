@@ -1,6 +1,13 @@
 export function createGameState(config) {
     const boards = new Map(), listeners = new Set(), localEdits = new Map();
-    let activeNames = null;
+    let activeNames = null, clockSynced = false;
+    function syncClock(serverNow) {
+        if (!Number.isFinite(serverNow)) return;
+        const offset = serverNow - Date.now();
+        // Accept real clock skew initially; queued messages cannot extend effects later.
+        config.runtime.clockOffset = clockSynced ? Math.max(config.runtime.clockOffset, offset) : offset;
+        clockSynced = true;
+    }
     function updateBoard(board) {
         if (!board || typeof board.name !== 'string') return false;
         const previous = boards.get(board.name);
@@ -49,8 +56,7 @@ export function createGameState(config) {
             return true;
         },
         applyBonusEvent(data) {
-            // A queued or repeated room event must never move the established clock backwards.
-            if(Number.isFinite(data.serverNow))config.runtime.clockOffset=Math.max(config.runtime.clockOffset,data.serverNow-Date.now());
+            syncClock(data.serverNow);
             for(const board of data.targets??[])if(!activeNames||activeNames.has(board.name))updateBoard(board);
             publish();
         },
@@ -59,7 +65,7 @@ export function createGameState(config) {
             if (acknowledgedEdit && localEdits.get(acknowledgedEdit.cellIndex) === acknowledgedEdit)
                 localEdits.delete(acknowledgedEdit.cellIndex);
             if (data.catalog) store.catalog = data.catalog;
-            if (Number.isFinite(data.serverNow)) config.runtime.clockOffset = data.serverNow - Date.now();
+            syncClock(data.serverNow);
             if (Array.isArray(data.boards)) {
                 if (data.config?.username === config.username) boards.clear();
                 activeNames = new Set(data.boards.map(board=>board.name));

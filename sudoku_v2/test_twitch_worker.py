@@ -69,7 +69,10 @@ class IRCTransportTests(IsolatedAsyncioTestCase):
         self.desired={'channel': {'channel':'channel','bindingId':'b1'}}
         self.provider=AsyncMock(side_effect=lambda:list(self.desired.values()))
         self.status=AsyncMock(); self.message=AsyncMock()
-        self.client=TwitchIRCClient('botlogin','dummy','bot',connect=connect,reconcile_seconds=.01,join_timeout=.08,retry_seconds=.01)
+        # Protocol deadlines advance explicitly, independent of host scheduling load.
+        self.now=0
+        self.client=TwitchIRCClient('botlogin','dummy','bot',connect=connect,reconcile_seconds=.01,
+                                    join_timeout=15,retry_seconds=.01,clock=lambda:self.now)
         self.task=asyncio.create_task(self.client.run(self.provider,self.message,self.status))
         await eventually(lambda: bool(self.writers))
 
@@ -106,6 +109,7 @@ class IRCTransportTests(IsolatedAsyncioTestCase):
 
     async def test_reconnect_resubscribes_and_join_timeout_no_spam(self):
         await self.welcome()
+        self.now+=16
         await eventually(lambda:any(c.args[1:]==('error','join_timeout') for c in self.status.call_args_list))
         self.assertEqual(self.writers[0].lines.count('JOIN #channel\r\n'),1)
         self.streams[0].feed_data(b':tmi RECONNECT\r\n')
@@ -145,6 +149,24 @@ class IRCTransportTests(IsolatedAsyncioTestCase):
         self.streams[0].feed_data(b':botlogin!b@h JOIN #channel\r\n')
         await self.welcome()
         self.assertFalse(any(c.args[0]['bindingId']=='new' and c.args[1]=='connected' for c in self.status.call_args_list))
+
+    async def test_fast_join_ack_cannot_be_overwritten_by_connecting(self):
+        completed=[]
+        async def status(binding,state,reason):
+            if reason=='join': await asyncio.sleep(.03)
+            completed.append(state)
+        self.status.side_effect=status
+        write=self.writers[0].write
+        def acknowledge(data):
+            write(data)
+            if data.startswith(b'JOIN '):self.streams[0].feed_data(b':botlogin!b@h '+data)
+        self.writers[0].write=acknowledge
+        await self.welcome()
+        await eventually(lambda:'connected' in completed)
+        # Stop reconciliation, so it cannot hide the wrong write with its next refresh.
+        self.client.reconcile_seconds=10
+        await asyncio.sleep(.04)
+        self.assertEqual(completed[-1],'connected')
 
 
 class IRCBackoffTests(IsolatedAsyncioTestCase):

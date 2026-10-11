@@ -194,7 +194,8 @@ class SudokuV2Consumer(AsyncWebsocketConsumer):  # type: ignore[misc]
             if error.code == "connection_replaced":
                 await self.close(code=4409)
             else:
-                await self.send_error(error.code, error.message,**({'requestId':data.get('requestId'),'requestKind':kind} if twitch_request else {}))
+                await self.send_error(error.code, error.message, requestKind=kind,
+                                      **({'requestId': data.get('requestId')} if twitch_request else {}))
             return
 
         bonus_event = response_data.pop('_bonus_event', None)

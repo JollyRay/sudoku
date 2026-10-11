@@ -20,6 +20,30 @@ from .routing import websocket_urlpatterns
     STATICFILES_STORAGE="django.contrib.staticfiles.storage.StaticFilesStorage",
 )
 class SudokuV2LoginTests(SimpleTestCase):
+    async def test_game_errors_identify_the_request_that_failed(self) -> None:
+        storage = AsyncMock()
+        storage.PRESENCE_EXPIRY_SECONDS = 90
+        storage.acquire_presence.return_value = True
+        storage.renew_presence.return_value = True
+        service = AsyncMock()
+        for kind in ('set_context', 'set_value', 'generate_board'):
+            getattr(service, kind).side_effect = SudokuV2Error('board_busy')
+        with patch('sudoku_v2.consumers.SudokuV2Storage', return_value=storage), patch(
+            'sudoku_v2.consumers.SudokuV2Service', return_value=service
+        ):
+            socket = WebsocketCommunicator(SudokuV2Consumer.as_asgi(), '/ws/sudoku-v2/')
+            socket.scope['session'] = {'sudoku_v2_room': 'error-routing', 'sudoku_v2_username': 'Иван'}
+            self.assertTrue((await socket.connect())[0])
+            try:
+                for kind in ('set_context', 'set_value', 'generate_board'):
+                    await socket.send_json_to({'kind': kind, 'data': {}})
+                    reply = await socket.receive_json_from()
+                    self.assertEqual(reply['kind'], 'error')
+                    self.assertEqual(reply['data']['code'], 'board_busy')
+                    self.assertEqual(reply['data'].get('requestKind'), kind)
+            finally:
+                await socket.disconnect()
+
     def test_v2_routes_and_bootstrap(self) -> None:
         response = self.client.get('/sudoku-v2/')
         self.assertEqual(response.status_code, 200)

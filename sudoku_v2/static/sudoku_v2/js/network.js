@@ -3,7 +3,7 @@ function defaultUrl() {
 }
 export function connectWebsocket({store,config,url=defaultUrl(),WebSocketClass=WebSocket,reconnect=true,
     returnToJoin=()=>location.replace('/sudoku-v2/'),twitchTimeoutMs=10000}) {
-    let socket, retryTimer, requestTimer, disposed=false, attempts=0, contextVersion=null;
+    let socket, retryTimer, requestTimer, contextRetryTimer, disposed=false, attempts=0, contextVersion=null;
     // Only tracks replies to already sent moves; disconnected edits are never queued.
     const sentEdits=[];
     const twitchRequests=new Map();let twitchSequence=0,lastTwitchSequence=0;
@@ -42,6 +42,7 @@ export function connectWebsocket({store,config,url=defaultUrl(),WebSocketClass=W
     };
     const flushContext=()=>{
         if(!config.runtime.ready || contextVersion!==null || !config.dirtyPreferences.size)return;
+        clearTimeout(contextRetryTimer);
         contextVersion=config.preferenceVersion;
         send('set_context',{...config.toSendableContext(),generationId:store.getBoard(config.username)?.generationId??null});
     };
@@ -87,10 +88,17 @@ export function connectWebsocket({store,config,url=defaultUrl(),WebSocketClass=W
                 } else if(kind==='context_data') {
                     config.ackContext(data.config,contextVersion??-1);contextVersion=null;flushContext();
                 } else if(kind==='error') {
-                    if(data.code==='stale_context') {
-                        contextVersion=null;config.runtime.ready=false;send('get_board_data');
-                    } else if(data.code==='invalid_context') contextVersion=null;
-                    else {
+                    if(data.requestKind==='set_context' || ['stale_context','invalid_context'].includes(data.code)) {
+                        contextVersion=null;
+                        if(data.code==='stale_context') {
+                            config.runtime.ready=false;send('get_board_data');
+                        } else if(data.code==='board_busy') {
+                            clearTimeout(contextRetryTimer);
+                            contextRetryTimer=setTimeout(flushContext,250);
+                        }
+                    } else if(data.requestKind==='generate_board') {
+                        config.runtime.pending=false;watchRequests();
+                    } else if(!data.requestKind || data.requestKind==='set_value') {
                         if(sentEdits.length)store.applySnapshot({},sentEdits.shift());
                         else config.runtime.pending=false;
                         watchRequests();
@@ -105,7 +113,7 @@ export function connectWebsocket({store,config,url=defaultUrl(),WebSocketClass=W
         });
         current.addEventListener('close',event=>{
             if(disposed || current!==socket)return;
-            clearRequests();rejectTwitch();contextVersion=null;
+            clearRequests();rejectTwitch();clearTimeout(contextRetryTimer);contextVersion=null;
             if(event.code===4409){status('closed');returnToJoin();return;}
             if(event.code===4401){status('closed','Войдите в комнату заново.');return;}
             status('offline','Связь прервалась. Восстанавливаем соединение…');
@@ -134,7 +142,7 @@ export function connectWebsocket({store,config,url=defaultUrl(),WebSocketClass=W
             try {send('generate_board',{difficulty,size});watchRequests();return true;}
             catch(error){connectionFailed(error);return false;}
         },
-        dispose(){disposed=true;clearTimeout(retryTimer);clearRequests();rejectTwitch();unsubscribe();socket?.close();},
+        dispose(){disposed=true;clearTimeout(retryTimer);clearTimeout(contextRetryTimer);clearRequests();rejectTwitch();unsubscribe();socket?.close();},
     };
     open();return api;
 }
