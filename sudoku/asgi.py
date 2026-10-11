@@ -21,6 +21,7 @@ from django.core.asgi import get_asgi_application
 
 import bunker.routing
 import game.routing
+import sudoku_vibe.routing
 import voice.routing
 
 # Initialize Django ASGI application early to ensure the AppRegistry
@@ -33,6 +34,7 @@ application = ProtocolTypeRouter(
         # Just HTTP for now. (We can add other protocols later.)
         "websocket": AuthMiddlewareStack(URLRouter(
             game.routing.websocket_urlpatterns +
+            sudoku_vibe.routing.websocket_urlpatterns +
             voice.routing.websocket_urlpatterns +
             bunker.routing.websocket_urlpatterns
         )),
