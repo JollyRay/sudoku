@@ -20,16 +20,17 @@ export class LocalContext {
     fail() {
         this.persistenceError = 'Браузер не смог сохранить настройки. После перезагрузки они могут потеряться.';
     }
-    loadNotes(generationId) {
-        if (this.generationId === generationId) return;
+    loadNotes(generationId,size=9) {
+        if (this.generationId === generationId && this.boardSize === size) return;
         let saved = null;
         try { saved = JSON.parse(this.storage?.getItem(this.key) ?? 'null'); } catch { this.fail(); }
         this.generationId = generationId;
+        this.boardSize = size;
         this.notes = {};
         if (generationId && saved?.generationId === generationId && saved.notes && typeof saved.notes === 'object') {
             for (const [index, values] of Object.entries(saved.notes)) {
-                if (/^(0|[1-9]\d*)$/.test(index) && Number(index) < 81 && Array.isArray(values)) {
-                    this.notes[index] = [...new Set(values.filter(v => Number.isInteger(v) && v >= 1 && v <= 9))];
+                if (/^(0|[1-9]\d*)$/.test(index) && Number(index) < size**2 && Array.isArray(values)) {
+                    this.notes[index] = [...new Set(values.filter(v => Number.isInteger(v) && v >= 1 && v <= size))];
                 }
             }
         }

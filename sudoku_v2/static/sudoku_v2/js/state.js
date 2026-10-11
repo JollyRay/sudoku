@@ -13,7 +13,8 @@ export function createGameState(config) {
     function publish() {
         const own = store.getBoard(config.username);
         if (own) {
-            config.local.loadNotes(own.generationId);
+            config.local.loadNotes(own.generationId,own.size??9);
+            if(config.runtime.selectedCell>=(own.size??9)**2)config.runtime.selectedCell=null;
             let changed = false;
             for (const index of Object.keys(config.local.notes)) {
                 if ((own.values?.[index] ?? '') !== '' || own.fixedCells?.includes(Number(index))) {

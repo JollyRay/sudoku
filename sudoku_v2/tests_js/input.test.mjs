@@ -12,6 +12,19 @@ function setup(){
     const input=createInputController({store,config,sendCellValue:(...args)=>{sent.push(args);return true;}});
     input.selectCell(0);return {config,store,sent,input};
 }
+
+test('A through G enter 10 through 16 only on the active 16 board',()=>{
+    const {config,store,sent,input}=setup();
+    const key=k=>input.handleKeydown({key:k,target:{closest:()=>null},preventDefault(){}});
+    config.setPreference('size',16);key('A');assert.equal(sent.length,0);
+    store.applyBoard({...store.getBoard('me'),generationId:'B',revision:2,size:16});
+    config.setAllowedValues(['',...Array.from({length:16},(_,i)=>i+1)]);
+    key('a');key('G');assert.deepEqual(sent.map(args=>args[3]),[10,16]);
+    config.setPreference('size',9);key('g');assert.equal(sent.at(-1)[3],16);
+    input.selectCell(255);key('ArrowDown');assert.equal(config.runtime.selectedCell,255);
+    key('0');assert.equal(sent.at(-1)[3],'');
+    input.dispose();
+});
 test('ordinary input delegates the move; fixed cells cannot send',()=>{
     const {sent,input}=setup();input.enterValue(2);
     assert.deepEqual(sent,[['me','A',0,2]]);

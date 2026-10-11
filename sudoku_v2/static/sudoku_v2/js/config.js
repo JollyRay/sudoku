@@ -18,7 +18,7 @@ export class SudokuConfig {
         this.local = new LocalContext(room,username,{storage,onChange:()=>this.emit('local')});
     }
     setAllowedValues(values) {
-        if (!Array.isArray(values) || values.some(v=>v!=='' && (!Number.isInteger(v)||v<0||v>9))) throw new TypeError('Invalid values');
+        if (!Array.isArray(values) || values.some(v=>v!=='' && (!Number.isInteger(v)||v<0||v>16))) throw new TypeError('Invalid values');
         this.allowedValues = [...new Set(values.filter(value=>value!==0))];
     }
     subscribe(listener) { this.listeners.add(listener); return ()=>this.listeners.delete(listener); }

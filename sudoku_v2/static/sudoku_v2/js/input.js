@@ -1,3 +1,5 @@
+import {canonicalIndex,displayPosition} from './geometry.js?v=12';
+
 export function createInputController({store, config, sendCellValue}) {
     const ownBoard=()=>store.getBoard(config.username);
     let generationId=ownBoard()?.generationId;
@@ -16,7 +18,7 @@ export function createInputController({store, config, sendCellValue}) {
             !b.fixedCells.includes(index) && (!config.preferences.notesMode || (b.values[index]??'')===''));
     }
     function canChooseValue(value) {
-        return boardEditable() && config.allowedValues.includes(value) && value!=='' && hasCapacity(value) &&
+        return boardEditable() && Number.isInteger(value)&&value>=1&&value<=(ownBoard()?.size??9) && config.allowedValues.includes(value) && hasCapacity(value) &&
             (config.preferences.digitFirstMode || canEnter());
     }
     function reconcileChoice() {
@@ -47,7 +49,7 @@ export function createInputController({store, config, sendCellValue}) {
         config.emit();return true;
     }
     function enterValue(value) {
-        if (!canEnter() || !hasCapacity(value) || (value !== '' && !config.allowedValues.includes(value))) return false;
+        if (!canEnter() || !hasCapacity(value) || (value !== '' && (!Number.isInteger(value)||value<1||value>(ownBoard()?.size??9)||!config.allowedValues.includes(value)))) return false;
         const b = ownBoard(), index = config.runtime.selectedCell;
         if (config.preferences.notesMode) {
             if ((b.values[index] ?? '') !== '') return false;
@@ -64,16 +66,19 @@ export function createInputController({store, config, sendCellValue}) {
     function handleKeydown(event) {
         if (event.defaultPrevented || event.ctrlKey || event.altKey || event.metaKey || event.isComposing ||
             config.runtime.menuOpen || event.target?.closest?.('input,select,textarea,[contenteditable="true"],dialog[open]')) return;
-        const size=ownBoard()?.size??9;
-        const deltas = {ArrowLeft:-1,ArrowRight:1,ArrowUp:-size,ArrowDown:size};
+        const board=ownBoard(),size=board?.size??9;
+        const deltas = {ArrowLeft:[0,-1],ArrowRight:[0,1],ArrowUp:[-1,0],ArrowDown:[1,0]};
         if (event.key in deltas) {
             event.preventDefault();
-            selectCell(Math.max(0,Math.min(size**2-1,(config.runtime.selectedCell??0)+deltas[event.key])));
+            const current=Math.min(size**2-1,config.runtime.selectedCell??0);
+            const {row,col}=displayPosition(current,size,board?.rowOrder,board?.columnOrder),[dr,dc]=deltas[event.key];
+            selectCell(canonicalIndex(Math.max(0,Math.min(size-1,row+dr)),Math.max(0,Math.min(size-1,col+dc)),size,board?.rowOrder,board?.columnOrder));
         } else if (event.key==='0' || event.key==='Backspace' || event.key==='Delete') {
             event.preventDefault();enterValue('');
-        } else if (/^[1-9]$/.test(event.key)) {
+        } else if (/^[1-9]$/.test(event.key)||(size===16&&/^[a-g]$/i.test(event.key))) {
             event.preventDefault();
-            if (!event.repeat || !config.preferences.digitFirstMode) chooseValue(Number(event.key));
+            const value=/^[a-g]$/i.test(event.key)?event.key.toUpperCase().charCodeAt(0)-55:Number(event.key);
+            if (!event.repeat || !config.preferences.digitFirstMode) chooseValue(value);
         }
     }
     const subscriptions=[store.subscribe(reconcileChoice),config.subscribe(reconcileChoice)];

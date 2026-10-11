@@ -8,6 +8,17 @@ import {createInputController} from '../static/sudoku_v2/js/input.js?v=12';
 const board = (overrides={}) => ({name:'Иван',generationId:'A',revision:1,size:9,
     values:{'0':'','1':2},fixedCells:[1],bonuses:{},wrongCells:[],startedAt:1000,
     finishedAt:null,completed:false,requiresGeneration:false,...overrides});
+
+test('16 board notes restore canonical indices and values; shrinking discards them',()=>{
+    const memory=new Map(),storage={getItem:k=>memory.get(k)??null,setItem:(k,v)=>memory.set(k,v)};
+    const original=new SudokuConfig({username:'Иван',storage});
+    original.local.loadNotes('sixteen',16);original.local.notes={255:[10,16],256:[1]};original.local.saveNotes();
+    const restored=new SudokuConfig({username:'Иван',storage}),store=createGameState(restored);
+    store.applyBoard(board({size:16,generationId:'sixteen',values:{},fixedCells:[]}));
+    assert.deepEqual(restored.local.notes,{255:[10,16]});
+    restored.runtime.selectedCell=255;store.applyBoard(board({generationId:'nine',revision:2}));
+    assert.deepEqual(restored.local.notes,{});assert.equal(restored.runtime.selectedCell,null);
+});
 class Socket extends EventTarget {
     static instances=[];
     readyState=0; sent=[];

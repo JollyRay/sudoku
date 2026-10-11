@@ -1,8 +1,21 @@
 import json
+from functools import lru_cache
 from typing import Any, TypedDict
-from urllib.parse import quote, unquote
+from urllib.parse import quote, unquote, urlparse
 
-from common.redis import RedisClient
+from django.conf import settings
+from common.redis import RedisClient, RedisConfig
+
+
+@lru_cache(maxsize=1)
+def configured_redis(url: str) -> RedisClient:
+    parsed = urlparse(url)
+    # Do not reuse the legacy global singleton in the isolated preview.
+    client = object.__new__(RedisClient)
+    client._config = RedisConfig(host=parsed.hostname, port=parsed.port or 6379,
+                                 db=int(parsed.path.lstrip('/')), password=parsed.password)
+    client._redis_client = client._create_connection()
+    return client
 
 
 BoardValue = int | str
@@ -42,11 +55,12 @@ class SudokuV2Storage:
     PRESENCE_EXPIRY_SECONDS = 90
 
     def __init__(self, redis: RedisClient | None = None) -> None:
-        self.redis = redis or RedisClient()
+        url = getattr(settings, 'SUDOKU_V2_REDIS_URL', '')
+        self.redis = redis or (configured_redis(url) if url else RedisClient())
 
     @staticmethod
     def _lobby_prefix(lobby: str) -> str:
-        return f"sudoku-v2:{quote(lobby, safe='')}"
+        return f"{getattr(settings, 'SUDOKU_V2_PREFIX', 'sudoku-v2')}:{quote(lobby, safe='')}"
 
     @classmethod
     def _contexts_key(cls, lobby: str) -> str:

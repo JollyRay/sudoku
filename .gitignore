@@ -2,6 +2,8 @@
 !**/migrations/__init__.py
 **/__pycache__
 .venv
+.tmp/
+.playwright-mcp/
 requirements old.txt
 .env
 db.sqlite3

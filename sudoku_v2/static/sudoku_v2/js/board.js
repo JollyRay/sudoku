@@ -1,26 +1,39 @@
 import {renderSymbol} from './symbols.js?v=12';
+import {blockSide,displayPosition} from './geometry.js?v=12';
 
-function makeTable(container, size, own) {
+function makeGrid(container, size, own) {
     container.replaceChildren();
-    const table=document.createElement('table');table.className='sudoku-board';
-    const body=document.createElement('tbody');
-    for(let r=0;r<size;r++) {
-        const row=document.createElement('tr');row.dataset.rowIndex=r;
-        for(let c=0;c<size;c++) {
-            const td=document.createElement('td');td.dataset.columnIndex=c;
+    const base=blockSide(size),grid=document.createElement('div');grid.className='sudoku-board board-grid';
+    grid.dataset.size=String(size);grid.dataset.own=String(own);
+    grid.setAttribute('role','grid');grid.setAttribute('aria-rowcount',size);grid.setAttribute('aria-colcount',size);
+    grid.style.gridTemplateColumns=`repeat(${base},minmax(0,1fr))`;
+    grid.style.gridTemplateRows=`repeat(${base},minmax(0,1fr))`;
+    for(let boxIndex=0;boxIndex<size;boxIndex++){
+        const box=document.createElement('div');box.className='board-box';box.dataset.boxIndex=boxIndex;box.setAttribute('role','rowgroup');
+        const content=document.createElement('div');content.className='box-content';content.setAttribute('role','presentation');
+        content.style.gridTemplateColumns=`repeat(${base},minmax(0,1fr))`;
+        content.style.gridTemplateRows=`repeat(${base},minmax(0,1fr))`;
+        for(let dr=0;dr<base;dr++){
+            const r=Math.floor(boxIndex/base)*base+dr;
+            const row=document.createElement('div');row.className='box-row';row.dataset.rowIndex=r;row.setAttribute('role','row');
+            for(let dc=0;dc<base;dc++){
+            const c=(boxIndex%base)*base+dc;
             const cell=document.createElement(own?'button':'span');
             cell.className='cell';cell.dataset.cellIndex=r*size+c;
+            cell.setAttribute('role','gridcell');
             if(own){cell.type='button';cell.tabIndex=-1;}
             for(const name of ['digit','cell-notes','bonus-mark']) {
                 const part=document.createElement('span');part.className=name;
                 if(name!=='digit')part.setAttribute('aria-hidden','true');
                 cell.append(part);
             }
-            td.append(cell);row.append(td);
+            row.append(cell);
+            }
+            content.append(row);
         }
-        body.append(row);
+        box.append(content);grid.append(box);
     }
-    table.append(body);container.append(table);return table;
+    container.append(grid);return grid;
 }
 export function getNoteLayout(size, value) {
     const side=Math.ceil(Math.sqrt(size)),position=value-1;
@@ -28,15 +41,24 @@ export function getNoteLayout(size, value) {
 }
 export function renderBoard(container, board, {config,selectedCell=null,highlightValue}) {
     const own=board.name===config.username,size=board.size??9;
-    const table=container.querySelector('table')??makeTable(container,size,own);
+    const base=blockSide(size),existing=container.querySelector('.board-grid');
+    const table=existing?.dataset.size===String(size)&&existing.dataset.own===String(own)?existing:makeGrid(container,size,own);
     table.dataset.boardName=board.name;table.setAttribute('aria-label',`${own?'Моя доска':'Доска игрока'} ${board.name}`);
     const fixed=new Set(board.fixedCells??[]),wrong=new Set(board.wrongCells??[]);
     const selectedValue=highlightValue??board.values?.[selectedCell]??'';
+    const selectedPosition=Number.isInteger(selectedCell)&&selectedCell>=0&&selectedCell<size**2?
+        displayPosition(selectedCell,size,board.rowOrder,board.columnOrder):null;
+    for(const row of table.querySelectorAll('.box-row')){
+        const position=displayPosition(Number(row.dataset.rowIndex)*size,size,board.rowOrder,board.columnOrder);
+        row.setAttribute('aria-rowindex',position.row+1);
+    }
     for(const cell of table.querySelectorAll('[data-cell-index]')) {
-        const i=Number(cell.dataset.cellIndex),r=Math.floor(i/9),c=i%9,value=board.values?.[i]??'';
+        const i=Number(cell.dataset.cellIndex),{row:r,col:c}=displayPosition(i,size,board.rowOrder,board.columnOrder),value=board.values?.[i]??'';
+        cell.style.gridArea=`${r%base+1} / ${c%base+1}`;
+        cell.setAttribute('aria-rowindex',r+1);cell.setAttribute('aria-colindex',c+1);
         const selected=own&&i===selectedCell;
-        const related=own&&selectedCell!==null&&(r===Math.floor(selectedCell/9)||c===selectedCell%9||
-            (Math.floor(r/3)===Math.floor(selectedCell/27)&&Math.floor(c/3)===Math.floor((selectedCell%9)/3)));
+        const related=own&&selectedPosition&&(r===selectedPosition.row||c===selectedPosition.col||
+            (Math.floor(r/base)===Math.floor(selectedPosition.row/base)&&Math.floor(c/base)===Math.floor(selectedPosition.col/base)));
         cell.classList.toggle('is-fixed',fixed.has(i));cell.classList.toggle('is-selected',selected);
         cell.classList.toggle('is-related',related);
         cell.classList.toggle('is-matching',own&&value!==''&&value===selectedValue);

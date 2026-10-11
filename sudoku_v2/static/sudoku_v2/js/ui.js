@@ -12,6 +12,7 @@ const emptyBoard=name=>({name,size:9,values:{},fixedCells:[],wrongCells:[],bonus
 const progress=board=>`${Object.values(board?.values??{}).filter(v=>v!=='').length} / ${(board?.size??9)**2}`;
 export function renderNumberPad(container,{config,input}) {
     const values=config.allowedValues.filter(value=>value!==''),signature=JSON.stringify(values);
+    container.dataset.size=values.length>9?'16':'9';
     if(container.dataset.values!==signature){
         container.replaceChildren(...values.map(value=>{
             const button=document.createElement('button');button.type='button';button.className='number-key';button.dataset.value=value;
@@ -123,11 +124,15 @@ function mountSettings(root,{config,store}) {
     bind(dialog,'close',()=>{config.runtime.menuOpen=false;config.emit();$('open-menu').focus();});
     bind(dialog,'click',e=>{if(e.target===dialog && e.clientX>dialog.getBoundingClientRect().right)dialog.close();});
     bind($('twitch-channel'),'input',e=>config.setPreference('twitchChannel',e.target.value));
-    const showSheet=next=>{
-        disposeSymbolSheet(sheet);sheet=next;config.runtime.symbolSheet=sheet;
-        $('symbol-preview').replaceChildren(...Array.from({length:9},(_,i)=>{
+    const preview=()=>{
+        const size=store.getBoard(config.username)?.size??9;
+        $('symbol-preview').dataset.size=String(size);
+        $('symbol-preview').replaceChildren(...Array.from({length:size},(_,i)=>{
             const element=document.createElement('span');element.setAttribute('aria-label',String(i+1));renderSymbol(element,i+1,sheet);return element;
         }));
+    };
+    const showSheet=next=>{
+        disposeSymbolSheet(sheet);sheet=next;config.runtime.symbolSheet=sheet;preview();
         config.emit();
     };
     const refreshSymbols=async()=>{
@@ -168,6 +173,7 @@ function mountSettings(root,{config,store}) {
         } finally {e.target.value='';}
     });
     function update() {
+        if($('symbol-preview').dataset.size!==String(store.getBoard(config.username)?.size??9))preview();
         const message=config.runtime.message||config.runtime.imageMessage||config.local.persistenceError;
         $('settings-message').textContent=message;$('settings-message').hidden=!message;
         const presets=store.catalog.symbolPresets??[];

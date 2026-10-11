@@ -54,6 +54,24 @@ function setup(t) {
     return {config,store,board,input};
 }
 
+test('board switches 9 to 16 to 9 and own to opponent; stable renders keep cell nodes',t=>{
+    const {config,board}=setup(t),host=new Element('div');
+    for(const [size,name] of [[9,'me'],[16,'me'],[16,'other'],[9,'other']]){
+        config.local.notes[0]=[1,16];
+        const current={...board,size,name,values:{1:size},fixedCells:[]};
+        const grid=renderBoard(host,current,{config});
+        const cells=grid.querySelectorAll('[data-cell-index]');
+        assert.equal(cells.length,size**2);
+        assert.equal(grid.querySelectorAll('.board-box').length,size);
+        assert.equal(cells[0].tagName,name==='me'?'button':'span');
+        assert.equal(renderBoard(host,current,{config}),grid);
+        assert.equal(grid.querySelectorAll('[data-cell-index]')[0],cells[0]);
+        const number=cells.find(cell=>Number(cell.dataset.cellIndex)===1);
+        assert.equal(number.querySelector('.digit').textContent,String(size));
+        if(size===16&&name==='me')assert.equal(cells[0].querySelector('.cell-notes').style.gridTemplateColumns,'repeat(4,minmax(0,1fr))');
+    }
+});
+
 test('number keys and glyphs survive selection, pending, exhaustion and erase',t=>{
     const {config,store,board,input}=setup(t),pad=new Element('div');
     const update=()=>renderNumberPad(pad,{config,input});
@@ -90,7 +108,7 @@ test('board retains unchanged text, note and bonus nodes; edits update only affe
     const {config,board}=setup(t),host=new Element('div');
     config.local.notes[8]=[2,9];board.bonuses={8:'ROLL'};
     config.runtime.bonusCatalog=[{id:'ROLL',symbol:'↻',label:'Поворот'}];
-    const table=renderBoard(host,board,{config}),cells=table.querySelectorAll('[data-cell-index]');
+    const table=renderBoard(host,board,{config}),cells=table.querySelectorAll('[data-cell-index]').sort((a,b)=>Number(a.dataset.cellIndex)-Number(b.dataset.cellIndex));
     const digit=cells[0].querySelector('.digit'),notes=cells[8].querySelector('.cell-notes'),bonus=cells[8].querySelector('.bonus-mark');
     const text=digit.firstElementChild,note=notes.firstElementChild,mark=bonus.firstElementChild;
     renderBoard(host,board,{config,selectedCell:20});config.runtime.pending=true;
