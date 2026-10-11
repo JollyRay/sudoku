@@ -118,3 +118,17 @@ test('board retains unchanged text, note and bonus nodes; edits update only affe
     board.values[8]=4;renderBoard(host,board,{config});assert.equal(notes.children.length,0);
     assert.equal(cells[8].querySelector('.digit').textContent,'4');assert.equal(digit.firstElementChild,text);
 });
+
+test('swap moves a canonical cell with its notes and consumed marker without replacing it',t=>{
+    const {config,board}=setup(t),host=new Element('div');
+    config.local.notes[8]=[2,9];board.bonuses={8:'ROLL'};
+    const grid=renderBoard(host,board,{config,selectedCell:8});
+    const cell=grid.querySelectorAll('[data-cell-index]').find(c=>Number(c.dataset.cellIndex)===8);
+    board.rowOrder=[1,0,2,3,4,5,6,7,8];board.columnOrder=[0,1,2,3,4,5,6,8,7];board.consumedBonusCells=[8];
+    renderBoard(host,board,{config,selectedCell:8});
+    assert.equal(grid.querySelectorAll('[data-cell-index]').find(c=>Number(c.dataset.cellIndex)===8),cell);
+    assert.equal(cell.style.gridArea,'2 / 2');assert.equal(cell.querySelector('.cell-notes').textContent,'29');
+    assert.equal(cell.classList.contains('is-bonus-consumed'),true);
+    assert.match(cell.attributes['aria-label'],/использован/);
+    assert.equal(cell.querySelector('.bonus-mark').textContent,'◇');
+});

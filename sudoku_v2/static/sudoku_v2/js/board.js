@@ -1,5 +1,6 @@
 import {renderSymbol} from './symbols.js?v=12';
 import {blockSide,displayPosition} from './geometry.js?v=12';
+import {renderEffects} from './effects.js?v=12';
 
 function makeGrid(container, size, own) {
     container.replaceChildren();
@@ -39,7 +40,7 @@ export function getNoteLayout(size, value) {
     const side=Math.ceil(Math.sqrt(size)),position=value-1;
     return {side,row:Math.floor(position/side)+1,column:position%side+1};
 }
-export function renderBoard(container, board, {config,selectedCell=null,highlightValue}) {
+export function renderBoard(container, board, {config,selectedCell=null,highlightValue,effects=[],now=Date.now()}) {
     const own=board.name===config.username,size=board.size??9;
     const base=blockSide(size),existing=container.querySelector('.board-grid');
     const table=existing?.dataset.size===String(size)&&existing.dataset.own===String(own)?existing:makeGrid(container,size,own);
@@ -86,9 +87,12 @@ export function renderBoard(container, board, {config,selectedCell=null,highligh
         const bonus=board.bonuses?.[i],definition=config.runtime.bonusCatalog?.find(b=>b.id===bonus);
         const mark=cell.querySelector('.bonus-mark'),bonusSymbol=bonus?(definition?.symbol??'◇'):'';
         if(mark.textContent!==bonusSymbol)mark.textContent=bonusSymbol;
-        const bonusLabel=bonus?`Бонус: ${definition?.label??bonus}`:'';
+        const consumed=(board.consumedBonusCells??[]).includes(i);
+        cell.classList.toggle('is-bonus-consumed',consumed);
+        const bonusLabel=bonus?`Бонус: ${definition?.label??bonus}${consumed?' (использован)':''}`:'';
         cell.setAttribute('aria-label',`Строка ${r+1}, столбец ${c+1}: ${value===''?'пусто':value}${candidates.length?', заметки: '+candidates.join(', '):''}${fixed.has(i)?', исходная':''}${config.preferences.showErrors&&wrong.has(i)?', ошибка':''}${bonusLabel?', '+bonusLabel:''}`);
     }
+    renderEffects(table,board,effects,now);
     let completion=container.querySelector('.completion-overlay');
     if(!completion){
         completion=document.createElement('div');completion.className='completion-overlay';

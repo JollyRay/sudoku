@@ -1,6 +1,7 @@
 import {renderBoard} from './board.js?v=12';
 import {createInputController} from './input.js?v=12';
 import {loadSymbolSheet,renderSymbol,disposeSymbolSheet} from './symbols.js?v=12';
+import {createEffectsController,effectBadges} from './effects.js?v=12';
 
 export function formatElapsed(board,nowMs) {
     if(board?.startedAt==null)return '00:00';
@@ -58,21 +59,36 @@ export function mountGame(root,{store,config,network}) {
         el.value=value??'';
     };
     let opponent=null;
+    const effectNames=new Set();
+    const effects=createEffectsController({now:()=>Date.now()+config.runtime.clockOffset,onChange:()=>render()});
     const participantButtons=new Map();
     const updateTimers=()=>{
         const now=Date.now()+config.runtime.clockOffset;
         $('own-timer').textContent=formatElapsed(store.getBoard(config.username),now);
         $('opponent-timer').textContent=formatElapsed(opponent,now);
-        for(const [name,button] of participantButtons)button.querySelector('time').textContent=formatElapsed(store.getBoard(name),now);
+        for(const [name,button] of participantButtons){
+            const board=store.getBoard(name);button.querySelector('time').textContent=formatElapsed(board,now);
+            const badges=effectBadges(board,effects.activeFor(name,board.generationId),store.catalog.bonuses??[],now);
+            const host=button.querySelector('.opponent-effects'),signature=JSON.stringify(badges);
+            if(host.dataset.badges!==signature){
+                host.replaceChildren(...badges.map(b=>{const span=document.createElement('span');span.className='effect-badge';span.textContent=b.text;span.setAttribute('aria-label',b.label);span.title=b.label;return span;}));
+                host.dataset.badges=signature;
+            }
+            host.hidden=!badges.length;
+        }
     };
     function render() {
         const own=store.getBoard(config.username)??emptyBoard(config.username);
         const others=store.getBoards().filter(b=>b.name!==config.username);
+        const names=new Set([own,...others].map(b=>b.name));
+        for(const name of effectNames)if(!names.has(name)){effects.reconcile({name,generationId:null,activeEffects:[]});effectNames.delete(name);}
+        for(const board of [own,...others]){effects.reconcile(board);effectNames.add(board.name);}
         opponent=others.find(b=>b.name===config.preferences.selectedOpponent)??others[0]??null;
         config.runtime.bonusCatalog=store.catalog.bonuses??[];
         const highlightValue=config.preferences.digitFirstMode?config.runtime.forcedValue:null;
-        renderBoard($('own-board'),own,{config,selectedCell:config.runtime.selectedCell,highlightValue});
-        if(opponent)renderBoard($('opponent-board'),opponent,{config});
+        const now=Date.now()+config.runtime.clockOffset;
+        renderBoard($('own-board'),own,{config,selectedCell:config.runtime.selectedCell,highlightValue,effects:effects.activeFor(own.name,own.generationId),now});
+        if(opponent)renderBoard($('opponent-board'),opponent,{config,effects:effects.activeFor(opponent.name,opponent.generationId),now});
         $('opponent-panel').hidden=!opponent;
         $('play-layout').classList.toggle('is-solo',!opponent);
         $('opponent-name').textContent=opponent?.name??'Игроки комнаты';
@@ -85,7 +101,8 @@ export function mountGame(root,{store,config,network}) {
                 const name=document.createElement('span');name.className='opponent-choice-name';name.textContent=board.name;
                 const count=document.createElement('span');count.className='opponent-choice-progress';
                 const time=document.createElement('time');
-                button.append(name,count,time);participantButtons.set(board.name,button);$('opponent-list').append(button);
+                const badges=document.createElement('span');badges.className='opponent-effects';
+                button.append(name,count,time,badges);participantButtons.set(board.name,button);$('opponent-list').append(button);
             }
             button.setAttribute('aria-pressed',String(board.name===opponent?.name));
             button.querySelector('.opponent-choice-progress').textContent=progress(board);
@@ -110,9 +127,9 @@ export function mountGame(root,{store,config,network}) {
     }
     const unsubscribeStore=store.subscribe(render),unsubscribeConfig=config.subscribe(render);
     const disposeSettings=mountSettings(root,{config,store});
-    const timer=setInterval(updateTimers,1000);bind(document,'visibilitychange',updateTimers);
+    const timer=setInterval(updateTimers,1000);bind(document,'visibilitychange',render);
     render();
-    return {dispose(){unsubscribeStore();unsubscribeConfig();input.dispose();disposeSettings();clearInterval(timer);bindings.forEach(fn=>fn());}};
+    return {dispose(){unsubscribeStore();unsubscribeConfig();input.dispose();disposeSettings();effects.dispose();clearInterval(timer);bindings.forEach(fn=>fn());}};
 }
 
 function mountSettings(root,{config,store}) {

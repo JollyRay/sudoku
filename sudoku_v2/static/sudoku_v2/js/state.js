@@ -48,6 +48,12 @@ export function createGameState(config) {
             publish();
             return true;
         },
+        applyBonusEvent(data) {
+            // A queued or repeated room event must never move the established clock backwards.
+            if(Number.isFinite(data.serverNow))config.runtime.clockOffset=Math.max(config.runtime.clockOffset,data.serverNow-Date.now());
+            for(const board of data.targets??[])if(!activeNames||activeNames.has(board.name))updateBoard(board);
+            publish();
+        },
         applySnapshot(data, acknowledgedEdit) {
             if (data.config?.username === config.username) localEdits.clear();
             if (acknowledgedEdit && localEdits.get(acknowledgedEdit.cellIndex) === acknowledgedEdit)

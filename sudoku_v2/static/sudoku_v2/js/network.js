@@ -55,6 +55,8 @@ export function connectWebsocket({store,config,url=defaultUrl(),WebSocketClass=W
                     config.emit();flushContext();
                 } else if(kind==='participants_data') {
                     store.applySnapshot(data);
+                } else if(kind==='bonus_applied') {
+                    store.applyBonusEvent(data);
                 } else if(kind==='context_data') {
                     config.ackContext(data.config,contextVersion??-1);contextVersion=null;flushContext();
                 } else if(kind==='error') {

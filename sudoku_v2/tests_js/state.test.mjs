@@ -3,6 +3,37 @@ import assert from 'node:assert/strict';
 import {SudokuConfig} from '../static/sudoku_v2/js/config.js?v=12';
 import {createGameState} from '../static/sudoku_v2/js/state.js?v=12';
 import {getNoteLayout} from '../static/sudoku_v2/js/board.js?v=12';
+import {createEffectsController} from '../static/sudoku_v2/js/effects.js?v=12';
+
+test('late and duplicate bonus events cannot rewind server time or extend effects',t=>{
+    t.mock.timers.enable({apis:['Date','setTimeout'],now:100000});
+    const config=new SudokuConfig({username:'me',storage:null}),store=createGameState(config);
+    const effects=createEffectsController({now:()=>Date.now()+config.runtime.clockOffset});
+    const board={name:'me',size:9,generationId:'A',revision:1,values:{},fixedCells:[]};
+    store.subscribe(()=>effects.reconcile(store.getBoard('me')));
+    store.applySnapshot({board,serverNow:100000});
+    const effect={id:'A',kind:'ROLL',params:{box:0},startsAt:100000,expiresAt:130000};
+    const data={eventId:'A',serverNow:100000,targets:[{...board,revision:2,activeEffects:[effect]}]};
+    store.applyBonusEvent(data);t.mock.timers.tick(10000);store.applyBonusEvent(data);
+    t.mock.timers.tick(20000);assert.deepEqual(effects.activeFor('me','A'),[]);
+    // Even an unseen delayed event uses the established clock, not its old timestamp.
+    store.applyBonusEvent({...data,eventId:'B',targets:[{...board,revision:3,activeEffects:[{...effect,id:'B'}]}]});
+    assert.deepEqual(effects.activeFor('me','A'),[]);effects.dispose();
+});
+test('bonus_delta_preserves_other_participants_and_local_edits',()=>{
+    const config=new SudokuConfig({username:'me',storage:null}),store=createGameState(config);
+    const own={name:'me',size:9,generationId:'A',revision:1,values:{},fixedCells:[]};
+    store.applySnapshot({boards:[own,{...own,name:'other'},{...own,name:'third'}]});
+    const first=store.editCell(0,1);store.editCell(0,2);config.local.notes[1]=[4];
+    store.applyBonusEvent({targets:[{...own,revision:2,values:{0:1},rowOrder:[1,0,2,3,4,5,6,7,8]}]});
+    assert.equal(store.getBoards().length,3);assert.equal(store.getBoard('me').values[0],2);
+    assert.deepEqual(config.local.notes[1],[4]);
+    store.applySnapshot({board:{...own,revision:3,values:{0:1}}},first);
+    assert.equal(store.getBoard('me').values[0],2);
+    store.applySnapshot({boards:[own]});
+    store.applyBonusEvent({targets:[{...own,name:'other',revision:4}]});
+    assert.equal(store.getBoards().length,1);
+});
 test('older_revision_is_ignored across generations and empty snapshots clear values',()=>{
     const c=new SudokuConfig({username:'Иван',storage:null}), store=createGameState(c);
     const b={name:'Иван',generationId:'B',revision:4,values:{'0':3},fixedCells:[]};

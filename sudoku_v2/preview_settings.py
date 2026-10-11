@@ -18,6 +18,8 @@ if (_database.parent != _scratch or not _database.name.startswith('sudoku-v2-pre
         or _redis.path != '/15'):
     raise ImproperlyConfigured('Explicit isolated preview DB, Redis DB15 and UUID namespace required')
 DATABASES = {'default': {'ENGINE': 'django.db.backends.sqlite3', 'NAME': str(_database)}}
+CHANNEL_LAYERS = {'default': {'BACKEND': 'channels_redis.core.RedisChannelLayer',
+    'CONFIG': {'hosts': [SUDOKU_V2_REDIS_URL], 'prefix': SUDOKU_V2_PREFIX+'-channels'}}}
 SUDOKU_V2_PREVIEW = True
 TWITCH_BOT_ENABLED = False
 SESSION_ENGINE = 'django.contrib.sessions.backends.signed_cookies'

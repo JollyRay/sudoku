@@ -132,6 +132,21 @@ test('participant events update roster without acknowledging generation',()=>{
     net.dispose();
 });
 
+test('bonus events do not acknowledge sent moves or generation requests',()=>{
+    const config=new SudokuConfig({username:'Иван',storage:null}),store=createGameState(config);
+    const net=connectWebsocket({store,config,WebSocketClass:Socket,url:'ws://test',reconnect:false});
+    const ws=Socket.instances.at(-1);ws.fire('open');
+    ws.fire('message',{kind:'board_data',data:{board:board(),config:{username:'Иван',preferences:{}}}});
+    net.sendCellValue('Иван','A',0,1);net.sendCellValue('Иван','A',0,2);
+    ws.fire('message',{kind:'bonus_applied',data:{targets:[board({revision:2,values:{0:''},rowOrder:[1,0,2,3,4,5,6,7,8]})]}});
+    ws.fire('message',{kind:'set_value',data:{board:board({revision:3,values:{0:1}})}});
+    assert.equal(store.getBoard('Иван').values[0],2);
+    ws.fire('message',{kind:'set_value',data:{board:board({revision:4,values:{0:2}})}});
+    net.requestBoardGeneration('easy');
+    ws.fire('message',{kind:'bonus_applied',data:{targets:[board({revision:5})]}});
+    assert.equal(config.runtime.pending,true);net.dispose();
+});
+
 test('moves display immediately; older replies cannot overwrite later input to the same cell',()=>{
     const config=new SudokuConfig({username:'Иван',storage:null}),store=createGameState(config);
     const net=connectWebsocket({store,config,WebSocketClass:Socket,url:'ws://test',reconnect:false});
