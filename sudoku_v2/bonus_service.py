@@ -42,7 +42,7 @@ class BonusService:
         return updated, event
 
     async def apply_external(self, lobby, owner_name, request, *, event_id, guards, strings,
-                             source_type='twitch_chat'):
+                             source_type='twitch_chat', hash_updates=None):
         for _ in range(8):
             if not await self.storage.redis.guards_match(guards):
                 return None
@@ -56,7 +56,7 @@ class BonusService:
                                           {'type': source_type, 'name': owner_name})
             result = await self.storage.commit_boards(lobby, updated, expected,
                 guards=[*guards, CommitGuard(self.storage._presence_key(lobby, owner_name), 'string', owner_lease)],
-                strings=strings)
+                strings=strings, hash_updates=hash_updates(event['serverNow']) if callable(hash_updates) else hash_updates)
             if result == 'saved':
                 return event
         return None

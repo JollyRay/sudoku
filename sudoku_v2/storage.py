@@ -96,13 +96,18 @@ class SudokuV2Storage:
         username: str,
         connection_id: str,
     ) -> bool:
-        return await self.redis.acquire_room_presence(
+        previous_epoch = await self.get_room_epoch(lobby)
+        acquired = await self.redis.acquire_room_presence(
             self._lobby_prefix(lobby),
             self._presence_key(lobby, username),
             connection_id,
             self.PRESENCE_EXPIRY_SECONDS,
             uuid4().hex,
         )
+        if acquired and previous_epoch and await self.get_room_epoch(lobby) != previous_epoch:
+            from .twitch.registry import TwitchRegistry
+            await TwitchRegistry(self).cleanup_lobby(lobby, previous_epoch)
+        return acquired
 
     async def get_room_epoch(self, lobby: str) -> str | None:
         return await self.redis.get(f'{self._lobby_prefix(lobby)}:epoch')
@@ -128,11 +133,16 @@ class SudokuV2Storage:
         username: str,
         connection_id: str,
     ) -> bool:
-        return await self.redis.release_room_presence(
+        previous_epoch = await self.get_room_epoch(lobby)
+        released = await self.redis.release_room_presence(
             self._lobby_prefix(lobby),
             self._presence_key(lobby, username),
             connection_id,
         )
+        if previous_epoch and await self.get_room_epoch(lobby) != previous_epoch:
+            from .twitch.registry import TwitchRegistry
+            await TwitchRegistry(self).cleanup_lobby(lobby, previous_epoch)
+        return released
 
     def is_username_active(self, lobby: str, username: str) -> bool:
         return self.redis.exists_sync(self._presence_key(lobby, username))
@@ -209,7 +219,8 @@ class SudokuV2Storage:
 
     async def commit_boards(self, lobby: str, boards: dict[str, StoredBoard],
                             expected: dict[str, tuple[str, int, str]], *,
-                            guards=(), strings: dict[str, ExpiringValue] | None = None) -> str:
+                            guards=(), strings: dict[str, ExpiringValue] | None = None,
+                            hash_updates: dict[str, dict] | None = None) -> str:
         checks, hashes = list(guards), {}
         for name, board in boards.items():
             generation, revision, lease = expected[name]
@@ -219,7 +230,7 @@ class SudokuV2Storage:
                             {'generationId': str(generation), 'revision': str(revision)}),
             ])
             hashes.update(self._state_hashes(lobby, name, board))
-        return await self.redis.compare_and_write_batch(checks, hashes, strings or {})
+        return await self.redis.compare_and_write_batch(checks, hashes, strings or {}, hash_updates=hash_updates)
 
     async def save_board_state(
         self, lobby: str, name: str, board: StoredBoard,

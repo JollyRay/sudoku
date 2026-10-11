@@ -258,7 +258,8 @@ class RedisClient(metaclass=Singleton):
         return await self._guards_match(self._redis_client, guards)
 
     async def compare_and_write_batch(self, guards: list[CommitGuard],
-                                      hashes: dict[str, dict], strings: dict[str, ExpiringValue]) -> str:
+                                      hashes: dict[str, dict], strings: dict[str, ExpiringValue],
+                                      *, hash_updates: dict[str, dict] | None = None) -> str:
         """Commit all guarded snapshots and expiring markers together, or none."""
         if any(type(value.ttl_seconds) is not int or value.ttl_seconds <= 0 for value in strings.values()):
             raise ValueError('A positive integer TTL is required')
@@ -275,6 +276,8 @@ class RedisClient(metaclass=Singleton):
                         pipeline.hset(key, mapping=mapping)
                 for key, value in strings.items():
                     pipeline.set(key, value.value, ex=value.ttl_seconds)
+                for key, mapping in (hash_updates or {}).items():
+                    if mapping:pipeline.hset(key, mapping=mapping)
                 await pipeline.execute()
                 return 'saved'
         except WatchError:
