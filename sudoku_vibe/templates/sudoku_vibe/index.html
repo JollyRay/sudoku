@@ -1,124 +1,55 @@
 {% load static %}
 <!doctype html>
-<html lang="en">
+<html lang="ru">
 <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Sudoku Vibe</title>
-    <link rel="stylesheet" href="{% static 'sudoku_vibe/css/sudoku.css' %}">
+    <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Sudoku Vibe · Игровая комната</title>
+    <link rel="stylesheet" href="{% static 'sudoku_vibe/css/sudoku.css' %}?v=11">
 </head>
 <body>
+<div class="app-shell" id="game-app">
+    <header class="app-header">
+        <button id="open-menu" class="icon-button" type="button" aria-label="Открыть меню" aria-controls="settings-dialog">☰</button>
+        <a class="brand" href="{% url 'sudoku_vibe:join' %}"><span class="brand-symbol" aria-hidden="true">▦</span> Sudoku <strong>Vibe</strong></a>
+        <div class="room-label">Комната <strong id="room-name"></strong></div>
+        <span id="connection-status" class="connection-status" role="status">Подключение…</span>
+    </header>
     <main>
-        <h1>Sudoku Vibe</h1>
-        <table
-            class="sudoku-board"
-            data-board-name="{{ board_name }}"
-            aria-label="Sudoku board {{ board_name }}"
-        >
-            <caption>{{ board_name }}</caption>
-            <tbody>
-                <tr data-row-index="0">
-                    <td data-cell-index="0" data-column-index="0"></td>
-                    <td data-cell-index="1" data-column-index="1"></td>
-                    <td data-cell-index="2" data-column-index="2"></td>
-                    <td data-cell-index="3" data-column-index="3"></td>
-                    <td data-cell-index="4" data-column-index="4"></td>
-                    <td data-cell-index="5" data-column-index="5"></td>
-                    <td data-cell-index="6" data-column-index="6"></td>
-                    <td data-cell-index="7" data-column-index="7"></td>
-                    <td data-cell-index="8" data-column-index="8"></td>
-                </tr>
-                <tr data-row-index="1">
-                    <td data-cell-index="9" data-column-index="0"></td>
-                    <td data-cell-index="10" data-column-index="1"></td>
-                    <td data-cell-index="11" data-column-index="2"></td>
-                    <td data-cell-index="12" data-column-index="3"></td>
-                    <td data-cell-index="13" data-column-index="4"></td>
-                    <td data-cell-index="14" data-column-index="5"></td>
-                    <td data-cell-index="15" data-column-index="6"></td>
-                    <td data-cell-index="16" data-column-index="7"></td>
-                    <td data-cell-index="17" data-column-index="8"></td>
-                </tr>
-                <tr data-row-index="2">
-                    <td data-cell-index="18" data-column-index="0"></td>
-                    <td data-cell-index="19" data-column-index="1"></td>
-                    <td data-cell-index="20" data-column-index="2"></td>
-                    <td data-cell-index="21" data-column-index="3"></td>
-                    <td data-cell-index="22" data-column-index="4"></td>
-                    <td data-cell-index="23" data-column-index="5"></td>
-                    <td data-cell-index="24" data-column-index="6"></td>
-                    <td data-cell-index="25" data-column-index="7"></td>
-                    <td data-cell-index="26" data-column-index="8"></td>
-                </tr>
-                <tr data-row-index="3">
-                    <td data-cell-index="27" data-column-index="0"></td>
-                    <td data-cell-index="28" data-column-index="1"></td>
-                    <td data-cell-index="29" data-column-index="2"></td>
-                    <td data-cell-index="30" data-column-index="3"></td>
-                    <td data-cell-index="31" data-column-index="4"></td>
-                    <td data-cell-index="32" data-column-index="5"></td>
-                    <td data-cell-index="33" data-column-index="6"></td>
-                    <td data-cell-index="34" data-column-index="7"></td>
-                    <td data-cell-index="35" data-column-index="8"></td>
-                </tr>
-                <tr data-row-index="4">
-                    <td data-cell-index="36" data-column-index="0"></td>
-                    <td data-cell-index="37" data-column-index="1"></td>
-                    <td data-cell-index="38" data-column-index="2"></td>
-                    <td data-cell-index="39" data-column-index="3"></td>
-                    <td data-cell-index="40" data-column-index="4"></td>
-                    <td data-cell-index="41" data-column-index="5"></td>
-                    <td data-cell-index="42" data-column-index="6"></td>
-                    <td data-cell-index="43" data-column-index="7"></td>
-                    <td data-cell-index="44" data-column-index="8"></td>
-                </tr>
-                <tr data-row-index="5">
-                    <td data-cell-index="45" data-column-index="0"></td>
-                    <td data-cell-index="46" data-column-index="1"></td>
-                    <td data-cell-index="47" data-column-index="2"></td>
-                    <td data-cell-index="48" data-column-index="3"></td>
-                    <td data-cell-index="49" data-column-index="4"></td>
-                    <td data-cell-index="50" data-column-index="5"></td>
-                    <td data-cell-index="51" data-column-index="6"></td>
-                    <td data-cell-index="52" data-column-index="7"></td>
-                    <td data-cell-index="53" data-column-index="8"></td>
-                </tr>
-                <tr data-row-index="6">
-                    <td data-cell-index="54" data-column-index="0"></td>
-                    <td data-cell-index="55" data-column-index="1"></td>
-                    <td data-cell-index="56" data-column-index="2"></td>
-                    <td data-cell-index="57" data-column-index="3"></td>
-                    <td data-cell-index="58" data-column-index="4"></td>
-                    <td data-cell-index="59" data-column-index="5"></td>
-                    <td data-cell-index="60" data-column-index="6"></td>
-                    <td data-cell-index="61" data-column-index="7"></td>
-                    <td data-cell-index="62" data-column-index="8"></td>
-                </tr>
-                <tr data-row-index="7">
-                    <td data-cell-index="63" data-column-index="0"></td>
-                    <td data-cell-index="64" data-column-index="1"></td>
-                    <td data-cell-index="65" data-column-index="2"></td>
-                    <td data-cell-index="66" data-column-index="3"></td>
-                    <td data-cell-index="67" data-column-index="4"></td>
-                    <td data-cell-index="68" data-column-index="5"></td>
-                    <td data-cell-index="69" data-column-index="6"></td>
-                    <td data-cell-index="70" data-column-index="7"></td>
-                    <td data-cell-index="71" data-column-index="8"></td>
-                </tr>
-                <tr data-row-index="8">
-                    <td data-cell-index="72" data-column-index="0"></td>
-                    <td data-cell-index="73" data-column-index="1"></td>
-                    <td data-cell-index="74" data-column-index="2"></td>
-                    <td data-cell-index="75" data-column-index="3"></td>
-                    <td data-cell-index="76" data-column-index="4"></td>
-                    <td data-cell-index="77" data-column-index="5"></td>
-                    <td data-cell-index="78" data-column-index="6"></td>
-                    <td data-cell-index="79" data-column-index="7"></td>
-                    <td data-cell-index="80" data-column-index="8"></td>
-                </tr>
-            </tbody>
-        </table>
+        <div id="game-message" class="notice" role="status" hidden></div>
+        <div class="play-layout is-solo" id="play-layout">
+            <section class="own-panel" aria-labelledby="own-heading">
+                <div class="board-heading"><div><p class="player-name" id="own-name"></p><h1 id="own-heading">Моя доска</h1></div><div class="board-stats"><time id="own-timer" class="timer">00:00</time><span id="own-progress">0 / 81</span></div></div>
+                <div class="board-frame" id="own-board"></div>
+                <div class="entry-panel"><div id="number-pad" class="number-pad" aria-label="Значения для заполнения"></div><button id="erase-value" type="button" class="erase-key">⌫ <span>Стереть</span></button></div>
+                <div class="mode-panel"><button id="notes-mode" type="button" class="mode-button" aria-pressed="false"><span aria-hidden="true">✎</span> Заметки</button><button id="show-errors" type="button" class="mode-button" aria-pressed="false"><span aria-hidden="true">◉</span> Видеть ошибки</button><button id="digit-first" type="button" class="mode-button" aria-pressed="false"><span aria-hidden="true">↦</span> Сначала цифра</button></div>
+                <div class="generation-panel"><div class="field"><label for="difficulty">Сложность</label><select id="difficulty"></select></div><div class="field board-size"><label for="board-size">Размер</label><select id="board-size"></select></div><button id="generate-board" type="button" class="generate-button">Новая доска <span aria-hidden="true">↻</span></button></div>
+            </section>
+            <aside class="opponent-panel" id="opponent-panel" aria-labelledby="opponent-heading" hidden>
+                <div class="board-heading"><div><p class="player-name" id="opponent-name">Игроки комнаты</p><h2 id="opponent-heading">Соперник</h2></div><div class="board-stats"><time id="opponent-timer" class="timer">00:00</time><span id="opponent-progress">0 / 81</span></div></div>
+                <div class="board-frame" id="opponent-board"></div>
+                <div id="opponent-list" class="opponent-list" role="group" aria-label="Выбрать соперника"></div>
+            </aside>
+        </div>
     </main>
-    <script type="module" src="{% static 'sudoku_vibe/js/sudoku.js' %}?v=3"></script>
+    <footer class="app-footer"><span>Sudoku Vibe</span><span>Игра в вашей комнате</span></footer>
+    <dialog id="settings-dialog" class="settings-drawer" aria-labelledby="settings-heading">
+        <div class="drawer-heading"><div><p class="player-name">Ваш игровой стол</p><h2 id="settings-heading">Настройки</h2></div><button id="close-menu" type="button" class="icon-button" aria-label="Закрыть меню">×</button></div>
+        <p id="settings-message" class="notice" role="status" hidden></p>
+        <section class="settings-section" aria-labelledby="symbols-heading"><h3 id="symbols-heading">Как выглядят символы</h3>
+            <label for="symbol-preset">Готовый набор</label><select id="symbol-preset"></select>
+            <div id="symbol-preview" class="symbol-preview" aria-label="Образцы символов"></div>
+            <label class="file-label" for="symbol-file">Выбрать своё изображение <span aria-hidden="true">＋</span></label>
+            <input id="symbol-file" type="file" accept="image/*" aria-describedby="symbol-file-help">
+            <p id="symbol-file-name" class="settings-hint"></p>
+            <p id="symbol-file-help" class="settings-hint">Вертикальная полоса картинок: 1, 2, 3… Недостающие символы будут белыми. Файл останется только в этом браузере.</p>
+        </section>
+        <section class="settings-section" aria-labelledby="twitch-heading"><div class="section-title"><h3 id="twitch-heading">Twitch</h3><span class="soon-badge">Позже</span></div>
+            <label for="twitch-channel">Канал Twitch</label><div class="channel-input"><span>twitch.tv/</span><input id="twitch-channel" type="text" maxlength="100" autocomplete="off" placeholder="название_канала"></div><p class="settings-hint">Подключение появится позже.</p>
+        </section>
+        <a class="room-link" href="{% url 'sudoku_vibe:join' %}">Войти в другую комнату</a>
+    </dialog>
+</div>
+{{ bootstrap|json_script:"sudoku-bootstrap" }}
+<script type="module" src="{% static 'sudoku_vibe/js/sudoku.js' %}?v=11"></script>
 </body>
 </html>

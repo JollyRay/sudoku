@@ -1,86 +1,53 @@
-export const EMPTY_BOARD_VALUE = "";
+import {LocalContext} from './local-context.js?v=11';
 
-export const DEFAULT_ALLOWED_VALUES = Object.freeze([
-    EMPTY_BOARD_VALUE,
-    0,
-    1,
-    2,
-    3,
-    4,
-    5,
-    6,
-    7,
-    8,
-    9,
-]);
-
-export const DEFAULT_FIELDS_TO_SEND = Object.freeze([
-    "username",
-    "allowedValues",
-]);
-
-const SENDABLE_FIELDS = new Set(DEFAULT_FIELDS_TO_SEND);
-
-function copyUniqueValues(values, fieldName) {
-    if (!Array.isArray(values)) {
-        throw new TypeError(`${fieldName} must be an array`);
-    }
-
-    return Object.freeze([...new Set(values)]);
-}
+const DEFAULT_ALLOWED_VALUES = Object.freeze(['',1,2,3,4,5,6,7,8,9]);
+const DEFAULT_PREFERENCES = Object.freeze({difficulty:'medium',size:9,notesMode:false,showErrors:false,digitFirstMode:false,
+    symbolPresetId:'plain',selectedOpponent:null,twitchChannel:''});
 
 export class SudokuConfig {
-    constructor({
-        websocket = null,
-        username = "undefined",
-        allowedValues = DEFAULT_ALLOWED_VALUES,
-        fieldsToSend = DEFAULT_FIELDS_TO_SEND,
-    } = {}) {
-        this.websocket = websocket;
-        this.setUsername(username);
+    constructor({room='',username='undefined',allowedValues=DEFAULT_ALLOWED_VALUES,storage}={}) {
+        this.listeners = new Set();
+        this.room = room;
+        this.username = username;
         this.setAllowedValues(allowedValues);
-        this.setFieldsToSend(fieldsToSend);
+        this.preferences = {...DEFAULT_PREFERENCES};
+        this.preferenceVersion = 0;
+        this.dirtyPreferences = new Map();
+        this.runtime = {ready:false,status:'connecting',selectedCell:null,forcedValue:null,menuOpen:false,
+            pending:false,clockOffset:0,message:'',symbolSheet:null};
+        this.local = new LocalContext(room,username,{storage,onChange:()=>this.emit('local')});
     }
-
-    setWebsocket(websocket) {
-        this.websocket = websocket;
-    }
-
-    setUsername(username) {
-        if (typeof username !== "string") {
-            throw new TypeError("username must be a string");
-        }
-
-        this.username = username || "undefined";
-    }
-
     setAllowedValues(values) {
-        this.allowedValues = copyUniqueValues(values, "allowedValues");
+        if (!Array.isArray(values) || values.some(v=>v!=='' && (!Number.isInteger(v)||v<0||v>9))) throw new TypeError('Invalid values');
+        this.allowedValues = [...new Set(values.filter(value=>value!==0))];
     }
-
-    setFieldsToSend(fields) {
-        const uniqueFields = copyUniqueValues(fields, "fieldsToSend");
-        const unsupportedField = uniqueFields.find(
-            (field) => !SENDABLE_FIELDS.has(field),
-        );
-
-        if (unsupportedField !== undefined) {
-            throw new RangeError(
-                `Config field cannot be sent: ${String(unsupportedField)}`,
-            );
-        }
-
-        this.fieldsToSend = uniqueFields;
+    subscribe(listener) { this.listeners.add(listener); return ()=>this.listeners.delete(listener); }
+    emit(reason='runtime') { for(const listener of this.listeners) listener(reason); }
+    setPreference(key,value) {
+        if (!(key in DEFAULT_PREFERENCES)) throw new TypeError('Unknown preference');
+        if (this.preferences[key] === value) return;
+        this.preferences[key] = value;
+        this.dirtyPreferences.set(key,{value,version:++this.preferenceVersion});
+        this.emit('preferences');
     }
-
+    applyServerContext(context) {
+        if (context.username !== this.username) return false;
+        if (context.allowedValues) this.setAllowedValues(context.allowedValues);
+        this.preferences = {...DEFAULT_PREFERENCES,...context.preferences};
+        for (const [key,entry] of this.dirtyPreferences) this.preferences[key]=entry.value;
+        this.emit();
+        return true;
+    }
+    ackContext(context,version) {
+        if (context.username !== this.username) return;
+        for(const [key,entry] of this.dirtyPreferences) if(entry.version<=version) this.dirtyPreferences.delete(key);
+        this.applyServerContext(context);
+    }
     toSendableContext() {
-        return Object.fromEntries(
-            this.fieldsToSend.map((field) => {
-                const value = this[field];
-                return [field, Array.isArray(value) ? [...value] : value];
-            }),
-        );
+        return {
+            username: this.username,
+            allowedValues: [...this.allowedValues],
+            preferences: {...this.preferences},
+        };
     }
 }
-
-export const config = new SudokuConfig();

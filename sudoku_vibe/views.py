@@ -34,5 +34,7 @@ def lobby(request: HttpRequest) -> HttpResponse:
     return render(
         request,
         "sudoku_vibe/index.html",
-        context={"board_name": board_name},
+        context={"bootstrap": {
+            "username": board_name, "room": request.session.get("room_code", ""),
+        }},
     )

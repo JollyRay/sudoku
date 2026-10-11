@@ -1,28 +1,31 @@
+{% load static %}
 <!doctype html>
 <html lang="ru">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Войти в Sudoku Vibe</title>
+    <link rel="stylesheet" href="{% static 'sudoku_vibe/css/sudoku.css' %}?v=11">
 </head>
 <body>
-    <main>
-        <h1>Войти в лобби</h1>
-        <form method="post">
+<div class="join-shell">
+    <header><a class="brand" href="{% url 'sudoku_vibe:join' %}"><span class="brand-symbol" aria-hidden="true">▦</span> Sudoku <strong>Vibe</strong></a></header>
+    <main class="join-layout">
+        <section class="join-intro" aria-labelledby="join-heading">
+            <div class="join-grid" aria-hidden="true"><span>1</span><span></span><span>3</span><span></span><span>5</span><span></span><span>7</span><span></span><span>9</span></div>
+            <h1 id="join-heading">Ваше поле.<br>Общая игра.</h1>
+            <p>Решайте судоку в своём темпе и наблюдайте за друзьями в одной комнате.</p>
+        </section>
+        <form method="post" class="join-form">
+            <h2>Войти в комнату</h2>
             {% csrf_token %}
             {{ form.non_field_errors }}
-            <div>
-                {{ form.username.label_tag }}
-                {{ form.username }}
-                {{ form.username.errors }}
-            </div>
-            <div>
-                {{ form.room_name.label_tag }}
-                {{ form.room_name }}
-                {{ form.room_name.errors }}
-            </div>
-            <button type="submit">Войти</button>
+            <div class="join-field">{{ form.username.label_tag }}{{ form.username }}{{ form.username.errors }}</div>
+            <div class="join-field">{{ form.room_name.label_tag }}{{ form.room_name }}{{ form.room_name.errors }}</div>
+            <button type="submit">Начать игру</button>
+            <p class="settings-hint">Чтобы играть вместе, укажите одинаковое название комнаты.</p>
         </form>
     </main>
+</div>
 </body>
 </html>

@@ -1,162 +1,80 @@
-import { config } from "./config.js?v=3";
+import {renderSymbol} from './symbols.js?v=11';
 
-
-const BOARD_SIDE = 9;
-const BOARD_CELL_COUNT = BOARD_SIDE * BOARD_SIDE;
-
-function getBoard(boardName) {
-    const board = [...document.querySelectorAll(".sudoku-board")].find(
-        (candidate) => candidate.dataset.boardName === boardName,
-    );
-
-    if (board === undefined) {
-        throw new ReferenceError(`Unknown board: ${boardName}`);
-    }
-
-    return board;
-}
-
-export function ensureBoard(boardName) {
-    try {
-        return getBoard(boardName);
-    } catch (error) {
-        if (!(error instanceof ReferenceError)) {
-            throw error;
+function makeTable(container, size, own) {
+    container.replaceChildren();
+    const table=document.createElement('table');table.className='sudoku-board';
+    const body=document.createElement('tbody');
+    for(let r=0;r<size;r++) {
+        const row=document.createElement('tr');row.dataset.rowIndex=r;
+        for(let c=0;c<size;c++) {
+            const td=document.createElement('td');td.dataset.columnIndex=c;
+            const cell=document.createElement(own?'button':'span');
+            cell.className='cell';cell.dataset.cellIndex=r*size+c;
+            if(own){cell.type='button';cell.tabIndex=-1;}
+            for(const name of ['digit','cell-notes','bonus-mark']) {
+                const part=document.createElement('span');part.className=name;
+                if(name!=='digit')part.setAttribute('aria-hidden','true');
+                cell.append(part);
+            }
+            td.append(cell);row.append(td);
         }
+        body.append(row);
     }
-
-    const source = document.querySelector(".sudoku-board");
-    if (source === null || source.parentNode === null) {
-        throw new ReferenceError("Sudoku board template not found");
-    }
-
-    const board = source.cloneNode(true);
-    board.dataset.boardName = boardName;
-    board.setAttribute("aria-label", `Sudoku board ${boardName}`);
-
-    const caption = board.querySelector("caption");
-    if (caption !== null) {
-        caption.textContent = boardName;
-    }
-    for (const cell of board.querySelectorAll("[data-cell-index]")) {
-        cell.textContent = "";
-        delete cell.dataset.fixed;
-    }
-
-    source.parentNode.appendChild(board);
-    return board;
+    table.append(body);container.append(table);return table;
 }
-
-function validateIndex(index, upperBound, indexName) {
-    if (!Number.isInteger(index) || index < 0 || index >= upperBound) {
-        throw new RangeError(
-            `${indexName} must be an integer from 0 to ${upperBound - 1}`,
-        );
-    }
+export function getNoteLayout(size, value) {
+    const side=Math.ceil(Math.sqrt(size)),position=value-1;
+    return {side,row:Math.floor(position/side)+1,column:position%side+1};
 }
-
-function getIndexedElement(container, selector, datasetKey, index) {
-    const element = [...container.querySelectorAll(selector)].find(
-        (candidate) => Number(candidate.dataset[datasetKey]) === index,
-    );
-
-    if (element === undefined) {
-        throw new ReferenceError(`Element with ${datasetKey}=${index} not found`);
-    }
-
-    return element;
-}
-
-function swapElements(first, second) {
-    if (first === second) {
-        return;
-    }
-    if (first.parentNode !== second.parentNode) {
-        throw new ReferenceError("Elements must have the same parent");
-    }
-
-    const parent = first.parentNode;
-    const marker = document.createComment("swap");
-
-    parent.insertBefore(marker, first);
-    parent.insertBefore(first, second);
-    parent.insertBefore(second, marker);
-    marker.remove();
-}
-
-export function setCellValue(boardName, cellIndex, value) {
-    if (!config.allowedValues.includes(value)) {
-        throw new RangeError(`Board value is not allowed: ${String(value)}`);
-    }
-    validateIndex(cellIndex, BOARD_CELL_COUNT, "cellIndex");
-
-    const board = ensureBoard(boardName);
-    const cell = getIndexedElement(
-        board,
-        "[data-cell-index]",
-        "cellIndex",
-        cellIndex,
-    );
-
-    cell.textContent = String(value);
-}
-
-export function setFixedCells(boardName, fixedCells = []) {
-    const board = ensureBoard(boardName);
-    const fixedCellSet = new Set(fixedCells);
-
-    for (const cell of board.querySelectorAll("[data-cell-index]")) {
-        const cellIndex = Number(cell.dataset.cellIndex);
-        if (fixedCellSet.has(cellIndex)) {
-            cell.dataset.fixed = "true";
-        } else {
-            delete cell.dataset.fixed;
+export function renderBoard(container, board, {config,selectedCell=null,highlightValue}) {
+    const own=board.name===config.username,size=board.size??9;
+    const table=container.querySelector('table')??makeTable(container,size,own);
+    table.dataset.boardName=board.name;table.setAttribute('aria-label',`${own?'Моя доска':'Доска игрока'} ${board.name}`);
+    const fixed=new Set(board.fixedCells??[]),wrong=new Set(board.wrongCells??[]);
+    const selectedValue=highlightValue??board.values?.[selectedCell]??'';
+    for(const cell of table.querySelectorAll('[data-cell-index]')) {
+        const i=Number(cell.dataset.cellIndex),r=Math.floor(i/9),c=i%9,value=board.values?.[i]??'';
+        const selected=own&&i===selectedCell;
+        const related=own&&selectedCell!==null&&(r===Math.floor(selectedCell/9)||c===selectedCell%9||
+            (Math.floor(r/3)===Math.floor(selectedCell/27)&&Math.floor(c/3)===Math.floor((selectedCell%9)/3)));
+        cell.classList.toggle('is-fixed',fixed.has(i));cell.classList.toggle('is-selected',selected);
+        cell.classList.toggle('is-related',related);
+        cell.classList.toggle('is-matching',own&&value!==''&&value===selectedValue);
+        cell.classList.toggle('is-error',config.preferences.showErrors&&wrong.has(i));
+        cell.dataset.fixed=String(fixed.has(i));cell.dataset.value=String(value);
+        if(own){cell.tabIndex=(i===(selectedCell??0))?0:-1;cell.setAttribute('aria-pressed',String(selected));}
+        const digit=cell.querySelector('.digit');
+        renderSymbol(digit,value,config.runtime.symbolSheet);
+        const notes=cell.querySelector('.cell-notes');
+        const candidates=own&&value===''?(config.local.notes[i]??[]).filter(n=>Number.isInteger(n)&&n>=1&&n<=size):[];
+        const side=Math.ceil(Math.sqrt(size));
+        const notesSignature=`${side}:${candidates.join(',')}`;
+        if(notes.dataset.values!==notesSignature){
+            notes.replaceChildren();
+            notes.style.gridTemplateColumns=`repeat(${side},minmax(0,1fr))`;
+            notes.style.gridTemplateRows=`repeat(${side},minmax(0,1fr))`;
+            for(const note of candidates) {
+                const {row,column}=getNoteLayout(size,note);
+                const n=document.createElement('span');n.textContent=note;
+                n.style.gridArea=`${row} / ${column}`;
+                notes.append(n);
+            }
+            notes.dataset.values=notesSignature;
         }
+        const bonus=board.bonuses?.[i],definition=config.runtime.bonusCatalog?.find(b=>b.id===bonus);
+        const mark=cell.querySelector('.bonus-mark'),bonusSymbol=bonus?(definition?.symbol??'◇'):'';
+        if(mark.textContent!==bonusSymbol)mark.textContent=bonusSymbol;
+        const bonusLabel=bonus?`Бонус: ${definition?.label??bonus}`:'';
+        cell.setAttribute('aria-label',`Строка ${r+1}, столбец ${c+1}: ${value===''?'пусто':value}${candidates.length?', заметки: '+candidates.join(', '):''}${fixed.has(i)?', исходная':''}${config.preferences.showErrors&&wrong.has(i)?', ошибка':''}${bonusLabel?', '+bonusLabel:''}`);
     }
-}
-
-export function swapRows(boardName, firstRow, secondRow) {
-    validateIndex(firstRow, BOARD_SIDE, "firstRow");
-    validateIndex(secondRow, BOARD_SIDE, "secondRow");
-
-    const board = getBoard(boardName);
-    const first = getIndexedElement(
-        board,
-        "[data-row-index]",
-        "rowIndex",
-        firstRow,
-    );
-    const second = getIndexedElement(
-        board,
-        "[data-row-index]",
-        "rowIndex",
-        secondRow,
-    );
-
-    swapElements(first, second);
-}
-
-export function swapColumns(boardName, firstColumn, secondColumn) {
-    validateIndex(firstColumn, BOARD_SIDE, "firstColumn");
-    validateIndex(secondColumn, BOARD_SIDE, "secondColumn");
-
-    const board = getBoard(boardName);
-    const rows = board.querySelectorAll("[data-row-index]");
-
-    for (const row of rows) {
-        const first = getIndexedElement(
-            row,
-            "[data-column-index]",
-            "columnIndex",
-            firstColumn,
-        );
-        const second = getIndexedElement(
-            row,
-            "[data-column-index]",
-            "columnIndex",
-            secondColumn,
-        );
-
-        swapElements(first, second);
+    let completion=container.querySelector('.completion-overlay');
+    if(!completion){
+        completion=document.createElement('div');completion.className='completion-overlay';
+        completion.setAttribute('role','status');
+        const label=document.createElement('strong');label.textContent='Готово!';completion.append(label);
+        container.append(completion);
     }
+    completion.hidden=!board.completed;
+    container.classList.toggle('is-completed',Boolean(board.completed));
+    return table;
 }

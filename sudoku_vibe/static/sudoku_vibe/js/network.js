@@ -1,123 +1,106 @@
-import { ensureBoard, setCellValue, setFixedCells } from "./board.js?v=3";
-import { config } from "./config.js?v=3";
-import { addEvent } from "./event-queue.js?v=3";
-
-
-const incomingHandlers = new Map([
-    ["set_value", receiveSetValue],
-    ["bonus", receiveBonus],
-    ["board_data", receiveBoardData],
-    ["error", receiveError],
-]);
-
-function getWebsocket() {
-    const websocket = config.websocket;
-    if (websocket === null || websocket.readyState !== WebSocket.OPEN) {
-        throw new ReferenceError("WebSocket is not connected");
-    }
-
-    return websocket;
+function defaultUrl() {
+    return `${location.protocol === 'https:'?'wss:':'ws:'}//${location.host}/ws/sudoku-vibe/`;
 }
-
-function send(kind, data = {}) {
-    getWebsocket().send(JSON.stringify({ kind, data }));
-}
-
-export function requestBoardData() {
-    send("get_board_data");
-}
-
-export function sendCellValue(boardName, cellIndex, value) {
-    send("set_value", {
-        boardName,
-        cellIndex,
-        value,
-    });
-}
-
-export function sendContext() {
-    send("set_context", config.toSendableContext());
-}
-
-export function requestBoardGeneration(difficulty, size = 9) {
-    send("generate_board", { difficulty, size });
-}
-
-function receiveSetValue({ boardName, cellIndex, value }) {
-    ensureBoard(boardName);
-    setCellValue(boardName, cellIndex, value);
-}
-
-function receiveBonus({ name, args = [], delayMs = 0, cyclic = false }) {
-    addEvent(name, delayMs, cyclic, ...args);
-}
-
-function applyConfig(context) {
-    if (context.username !== undefined) {
-        config.setUsername(context.username);
-    }
-    if (context.allowedValues !== undefined) {
-        config.setAllowedValues(context.allowedValues);
-    }
-    if (context.fieldsToSend !== undefined) {
-        config.setFieldsToSend(context.fieldsToSend);
-    }
-}
-
-function applyBoard(board) {
-    if (board === undefined || board === null) {
-        return;
-    }
-
-    const boardName = board.name ?? config.username;
-    ensureBoard(boardName);
-    for (const [cellIndex, value] of Object.entries(board.values ?? {})) {
-        setCellValue(boardName, Number(cellIndex), value);
-    }
-    setFixedCells(boardName, board.fixedCells ?? []);
-}
-
-function receiveBoardData({ board, boards = [], config: receivedConfig = {} }) {
-    if (board?.name === config.username) {
-        applyConfig(receivedConfig);
-    }
-
-    for (const lobbyBoard of boards) {
-        applyBoard(lobbyBoard);
-    }
-    applyBoard(board);
-}
-
-function receiveError({ code, message }) {
-    console.error(`WebSocket error (${String(code)}): ${String(message)}`);
-}
-
-function receiveMessage(message) {
-    const envelope = JSON.parse(message.data);
-    const handler = incomingHandlers.get(envelope.kind);
-
-    if (handler === undefined) {
-        console.warn(`Unknown WebSocket message: ${String(envelope.kind)}`);
-        return;
-    }
-
-    handler(envelope.data ?? {});
-}
-
-function defaultWebsocketUrl() {
-    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    return `${protocol}//${window.location.host}/ws/sudoku-vibe/`;
-}
-
-export function connectWebsocket(url = defaultWebsocketUrl()) {
-    const websocket = new WebSocket(url);
-    config.setWebsocket(websocket);
-
-    websocket.addEventListener("message", receiveMessage);
-    websocket.addEventListener("open", () => {
-        sendContext();
-        requestBoardData();
-    });
-
-    return websocket;
+export function connectWebsocket({store,config,url=defaultUrl(),WebSocketClass=WebSocket,reconnect=true,
+    returnToJoin=()=>location.replace('/sudoku-vibe/')}) {
+    let socket, retryTimer, requestTimer, disposed=false, attempts=0, contextVersion=null;
+    // Only tracks replies to already sent moves; disconnected edits are never queued.
+    const sentEdits=[];
+    const status=(value,message='')=>{
+        config.runtime.status=value;config.runtime.message=message;
+        if(value!=='connected')config.runtime.ready=false;
+        config.emit();
+    };
+    const send=(kind,data={})=>{
+        if(!socket || socket.readyState!==1)throw new Error('Нет подключения к серверу');
+        socket.send(JSON.stringify({kind,data}));
+    };
+    const flushContext=()=>{
+        if(!config.runtime.ready || contextVersion!==null || !config.dirtyPreferences.size)return;
+        contextVersion=config.preferenceVersion;
+        send('set_context',config.toSendableContext());
+    };
+    const clearRequests=()=>{
+        clearTimeout(requestTimer);sentEdits.length=0;config.runtime.pending=false;
+    };
+    const watchRequests=()=>{
+        clearTimeout(requestTimer);
+        if(!sentEdits.length && !config.runtime.pending)return;
+        requestTimer=setTimeout(()=>{
+            clearRequests();status('offline','Ответ задерживается. Восстанавливаем состояние…');
+            socket.close();
+        },10000);
+    };
+    const connectionFailed=error=>{
+        clearRequests();status('offline',error.message);socket.close();
+    };
+    const open=()=>{
+        if(disposed)return;
+        const current=new WebSocketClass(url);socket=current;
+        status('connecting');
+        current.addEventListener('open',()=>{
+            if(disposed || current!==socket)return;
+            contextVersion=null;send('get_board_data');status('connected');
+        });
+        current.addEventListener('message',event=>{
+            if(disposed || current!==socket)return;
+            try {
+                const {kind,data={}}=JSON.parse(event.data);
+                if(kind==='board_data' || kind==='set_value') {
+                    const own=data.board?.name===config.username;
+                    const acknowledgedEdit=own && kind==='set_value'?sentEdits.shift():undefined;
+                    if(data.config?.username===config.username){clearRequests();config.runtime.ready=true;attempts=0;}
+                    else if(own && kind==='board_data')config.runtime.pending=false;
+                    store.applySnapshot(data,acknowledgedEdit);watchRequests();
+                    config.emit();flushContext();
+                } else if(kind==='participants_data') {
+                    store.applySnapshot(data);
+                } else if(kind==='context_data') {
+                    config.ackContext(data.config,contextVersion??-1);contextVersion=null;flushContext();
+                } else if(kind==='error') {
+                    if(data.code==='invalid_context') contextVersion=null;
+                    else {
+                        if(sentEdits.length)store.applySnapshot({},sentEdits.shift());
+                        else config.runtime.pending=false;
+                        watchRequests();
+                    }
+                    config.runtime.message=data.message??'Не удалось выполнить действие. Попробуйте ещё раз.';
+                    config.emit();
+                    if(data.code==='stale_generation'){config.runtime.ready=false;send('get_board_data');}
+                }
+            } catch {
+                config.runtime.message='Не удалось прочитать ответ сервера. Обновите страницу.';config.emit();
+            }
+        });
+        current.addEventListener('close',event=>{
+            if(disposed || current!==socket)return;
+            clearRequests();contextVersion=null;
+            if(event.code===4409){status('closed');returnToJoin();return;}
+            if(event.code===4401){status('closed','Войдите в комнату заново.');return;}
+            status('offline','Связь прервалась. Восстанавливаем соединение…');
+            if(reconnect)retryTimer=setTimeout(open,Math.min(15000,1000*2**attempts++));
+        });
+    };
+    const unsubscribe=config.subscribe(reason=>{if(reason==='preferences')flushContext();});
+    const api={
+        sendCellValue(boardName,generationId,cellIndex,value) {
+            if(disposed || config.runtime.status==='closed' || config.runtime.pending)return false;
+            const edit=store.editCell(cellIndex,value);
+            if(config.runtime.ready && socket?.readyState===1) {
+                try {
+                    send('set_value',{boardName,generationId,cellIndex,value});
+                    sentEdits.push(edit);watchRequests();
+                } catch(error){connectionFailed(error);}
+            }
+            return true;
+        },
+        requestBoardGeneration(difficulty,size=9) {
+            if(!config.runtime.ready || config.runtime.pending)return false;
+            config.runtime.pending=true;config.runtime.message='';config.emit();
+            try {send('generate_board',{difficulty,size});watchRequests();return true;}
+            catch(error){connectionFailed(error);return false;}
+        },
+        dispose(){disposed=true;clearTimeout(retryTimer);clearRequests();unsubscribe();socket?.close();},
+    };
+    open();return api;
 }

@@ -1,8 +1,41 @@
 import json
-from typing import Any
+from typing import Any, TypedDict
 from urllib.parse import quote, unquote
 
 from common.redis import RedisClient
+
+
+BoardValue = int | str
+
+
+class PublicBoard(TypedDict):
+    name: str
+    generationId: str | None
+    revision: int
+    size: int
+    difficulty: str | None
+    values: dict[str, BoardValue]
+    fixedCells: list[int]
+    bonuses: dict[str, str]
+    wrongCells: list[int]
+    startedAt: int | None
+    finishedAt: int | None
+    completed: bool
+    requiresGeneration: bool
+
+
+class StoredBoard(TypedDict):
+    public: PublicBoard
+    solution: dict[str, int]
+
+
+def empty_board(name: str) -> PublicBoard:
+    return {
+        "name": name, "generationId": None, "revision": 0, "size": 9,
+        "difficulty": None, "values": {}, "fixedCells": [], "bonuses": {},
+        "wrongCells": [], "startedAt": None, "finishedAt": None,
+        "completed": False, "requiresGeneration": False,
+    }
 
 
 class SudokuVibeStorage:
@@ -18,10 +51,6 @@ class SudokuVibeStorage:
     @classmethod
     def _contexts_key(cls, lobby: str) -> str:
         return f"{cls._lobby_prefix(lobby)}:contexts"
-
-    @classmethod
-    def _board_names_key(cls, lobby: str) -> str:
-        return f"{cls._lobby_prefix(lobby)}:board-names"
 
     @classmethod
     def _board_key(cls, lobby: str, board_name: str) -> str:
@@ -45,7 +74,8 @@ class SudokuVibeStorage:
         username: str,
         connection_id: str,
     ) -> bool:
-        return await self.redis.set_if_absent(
+        return await self.redis.acquire_room_presence(
+            self._lobby_prefix(lobby),
             self._presence_key(lobby, username),
             connection_id,
             self.PRESENCE_EXPIRY_SECONDS,
@@ -69,7 +99,8 @@ class SudokuVibeStorage:
         username: str,
         connection_id: str,
     ) -> bool:
-        return await self.redis.delete_if_value(
+        return await self.redis.release_room_presence(
+            self._lobby_prefix(lobby),
             self._presence_key(lobby, username),
             connection_id,
         )
@@ -87,20 +118,13 @@ class SudokuVibeStorage:
         lobby: str,
         username: str,
         context: dict[str, Any],
-        connection_id: str | None = None,
+        connection_id: str,
     ) -> bool:
         key = self._contexts_key(lobby)
-        if connection_id is not None:
-            return await self.redis.hset_if_value(
-                self._presence_key(lobby, username),
-                connection_id,
-                key,
-                username,
-                json.dumps(context),
-            )
-
-        await self.redis.hset(key, username, json.dumps(context))
-        return True
+        return await self.redis.hset_if_value(
+            self._presence_key(lobby, username), connection_id,
+            key, username, json.dumps(context),
+        )
 
     async def get_context(
         self,
@@ -118,117 +142,37 @@ class SudokuVibeStorage:
             return None
         return context
 
-    async def replace_board(
-        self,
-        lobby: str,
-        board_name: str,
-        values: dict[str, int | str],
-        fixed_cells: set[int],
-        connection_id: str | None = None,
-    ) -> bool:
-        board_key = self._board_key(lobby, board_name)
-        fixed_cells_key = self._fixed_cells_key(lobby, board_name)
-        board_names_key = self._board_names_key(lobby)
-        serialized_values = {
-            cell_index: json.dumps(value)
-            for cell_index, value in values.items()
-        }
+    async def get_board_state(self, lobby: str, name: str) -> StoredBoard | None:
+        key = self._board_key(lobby, name)
+        values, fixed, metadata, solution = await self.redis.read_hashes(
+            [key, self._fixed_cells_key(lobby, name), f"{key}:metadata", f"{key}:solution"]
+        )
+        if not values and not metadata:
+            return None
+        board = empty_board(name)
+        if metadata.get("state"):
+            board.update(json.loads(metadata["state"]))
+        else:
+            board["requiresGeneration"] = True
+        board["values"] = {index: json.loads(value) for index, value in values.items()}
+        board["fixedCells"] = sorted(int(index) for index in fixed)
+        return {"public": board, "solution": {index: int(value) for index, value in solution.items()}}
 
-        hashes = {
-            board_key: serialized_values,
-            fixed_cells_key: {
-                str(cell_index): "1" for cell_index in fixed_cells
+    async def save_board_state(
+        self, lobby: str, name: str, board: StoredBoard,
+        expected: tuple[str | None, int] | None, connection_id: str,
+    ) -> str:
+        key = self._board_key(lobby, name)
+        public = board["public"]
+        metadata = {k: v for k, v in public.items() if k not in {"values", "fixedCells"}}
+        return await self.redis.compare_and_replace_hashes(
+            self._presence_key(lobby, name), connection_id, f"{key}:metadata",
+            {"generationId": str(expected[0]), "revision": str(expected[1])} if expected else None,
+            {
+                key: {i: json.dumps(v) for i, v in public["values"].items()},
+                self._fixed_cells_key(lobby, name): {str(i): "1" for i in public["fixedCells"]},
+                f"{key}:metadata": {"state": json.dumps(metadata),
+                                    "generationId": str(public["generationId"]), "revision": str(public["revision"])},
+                f"{key}:solution": {i: str(v) for i, v in board["solution"].items()},
             },
-        }
-        set_members = {board_names_key: board_name}
-        if connection_id is not None:
-            return await self.redis.atomic_replace_hashes_if_value(
-                self._presence_key(lobby, board_name),
-                connection_id,
-                hashes,
-                set_members,
-            )
-
-        await self.redis.atomic_replace_hashes(hashes, set_members)
-        return True
-
-    async def set_cell(
-        self,
-        lobby: str,
-        board_name: str,
-        cell_index: int,
-        value: int | str,
-        connection_id: str | None = None,
-    ) -> int:
-        board_key = self._board_key(lobby, board_name)
-        return await self.redis.hset_if_mutable(
-            (
-                self._presence_key(lobby, board_name)
-                if connection_id is not None
-                else ""
-            ),
-            connection_id or "",
-            board_key,
-            str(cell_index),
-            json.dumps(value),
-            self._fixed_cells_key(lobby, board_name),
         )
-
-    async def has_board(self, lobby: str, board_name: str) -> bool:
-        return (
-            await self.redis.sismember(
-                self._board_names_key(lobby),
-                board_name,
-            )
-            and await self.redis.exists(self._board_key(lobby, board_name))
-        )
-
-    async def is_fixed_cell(
-        self,
-        lobby: str,
-        board_name: str,
-        cell_index: int,
-    ) -> bool:
-        return await self.redis.hexist(
-            self._fixed_cells_key(lobby, board_name),
-            str(cell_index),
-        )
-
-    async def get_boards(
-        self,
-        lobby: str,
-    ) -> dict[str, dict[str, int | str]]:
-        board_names = await self.redis.smembers(self._board_names_key(lobby))
-        boards: dict[str, dict[str, int | str]] = {}
-
-        for board_name in board_names:
-            stored_values = await self.redis.hgetall(
-                self._board_key(lobby, board_name),
-            )
-            boards[board_name] = {
-                cell_index: json.loads(value)
-                for cell_index, value in stored_values.items()
-            }
-
-        return boards
-
-    async def get_fixed_cells(
-        self,
-        lobby: str,
-        board_name: str,
-    ) -> set[int]:
-        return {
-            int(cell_index)
-            for cell_index in await self.redis.hkeys(
-                self._fixed_cells_key(lobby, board_name)
-            )
-        }
-
-    async def get_lobby_state(
-        self,
-        lobby: str,
-        username: str,
-    ) -> tuple[dict[str, Any] | None, dict[str, dict[str, int | str]]]:
-        context = await self.get_context(lobby, username)
-        boards = await self.get_boards(lobby)
-        return context, boards
