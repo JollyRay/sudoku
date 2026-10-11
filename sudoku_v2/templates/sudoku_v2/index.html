@@ -4,6 +4,7 @@
 <head>
     <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
     <title>SudokuV2 · Игровая комната</title>
+    <link rel="stylesheet" href="{% static 'sudoku_v2/vendor/gridstack/14.0.0/gridstack.min.css' %}">
     <link rel="stylesheet" href="{% static 'sudoku_v2/css/sudoku.css' %}?v=12">
 </head>
 <body>
@@ -12,23 +13,30 @@
         <button id="open-menu" class="icon-button" type="button" aria-label="Открыть меню" aria-controls="settings-dialog">☰</button>
         <a class="brand" href="{% url 'sudoku_v2:join' %}"><span class="brand-symbol" aria-hidden="true">▦</span> <strong>SudokuV2</strong></a>
         <div class="room-label">Комната <strong id="room-name"></strong></div>
+        <button id="reset-layout" type="button" class="layout-reset" hidden>Сбросить раскладку</button>
         <span id="connection-status" class="connection-status" role="status">Подключение…</span>
     </header>
     <main>
         <div id="game-message" class="notice" role="status" hidden></div>
         <div class="play-layout is-solo" id="play-layout">
-            <section class="own-panel" aria-labelledby="own-heading">
+            <section class="own-panel" id="own-panel" aria-labelledby="own-heading"><div class="grid-stack-item-content"><div class="panel-body">
+                <button class="panel-drag-handle" type="button" aria-label="Переместить свою доску" title="Переместить свою доску">⠿</button>
                 <div class="board-heading"><div><p class="player-name" id="own-name"></p><h1 id="own-heading">Моя доска</h1></div><div class="board-stats"><time id="own-timer" class="timer">00:00</time><span id="own-progress">0 / 81</span></div></div>
                 <div class="board-frame" id="own-board"></div>
+            </div></div></section>
+            <section class="controls-panel" id="controls-panel" aria-labelledby="controls-heading"><div class="grid-stack-item-content"><div class="panel-body">
+                <button class="panel-drag-handle" type="button" aria-label="Переместить управление" title="Переместить управление">⠿</button>
+                <h2 id="controls-heading">Управление</h2>
                 <div class="entry-panel"><div id="number-pad" class="number-pad" aria-label="Значения для заполнения"></div><button id="erase-value" type="button" class="erase-key">⌫ <span>Стереть</span></button></div>
                 <div class="mode-panel"><button id="notes-mode" type="button" class="mode-button" aria-pressed="false"><span aria-hidden="true">✎</span> Заметки</button><button id="show-errors" type="button" class="mode-button" aria-pressed="false"><span aria-hidden="true">◉</span> Видеть ошибки</button><button id="digit-first" type="button" class="mode-button" aria-pressed="false"><span aria-hidden="true">↦</span> Сначала цифра</button></div>
                 <div class="generation-panel"><div class="field"><label for="difficulty">Сложность</label><select id="difficulty"></select></div><div class="field board-size"><label for="board-size">Размер</label><select id="board-size"></select></div><button id="generate-board" type="button" class="generate-button">Новая доска <span aria-hidden="true">↻</span></button></div>
-            </section>
-            <aside class="opponent-panel" id="opponent-panel" aria-labelledby="opponent-heading" hidden>
+            </div></div></section>
+            <aside class="opponent-panel" id="opponent-panel" aria-labelledby="opponent-heading" hidden><div class="grid-stack-item-content"><div class="panel-body">
+                <button class="panel-drag-handle" type="button" aria-label="Переместить соперников" title="Переместить соперников">⠿</button>
                 <div class="board-heading"><div><p class="player-name" id="opponent-name">Игроки комнаты</p><h2 id="opponent-heading">Соперник</h2></div><div class="board-stats"><time id="opponent-timer" class="timer">00:00</time><span id="opponent-progress">0 / 81</span></div></div>
                 <div class="board-frame" id="opponent-board"></div>
                 <div id="opponent-list" class="opponent-list" role="group" aria-label="Выбрать соперника"></div>
-            </aside>
+            </div></div></aside>
         </div>
     </main>
     <footer class="app-footer"><span>SudokuV2</span><span>Игра в вашей комнате</span></footer>
@@ -50,6 +58,7 @@
     </dialog>
 </div>
 {{ bootstrap|json_script:"sudoku-bootstrap" }}
+<script src="{% static 'sudoku_v2/vendor/gridstack/14.0.0/gridstack-all.js' %}"></script>
 <script type="module" src="{% static 'sudoku_v2/js/sudoku.js' %}?v=12"></script>
 </body>
 </html>

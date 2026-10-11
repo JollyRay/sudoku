@@ -2,6 +2,7 @@ import {renderBoard} from './board.js?v=12';
 import {createInputController} from './input.js?v=12';
 import {loadSymbolSheet,renderSymbol,disposeSymbolSheet} from './symbols.js?v=12';
 import {createEffectsController,effectBadges} from './effects.js?v=12';
+import {mountLayout} from './layout.js?v=12';
 
 export function formatElapsed(board,nowMs) {
     if(board?.startedAt==null)return '00:00';
@@ -62,6 +63,7 @@ export function mountGame(root,{store,config,network}) {
     const effectNames=new Set();
     const effects=createEffectsController({now:()=>Date.now()+config.runtime.clockOffset,onChange:()=>render()});
     const participantButtons=new Map();
+    const layout=mountLayout(root);
     const updateTimers=()=>{
         const now=Date.now()+config.runtime.clockOffset;
         $('own-timer').textContent=formatElapsed(store.getBoard(config.username),now);
@@ -124,12 +126,13 @@ export function mountGame(root,{store,config,network}) {
         const message=config.runtime.message||config.runtime.imageMessage||config.local.persistenceError||(config.runtime.ready&&!store.catalog.difficulties?.length?'Пока нет доступных сложностей. Добавьте задачи на сервере.':'');
         $('game-message').textContent=message;$('game-message').hidden=!message;
         updateTimers();
+        layout.refreshParticipants(Boolean(opponent));
     }
     const unsubscribeStore=store.subscribe(render),unsubscribeConfig=config.subscribe(render);
     const disposeSettings=mountSettings(root,{config,store});
     const timer=setInterval(updateTimers,1000);bind(document,'visibilitychange',render);
     render();
-    return {dispose(){unsubscribeStore();unsubscribeConfig();input.dispose();disposeSettings();effects.dispose();clearInterval(timer);bindings.forEach(fn=>fn());}};
+    return {dispose(){unsubscribeStore();unsubscribeConfig();input.dispose();disposeSettings();effects.dispose();layout.dispose();clearInterval(timer);bindings.forEach(fn=>fn());}};
 }
 
 function mountSettings(root,{config,store}) {

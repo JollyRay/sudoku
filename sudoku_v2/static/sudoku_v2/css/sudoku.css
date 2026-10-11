@@ -219,3 +219,19 @@ h1, h2 { margin: 5px 0 0; font-size: 30px; letter-spacing: -.8px; }
 @media (max-width: 560px) {
     .number-pad[data-size='16'] { grid-template-columns: repeat(4,minmax(0,1fr)); }
 }
+/* Layout owns only panel geometry. Board cells remain in their original DOM. */
+.play-layout, .play-layout.is-solo { display: flex; flex-direction: column; gap: 24px; max-width: 550px; margin-inline: auto; }
+.panel-drag-handle { display: none; }
+.controls-panel h2 { font-size: 18px; margin: 0 0 12px; }
+.play-layout.layout-desktop { display: block; max-width: none; margin: 0 -12px; }
+.layout-desktop > .grid-stack-item > .grid-stack-item-content { padding: 16px; overflow: visible; background: #f8fbff; border: 1px solid var(--line); border-radius: 12px; }
+.layout-desktop .panel-body { padding-top: 28px; }
+.layout-desktop .panel-drag-handle { display: block; position: absolute; right: 10px; top: 6px; min-height: 28px; padding: 0 9px; font-size: 23px; cursor: grab; touch-action: none; background: transparent; border-color: transparent; }
+.layout-desktop .panel-drag-handle:active { cursor: grabbing; }
+.layout-desktop .ui-resizable-se { right: 13px; bottom: 13px; }
+.layout-reset { font-size: 12px; padding: 7px 10px; min-height: 36px; }
+.board-frame { container-type: inline-size; }
+.layout-desktop .cell { font-size: clamp(16px,5cqw,38px); }
+.layout-desktop .board-grid[data-size='16'] .cell { font-size: clamp(9px,3cqw,22px); }
+.generation-panel { flex-wrap: wrap; }
+.controls-panel .generation-panel { margin-top: 20px; padding-top: 20px; }
