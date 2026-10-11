@@ -1,19 +1,23 @@
 from typing import Any
-from .constants import DEFAULT_ALLOWED_VALUES
+from .constants import SUPPORTED_SIZES, allowed_values
 
 
-def valid_board_value(value: Any) -> bool:
-    return value == "" or (type(value) is int and 1 <= value <= 9)
+def valid_board_value(value: Any, size: int = 9) -> bool:
+    return value == "" or (type(value) is int and 1 <= value <= size)
 
 
-def normalize_context(data: dict[str, Any], username: str, catalog: dict[str, Any]) -> dict[str, Any]:
+def valid_cell_index(index: Any, size: int = 9) -> bool:
+    return type(index) is int and 0 <= index < size * size
+
+
+def normalize_context(data: dict[str, Any], username: str, catalog: dict[str, Any], *, board_size: int = 9) -> dict[str, Any]:
     if set(data) - {"username", "allowedValues", "preferences"}:
         raise ValueError("Unknown context field")
-    allowed = data.get("allowedValues", list(DEFAULT_ALLOWED_VALUES))
+    allowed = data.get("allowedValues", allowed_values(board_size))
     if isinstance(allowed, list):
         # Migrate the previous default without discarding the other preferences.
         allowed = [v for v in allowed if not (type(v) is int and v == 0)]
-    if not isinstance(allowed, list) or not all(valid_board_value(v) for v in allowed):
+    if not isinstance(allowed, list) or not all(valid_board_value(v, board_size) for v in allowed):
         raise ValueError("Invalid allowedValues")
     difficulties = [item["value"] for item in catalog["difficulties"]]
     default_difficulty = "medium" if "medium" in difficulties else next(iter(difficulties), None)
@@ -29,7 +33,7 @@ def normalize_context(data: dict[str, Any], username: str, catalog: dict[str, An
     for key in ("notesMode", "showErrors", "digitFirstMode"):
         if type(preferences[key]) is not bool:
             raise ValueError(f"Invalid {key}")
-    if type(preferences["size"]) is not int or preferences["size"] != 9:
+    if type(preferences["size"]) is not int or preferences["size"] not in SUPPORTED_SIZES:
         raise ValueError("Unsupported size")
     for key in ("twitchChannel", "selectedOpponent"):
         value = preferences[key]

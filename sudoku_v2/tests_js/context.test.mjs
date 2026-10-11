@@ -20,6 +20,26 @@ class Socket extends EventTarget {
     }
     close(){this.fire('close',{code:1006});}
 }
+
+test('context sent during generation is fenced by its original board; stale context preserves move acknowledgements',()=>{
+    const c=new SudokuConfig({username:'Иван',storage:null}),store=createGameState(c);
+    const net=connectWebsocket({store,config:c,WebSocketClass:Socket,url:'ws://test',reconnect:false});
+    const ws=Socket.instances.at(-1);ws.fire('open');
+    ws.fire('message',{kind:'board_data',data:{board:board(),config:{username:'Иван',preferences:{}}}});
+    net.requestBoardGeneration('medium',16);c.setPreference('showErrors',true);
+    assert.equal(ws.sent.at(-1).data.generationId,'A');
+    ws.fire('message',{kind:'board_data',data:{board:board({generationId:'B',revision:2}),config:{username:'Иван',preferences:{}}}});
+    net.sendCellValue('Иван','B',0,3);
+    ws.fire('message',{kind:'error',data:{code:'stale_context'}});
+    assert.equal(store.getBoard('Иван').values[0],3);
+    assert.equal(ws.sent.at(-1).kind,'get_board_data');
+    ws.fire('message',{kind:'set_value',data:{board:board({generationId:'B',revision:3,values:{0:3}})}});
+    ws.fire('message',{kind:'board_data',data:{board:board({generationId:'B',revision:3,values:{0:3}}),config:{username:'Иван',preferences:{}}}});
+    assert.equal(ws.sent.at(-1).kind,'set_context');
+    assert.equal(ws.sent.at(-1).data.generationId,'B');
+    assert.equal(ws.sent.at(-1).data.preferences.showErrors,true);
+    net.dispose();
+});
 test('context excludes local fields and preserves changes newer than an acknowledgement',()=>{
     const c=new SudokuConfig({username:'Иван',storage:null});
     c.local.notes={'0':[2]};c.local.sprite=new Blob(['private']);

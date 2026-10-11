@@ -196,7 +196,7 @@ class SudokuV2Consumer(AsyncWebsocketConsumer):  # type: ignore[misc]
                 {
                     "type": "forward_message",
                     "sender": self.channel_name,
-                    "message": message,
+                    "message": {"kind": response_kind, "data": {key: value for key, value in response_data.items() if key != 'config'}},
                 },
             )
 

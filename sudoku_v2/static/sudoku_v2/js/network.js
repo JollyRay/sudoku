@@ -18,7 +18,7 @@ export function connectWebsocket({store,config,url=defaultUrl(),WebSocketClass=W
     const flushContext=()=>{
         if(!config.runtime.ready || contextVersion!==null || !config.dirtyPreferences.size)return;
         contextVersion=config.preferenceVersion;
-        send('set_context',config.toSendableContext());
+        send('set_context',{...config.toSendableContext(),generationId:store.getBoard(config.username)?.generationId??null});
     };
     const clearRequests=()=>{
         clearTimeout(requestTimer);sentEdits.length=0;config.runtime.pending=false;
@@ -58,7 +58,9 @@ export function connectWebsocket({store,config,url=defaultUrl(),WebSocketClass=W
                 } else if(kind==='context_data') {
                     config.ackContext(data.config,contextVersion??-1);contextVersion=null;flushContext();
                 } else if(kind==='error') {
-                    if(data.code==='invalid_context') contextVersion=null;
+                    if(data.code==='stale_context') {
+                        contextVersion=null;config.runtime.ready=false;send('get_board_data');
+                    } else if(data.code==='invalid_context') contextVersion=null;
                     else {
                         if(sentEdits.length)store.applySnapshot({},sentEdits.shift());
                         else config.runtime.pending=false;

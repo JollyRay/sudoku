@@ -191,11 +191,13 @@ class RedisClient(metaclass=Singleton):
         self, condition_key: str, expected_value: str, version_key: str,
         expected_version: dict[str, str] | None,
         hashes: dict[str, dict[str, Any]],
+        *, hash_updates: dict[str, dict[str, Any]] | None = None,
+        expected_fields: dict[str, dict[str, Any]] | None = None,
     ) -> str:
         """CAS a snapshot, fenced by the owner's lease. No game rules here."""
         try:
             async with self._redis_client.pipeline(transaction=True) as pipeline:
-                await pipeline.watch(condition_key, version_key)
+                await pipeline.watch(condition_key, version_key, *(expected_fields or {}))
                 if await pipeline.get(condition_key) != expected_value:
                     return "replaced"
                 current = await pipeline.hgetall(version_key)
@@ -204,9 +206,16 @@ class RedisClient(metaclass=Singleton):
                         return "conflict"
                 elif any(current.get(key) != value for key, value in expected_version.items()):
                     return "conflict"
+                for key, fields in (expected_fields or {}).items():
+                    for field, value in fields.items():
+                        if await pipeline.hget(key, field) != value:
+                            return "conflict"
                 pipeline.multi()
                 for key, mapping in hashes.items():
                     pipeline.delete(key)
+                    if mapping:
+                        pipeline.hset(key, mapping=mapping)
+                for key, mapping in (hash_updates or {}).items():
                     if mapping:
                         pipeline.hset(key, mapping=mapping)
                 await pipeline.execute()

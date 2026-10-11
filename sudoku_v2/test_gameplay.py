@@ -103,7 +103,8 @@ class GameplayTests(SimpleTestCase):
 
     async def test_context_allowlist(self):
         storage = AsyncMock()
-        storage.save_context.return_value = True
+        storage.save_context_for_board.return_value = 'saved'
+        storage.get_board_state.return_value = None
         service = SudokuV2Service("room", "Иван", storage, "lease")
         with patch.object(service, "get_catalog", AsyncMock(return_value=CATALOG)):
             result = await service.set_context({"username": "Другой", "preferences": {"showErrors": True}})
@@ -120,6 +121,7 @@ class GameplayTests(SimpleTestCase):
         self.assertNotIn(0, normalize_context({}, "Иван", CATALOG)["allowedValues"])
         storage = AsyncMock()
         storage.get_context.return_value = {"allowedValues": [0, 1, 9]}
+        storage.get_board_state.return_value = make_stored_board()
         service = SudokuV2Service("r", "Иван", storage, "lease")
         with self.assertRaises(SudokuV2Error) as error:
             await service.set_value({"boardName": "Иван", "generationId": "A", "cellIndex": 0, "value": 0})
@@ -138,14 +140,15 @@ class GameplayTests(SimpleTestCase):
 
     async def test_generation_revision_and_private_response(self):
         storage = AsyncMock()
+        storage.get_context.return_value = None
         storage.get_board_state.return_value = make_stored_board()
         storage.save_board_state.return_value = "saved"
         service = SudokuV2Service("room", "Иван", storage, "lease")
         generated = make_stored_board()
         generated["public"]["values"]["0"] = ""
-        with patch.object(service, "get_random_board", AsyncMock(return_value=generated)):
+        with patch.object(service, "get_random_board", AsyncMock(return_value=generated)), patch.object(service, 'get_catalog', AsyncMock(return_value=CATALOG)):
             result = await service.generate_board({"difficulty": "medium", "size": 9})
-        self.assertNotIn("config", result)
+        self.assertEqual(result['config']['allowedValues'], ['', *range(1, 10)])
         self.assertNotIn("solution", str(result))
         self.assertEqual(result["board"]["revision"], 2)
         self.assertNotEqual(result["board"]["generationId"], "A")

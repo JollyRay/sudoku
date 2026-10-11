@@ -29,9 +29,9 @@ class StoredBoard(TypedDict):
     solution: dict[str, int]
 
 
-def empty_board(name: str) -> PublicBoard:
+def empty_board(name: str, size: int = 9) -> PublicBoard:
     return {
-        "name": name, "generationId": None, "revision": 0, "size": 9,
+        "name": name, "generationId": None, "revision": 0, "size": size,
         "difficulty": None, "values": {}, "fixedCells": [], "bonuses": {},
         "wrongCells": [], "startedAt": None, "finishedAt": None,
         "completed": False, "requiresGeneration": False,
@@ -142,6 +142,14 @@ class SudokuV2Storage:
             return None
         return context
 
+    async def save_context_for_board(self, lobby: str, name: str, context: dict[str, Any],
+                                     expected: tuple[str | None, int] | None, connection_id: str) -> str:
+        return await self.redis.compare_and_replace_hashes(
+            self._presence_key(lobby, name), connection_id, f"{self._board_key(lobby, name)}:metadata",
+            {"generationId": str(expected[0]), "revision": str(expected[1])} if expected else None,
+            {}, hash_updates={self._contexts_key(lobby): {name: json.dumps(context)}},
+        )
+
     async def get_board_state(self, lobby: str, name: str) -> StoredBoard | None:
         key = self._board_key(lobby, name)
         values, fixed, metadata, solution = await self.redis.read_hashes(
@@ -161,6 +169,7 @@ class SudokuV2Storage:
     async def save_board_state(
         self, lobby: str, name: str, board: StoredBoard,
         expected: tuple[str | None, int] | None, connection_id: str,
+        *, context: dict[str, Any] | None = None, expected_context: dict[str, Any] | None = None,
     ) -> str:
         key = self._board_key(lobby, name)
         public = board["public"]
@@ -175,4 +184,7 @@ class SudokuV2Storage:
                                     "generationId": str(public["generationId"]), "revision": str(public["revision"])},
                 f"{key}:solution": {i: str(v) for i, v in board["solution"].items()},
             },
+            hash_updates={self._contexts_key(lobby): {name: json.dumps(context)}} if context is not None else None,
+            expected_fields={self._contexts_key(lobby): {name: json.dumps(expected_context) if expected_context is not None else None}}
+            if context is not None else None,
         )
