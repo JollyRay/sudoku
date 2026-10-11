@@ -41,6 +41,13 @@ class TwitchRegistry:
     async def get(self, channel):
         return self.decode(await self.redis.hgetall(self.binding_key(channel)))
 
+    def status_key(self, binding):
+        return f"{self.prefix}:status:{binding['bindingId']}"
+
+    async def get_status(self, binding):
+        value=await self.redis.get(self.status_key(binding))
+        return json.loads(value) if value else None
+
     async def _prune(self, channel):
         key=self.binding_key(channel)
         for _ in range(8):

@@ -1,0 +1,19 @@
+[Unit]
+Description=SudokuV2 shared Twitch chat worker
+After=network-online.target redis.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=sudoku
+WorkingDirectory=/srv/sudoku
+EnvironmentFile=/etc/sudoku/twitch.env
+ExecStart=/srv/sudoku/.venv/bin/python manage.py run_twitch_bot --settings=sudoku_v2.worker_settings
+Restart=on-failure
+RestartSec=10
+TimeoutStopSec=15
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
