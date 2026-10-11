@@ -21,7 +21,7 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('bunker/', include('bunker.urls')),
     path('sudoku/', include('game.urls')),
-    path('sudoku-vibe/', include('sudoku_vibe.urls')),
+    path('sudoku-v2/', include('sudoku_v2.urls')),
     path('voice/', include('voice.urls')),
     path('breach-protocol/', include('breach_protocol.urls')),
 ]
