@@ -51,8 +51,15 @@
             <p id="symbol-file-name" class="settings-hint"></p>
             <p id="symbol-file-help" class="settings-hint">Вертикальная полоса картинок: 1, 2, 3… Недостающие символы будут белыми. Файл останется только в этом браузере.</p>
         </section>
-        <section class="settings-section" aria-labelledby="twitch-heading"><div class="section-title"><h3 id="twitch-heading">Twitch</h3><span class="soon-badge">Позже</span></div>
-            <label for="twitch-channel">Канал Twitch</label><div class="channel-input"><span>twitch.tv/</span><input id="twitch-channel" type="text" maxlength="100" autocomplete="off" placeholder="название_канала"></div><p class="settings-hint">Подключение появится позже.</p>
+        <section class="settings-section" aria-labelledby="twitch-heading"><h3 id="twitch-heading">Twitch</h3>
+            <label for="twitch-channel">Канал Twitch</label><div class="channel-input"><span>twitch.tv/</span><input id="twitch-channel" type="text" maxlength="25" autocomplete="off" placeholder="название_канала"></div>
+            <label for="twitch-cooldown">КД команд, секунды</label><input id="twitch-cooldown" type="number" min="0" max="86400" step="1" value="0" inputmode="numeric">
+            <p class="settings-hint">0 — без ограничения частоты. Изменения вступают в силу после нажатия кнопки.</p>
+            <div class="twitch-actions"><button id="twitch-connect" type="button" class="primary-button">Подключить</button><button id="twitch-disconnect" type="button" disabled>Отключить</button><button id="twitch-refresh" type="button">Обновить статус</button></div>
+            <p id="twitch-status" role="status">Канал не подключён</p><p id="twitch-owner" class="settings-hint"></p>
+            <p id="twitch-message" class="notice" role="status" hidden></p>
+            <div id="twitch-bindings" class="twitch-bindings" role="group" aria-label="Каналы этой комнаты"></div>
+            <p class="settings-hint">Команды: !swap, !blur, !rotate, !dance, !gray, !pulse. Например: <code>!blur * 3</code>. По умолчанию — все ваши соперники.</p>
         </section>
         <a class="room-link" href="{% url 'sudoku_v2:join' %}">Войти в другую комнату</a>
     </dialog>

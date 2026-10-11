@@ -9,6 +9,7 @@ from channels.generic.websocket import AsyncWebsocketConsumer  # type: ignore[im
 from .service import SudokuV2Error, SudokuV2Service
 from .storage import SudokuV2Storage
 from .broadcast import room_group_name, publish_bonus
+from .twitch.registry import TwitchError
 
 
 class SudokuV2Consumer(AsyncWebsocketConsumer):  # type: ignore[misc]
@@ -17,6 +18,9 @@ class SudokuV2Consumer(AsyncWebsocketConsumer):  # type: ignore[misc]
         "set_value": ("set_value", True),
         "set_context": ("context_data", False),
         "generate_board": ("board_data", True),
+        "connect_twitch": ("twitch_status", False),
+        "disconnect_twitch": ("twitch_status", False),
+        "get_twitch_status": ("twitch_status", False),
     }
 
     async def connect(self) -> None:
@@ -157,6 +161,9 @@ class SudokuV2Consumer(AsyncWebsocketConsumer):  # type: ignore[misc]
 
         kind = envelope.get("kind")
         data = envelope.get("data", {})
+        if kind in ('connect_twitch','disconnect_twitch','get_twitch_status') and not isinstance(data,dict):
+            await self.send_error('invalid_message','Неверные данные Twitch.',requestKind=kind,requestId=None)
+            return
         if not isinstance(kind, str) or not isinstance(data, dict):
             await self.send_error("invalid_message", "Неверный тип сообщения или данных.")
             return
@@ -177,19 +184,24 @@ class SudokuV2Consumer(AsyncWebsocketConsumer):  # type: ignore[misc]
 
         response_kind, broadcast = self.request_routes[kind]
         handler = getattr(self.service, kind)
+        twitch_request=response_kind=='twitch_status'
 
         try:
+            if twitch_request and (not isinstance(data.get('requestId'),str) or not 1<=len(data['requestId'])<=128):
+                raise TwitchError('invalid_request','Неверный идентификатор запроса Twitch.')
             response_data = await handler(data)
-        except SudokuV2Error as error:
+        except (SudokuV2Error,TwitchError) as error:
             if error.code == "connection_replaced":
                 await self.close(code=4409)
             else:
-                await self.send_error(error.code, error.message)
+                await self.send_error(error.code, error.message,**({'requestId':data.get('requestId'),'requestKind':kind} if twitch_request else {}))
             return
 
         bonus_event = response_data.pop('_bonus_event', None)
         message = {"kind": response_kind, "data": response_data}
         await self.send(text_data=json.dumps(message))
+        if twitch_request and kind!='get_twitch_status':
+            await self.channel_layer.group_send(self.group_name,{'type':'twitch_changed','sender':self.channel_name})
         if bonus_event:
             await publish_bonus(self.lobby, bonus_event, channel_layer=self.channel_layer)
         elif broadcast:
@@ -226,14 +238,22 @@ class SudokuV2Consumer(AsyncWebsocketConsumer):  # type: ignore[misc]
     async def forward_message(self, event: dict[str, Any]) -> None:
         if event.get("sender") == self.channel_name:
             return
+        if event['message'].get('kind')=='twitch_status':
+            await self.twitch_changed(event)
+            return
         await self.send(text_data=json.dumps(event["message"]))
 
-    async def send_error(self, code: str, message: str) -> None:
+    async def twitch_changed(self, event):
+        if event.get('sender')==self.channel_name: return
+        data=await self.service.get_twitch_status({})
+        await self.send(text_data=json.dumps({'kind':'twitch_status','data':data}))
+
+    async def send_error(self, code: str, message: str, **metadata) -> None:
         await self.send(
             text_data=json.dumps(
                 {
                     "kind": "error",
-                    "data": {"code": code, "message": message},
+                    "data": {"code": code, "message": message, **metadata},
                 }
             )
         )

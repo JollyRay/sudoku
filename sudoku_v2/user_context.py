@@ -24,12 +24,14 @@ def normalize_context(data: dict[str, Any], username: str, catalog: dict[str, An
     preferences = {
         "difficulty": default_difficulty, "size": 9, "notesMode": False, "digitFirstMode": False,
         "showErrors": False, "symbolPresetId": "plain", "selectedOpponent": None,
-        "twitchChannel": "",
+        "twitchChannel": "", "twitchCooldown": 0,
     }
     supplied = data.get("preferences", {})
     if not isinstance(supplied, dict) or set(supplied) - set(preferences):
         raise ValueError("Invalid preferences")
     preferences.update(supplied)
+    if type(preferences['twitchCooldown']) is not int or not 0<=preferences['twitchCooldown']<=86400:
+        raise ValueError('Invalid twitchCooldown')
     for key in ("notesMode", "showErrors", "digitFirstMode"):
         if type(preferences[key]) is not bool:
             raise ValueError(f"Invalid {key}")

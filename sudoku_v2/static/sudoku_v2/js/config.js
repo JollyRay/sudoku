@@ -2,7 +2,7 @@ import {LocalContext} from './local-context.js?v=12';
 
 const DEFAULT_ALLOWED_VALUES = Object.freeze(['',1,2,3,4,5,6,7,8,9]);
 const DEFAULT_PREFERENCES = Object.freeze({difficulty:'medium',size:9,notesMode:false,showErrors:false,digitFirstMode:false,
-    symbolPresetId:'plain',selectedOpponent:null,twitchChannel:''});
+    symbolPresetId:'plain',selectedOpponent:null,twitchChannel:'',twitchCooldown:0});
 
 export class SudokuConfig {
     constructor({room='',username='undefined',allowedValues=DEFAULT_ALLOWED_VALUES,storage}={}) {
@@ -14,7 +14,8 @@ export class SudokuConfig {
         this.preferenceVersion = 0;
         this.dirtyPreferences = new Map();
         this.runtime = {ready:false,status:'connecting',selectedCell:null,forcedValue:null,menuOpen:false,
-            pending:false,clockOffset:0,message:'',symbolSheet:null};
+            pending:false,clockOffset:0,message:'',symbolSheet:null,
+            twitch:{bindings:[],workerStatus:'disabled',serverNow:0}};
         this.local = new LocalContext(room,username,{storage,onChange:()=>this.emit('local')});
     }
     setAllowedValues(values) {

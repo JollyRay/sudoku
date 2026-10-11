@@ -15,6 +15,7 @@ from .storage import BoardValue, PublicBoard, StoredBoard, SudokuV2Storage, empt
 from .bonuses import BonusRequest
 from .bonus_service import BonusService
 from .user_context import normalize_context, valid_board_value, valid_cell_index
+from .twitch.registry import TwitchRegistry
 
 
 class SudokuV2Error(Exception):
@@ -35,6 +36,30 @@ class SudokuV2Service:
     @staticmethod
     def now_ms() -> int:
         return int(time() * 1000)
+
+    async def get_twitch_status(self, data):
+        registry=TwitchRegistry(self.storage)
+        epoch=await self.storage.get_room_epoch(self.lobby)
+        active=bool(await self.storage.redis.get(registry.prefix+':active-worker'))
+        bindings=[]
+        for binding in await registry.list_active():
+            if binding['lobby']!=self.lobby or binding['roomEpoch']!=epoch: continue
+            status=await registry.get_status(binding)
+            bindings.append({key:binding[key] for key in ('channel','owner','bindingId','cooldownSeconds')}
+                | {'status':status['status'] if status else ('connecting' if active else 'disabled'),
+                   'reason':status['reason'] if status else ('join' if active else 'worker_unavailable')})
+        states={binding['status'] for binding in bindings}
+        worker_status=next((state for state in ('auth_error','error','connecting','connected') if state in states),'disabled')
+        return {'requestId':data.get('requestId'),'bindings':bindings,'workerStatus':worker_status,'serverNow':self.now_ms()}
+
+    async def connect_twitch(self, data):
+        await TwitchRegistry(self.storage).register(self.lobby,self.username,self.connection_id,
+            data.get('channel'),data.get('cooldownSeconds',0))
+        return await self.get_twitch_status(data)
+
+    async def disconnect_twitch(self, data):
+        await TwitchRegistry(self.storage).disconnect(self.lobby,self.username,self.connection_id,data.get('channel'))
+        return await self.get_twitch_status(data)
 
     @staticmethod
     async def get_catalog() -> dict[str, Any]:

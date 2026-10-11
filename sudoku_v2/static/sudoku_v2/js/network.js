@@ -2,10 +2,35 @@ function defaultUrl() {
     return `${location.protocol === 'https:'?'wss:':'ws:'}//${location.host}/ws/sudoku-v2/`;
 }
 export function connectWebsocket({store,config,url=defaultUrl(),WebSocketClass=WebSocket,reconnect=true,
-    returnToJoin=()=>location.replace('/sudoku-v2/')}) {
+    returnToJoin=()=>location.replace('/sudoku-v2/'),twitchTimeoutMs=10000}) {
     let socket, retryTimer, requestTimer, disposed=false, attempts=0, contextVersion=null;
     // Only tracks replies to already sent moves; disconnected edits are never queued.
     const sentEdits=[];
+    const twitchRequests=new Map();let twitchSequence=0,lastTwitchSequence=0;
+    const twitchKinds=new Set(['connect_twitch','disconnect_twitch','get_twitch_status']);
+    const rejectTwitch=()=>{
+        for(const request of twitchRequests.values()){clearTimeout(request.timer);request.reject(new Error('Нет связи с сервером'));}
+        twitchRequests.clear();
+    };
+    const requestTwitch=(kind,data={})=>new Promise((resolve,reject)=>{
+        if(disposed || !config.runtime.ready){reject(new Error('Нет связи с сервером'));return;}
+        const sequence=++twitchSequence,requestId=`tw-${sequence}`;
+        const timer=setTimeout(()=>{twitchRequests.delete(requestId);reject(new Error('Ответ Twitch задерживается. Обновите статус.'));},twitchTimeoutMs);
+        twitchRequests.set(requestId,{resolve,reject,timer,sequence});
+        try{send(kind,{...data,requestId});}catch(error){clearTimeout(timer);twitchRequests.delete(requestId);reject(error);}
+    });
+    const receiveTwitch=(kind,data)=>{
+        const request=data.requestId?twitchRequests.get(data.requestId):null;
+        if(data.requestId && !request)return;
+        if(request){clearTimeout(request.timer);twitchRequests.delete(data.requestId);}
+        if(kind==='error'){request?.reject(new Error(data.message??'Не удалось выполнить действие Twitch.'));return;}
+        if(Array.isArray(data.bindings) && (!request || request.sequence>=lastTwitchSequence)
+            && (data.serverNow??0)>=config.runtime.twitch.serverNow){
+            if(request)lastTwitchSequence=request.sequence;
+            config.runtime.twitch=data;config.emit('twitch');
+        }
+        request?.resolve(data);
+    };
     const status=(value,message='')=>{
         config.runtime.status=value;config.runtime.message=message;
         if(value!=='connected')config.runtime.ready=false;
@@ -46,7 +71,9 @@ export function connectWebsocket({store,config,url=defaultUrl(),WebSocketClass=W
             if(disposed || current!==socket)return;
             try {
                 const {kind,data={}}=JSON.parse(event.data);
-                if(kind==='board_data' || kind==='set_value') {
+                if(kind==='twitch_status' || (kind==='error' && twitchKinds.has(data.requestKind))) {
+                    receiveTwitch(kind,data);
+                } else if(kind==='board_data' || kind==='set_value') {
                     const own=data.board?.name===config.username;
                     const acknowledgedEdit=own && kind==='set_value'?sentEdits.shift():undefined;
                     if(data.config?.username===config.username){clearRequests();config.runtime.ready=true;attempts=0;}
@@ -78,7 +105,7 @@ export function connectWebsocket({store,config,url=defaultUrl(),WebSocketClass=W
         });
         current.addEventListener('close',event=>{
             if(disposed || current!==socket)return;
-            clearRequests();contextVersion=null;
+            clearRequests();rejectTwitch();contextVersion=null;
             if(event.code===4409){status('closed');returnToJoin();return;}
             if(event.code===4401){status('closed','Войдите в комнату заново.');return;}
             status('offline','Связь прервалась. Восстанавливаем соединение…');
@@ -87,6 +114,9 @@ export function connectWebsocket({store,config,url=defaultUrl(),WebSocketClass=W
     };
     const unsubscribe=config.subscribe(reason=>{if(reason==='preferences')flushContext();});
     const api={
+        connectTwitch:(channel,cooldownSeconds=0)=>requestTwitch('connect_twitch',{channel,cooldownSeconds}),
+        disconnectTwitch:channel=>requestTwitch('disconnect_twitch',{channel}),
+        getTwitchStatus:()=>requestTwitch('get_twitch_status'),
         sendCellValue(boardName,generationId,cellIndex,value) {
             if(disposed || config.runtime.status==='closed' || config.runtime.pending)return false;
             const edit=store.editCell(cellIndex,value);
@@ -104,7 +134,7 @@ export function connectWebsocket({store,config,url=defaultUrl(),WebSocketClass=W
             try {send('generate_board',{difficulty,size});watchRequests();return true;}
             catch(error){connectionFailed(error);return false;}
         },
-        dispose(){disposed=true;clearTimeout(retryTimer);clearRequests();unsubscribe();socket?.close();},
+        dispose(){disposed=true;clearTimeout(retryTimer);clearRequests();rejectTwitch();unsubscribe();socket?.close();},
     };
     open();return api;
 }

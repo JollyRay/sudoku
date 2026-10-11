@@ -3,6 +3,7 @@ import {createInputController} from './input.js?v=12';
 import {loadSymbolSheet,renderSymbol,disposeSymbolSheet} from './symbols.js?v=12';
 import {createEffectsController,effectBadges} from './effects.js?v=12';
 import {mountLayout} from './layout.js?v=12';
+import {mountTwitchSettings} from './twitch.js?v=12';
 
 export function formatElapsed(board,nowMs) {
     if(board?.startedAt==null)return '00:00';
@@ -130,9 +131,10 @@ export function mountGame(root,{store,config,network}) {
     }
     const unsubscribeStore=store.subscribe(render),unsubscribeConfig=config.subscribe(render);
     const disposeSettings=mountSettings(root,{config,store});
+    const disposeTwitch=mountTwitchSettings(root,{config,network});
     const timer=setInterval(updateTimers,1000);bind(document,'visibilitychange',render);
     render();
-    return {dispose(){unsubscribeStore();unsubscribeConfig();input.dispose();disposeSettings();effects.dispose();layout.dispose();clearInterval(timer);bindings.forEach(fn=>fn());}};
+    return {dispose(){unsubscribeStore();unsubscribeConfig();input.dispose();disposeSettings();disposeTwitch();effects.dispose();layout.dispose();clearInterval(timer);bindings.forEach(fn=>fn());}};
 }
 
 function mountSettings(root,{config,store}) {
@@ -143,7 +145,6 @@ function mountSettings(root,{config,store}) {
     bind($('close-menu'),'click',()=>dialog.close());
     bind(dialog,'close',()=>{config.runtime.menuOpen=false;config.emit();$('open-menu').focus();});
     bind(dialog,'click',e=>{if(e.target===dialog && e.clientX>dialog.getBoundingClientRect().right)dialog.close();});
-    bind($('twitch-channel'),'input',e=>config.setPreference('twitchChannel',e.target.value));
     const preview=()=>{
         const size=store.getBoard(config.username)?.size??9;
         $('symbol-preview').dataset.size=String(size);
@@ -202,7 +203,6 @@ function mountSettings(root,{config,store}) {
         if($('symbol-preset').dataset.options!==signature){$('symbol-preset').replaceChildren(...options.map(([v,label])=>new Option(label,v)));$('symbol-preset').dataset.options=signature;}
         $('symbol-preset').value=config.local.symbolSource==='custom'&&config.local.sprite?'custom':config.preferences.symbolPresetId;
         $('symbol-file-name').textContent=config.local.sprite?.name??(config.local.sprite?'Ваше изображение сохранено в браузере':'');
-        if($('twitch-channel').value!==config.preferences.twitchChannel)$('twitch-channel').value=config.preferences.twitchChannel;
         void refreshSymbols();
     }
     const subscriptions=[config.subscribe(update),store.subscribe(update)];
