@@ -1,5 +1,4 @@
 import asyncio
-import hashlib
 import json
 import secrets
 from contextlib import suppress
@@ -9,6 +8,7 @@ from channels.generic.websocket import AsyncWebsocketConsumer  # type: ignore[im
 
 from .service import SudokuV2Error, SudokuV2Service
 from .storage import SudokuV2Storage
+from .broadcast import room_group_name, publish_bonus
 
 
 class SudokuV2Consumer(AsyncWebsocketConsumer):  # type: ignore[misc]
@@ -35,8 +35,7 @@ class SudokuV2Consumer(AsyncWebsocketConsumer):  # type: ignore[misc]
 
         self.lobby = lobby
         self.username = username
-        lobby_digest = hashlib.sha256(lobby.encode()).hexdigest()
-        self.group_name = f"sudoku_v2_{lobby_digest}"
+        self.group_name = room_group_name(lobby)
         self.connection_id = secrets.token_urlsafe(32)
         self.storage = SudokuV2Storage()
         self.presence_acquired = await self.storage.acquire_presence(
@@ -188,9 +187,12 @@ class SudokuV2Consumer(AsyncWebsocketConsumer):  # type: ignore[misc]
                 await self.send_error(error.code, error.message)
             return
 
+        bonus_event = response_data.pop('_bonus_event', None)
         message = {"kind": response_kind, "data": response_data}
         await self.send(text_data=json.dumps(message))
-        if broadcast:
+        if bonus_event:
+            await publish_bonus(self.lobby, bonus_event, channel_layer=self.channel_layer)
+        elif broadcast:
             await self.channel_layer.group_send(
                 self.group_name,
                 {

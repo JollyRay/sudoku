@@ -16,6 +16,8 @@ def make_stored_board():
         "fixedCells": list(range(2, 81)), "bonuses": {"0": "ROLL"},
         "wrongCells": [], "startedAt": 1000, "finishedAt": None,
         "completed": False, "requiresGeneration": False,
+        "rowOrder": list(range(9)), "columnOrder": list(range(9)),
+        "consumedBonusCells": [], "activeEffects": [],
     }, "solution": solution}
 
 
@@ -179,4 +181,4 @@ class CatalogTests(TransactionTestCase):
         await Difficulty.objects.acreate(name="easy", top_limit=30)
         updated = await SudokuV2Service.get_catalog()
         self.assertEqual(updated["difficulties"][0]["value"], "easy")
-        self.assertEqual(len(updated["bonuses"]), 4)
+        self.assertEqual(len(updated["bonuses"]), 6)

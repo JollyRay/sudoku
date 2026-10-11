@@ -12,6 +12,19 @@ from sudoku.settings import REDIS_HOST
 logger: logging.Logger = logging.getLogger(__name__)
 
 
+@dataclass(frozen=True)
+class CommitGuard:
+    key: str
+    kind: str
+    expected: str | dict[str, str] | None
+
+
+@dataclass(frozen=True)
+class ExpiringValue:
+    value: str
+    ttl_seconds: int
+
+
 @dataclass
 class RedisConfig:
     host: str = REDIS_HOST
@@ -112,7 +125,7 @@ class RedisClient(metaclass=Singleton):
             logger.error(f"Error renewing key '{key}': {e}")
             raise
 
-    async def acquire_room_presence(self, prefix: str, key: str, token: str, expiry: int) -> bool:
+    async def acquire_room_presence(self, prefix: str, key: str, token: str, expiry: int, epoch: str = '') -> bool:
         """Start/join a room atomically, discarding abandoned data before its first lease."""
         script = """
             if redis.call('exists', KEYS[1]) == 1 then return 0 end
@@ -120,11 +133,12 @@ class RedisClient(metaclass=Singleton):
                 for _, key in ipairs(redis.call('keys', ARGV[1] .. ':*')) do
                     redis.call('del', key)
                 end
+                if ARGV[4] ~= '' then redis.call('set', ARGV[1] .. ':epoch', ARGV[4]) end
             end
             redis.call('set', KEYS[1], ARGV[2], 'EX', ARGV[3])
             return 1
         """
-        return bool(await self._redis_client.eval(script, 1, key, prefix, token, expiry))
+        return bool(await self._redis_client.eval(script, 1, key, prefix, token, expiry, epoch))
 
     async def release_room_presence(self, prefix: str, key: str, token: str) -> bool:
         """Release only this lease; last departure removes only this room's keys."""
@@ -222,6 +236,49 @@ class RedisClient(metaclass=Singleton):
                 return "saved"
         except WatchError:
             return "conflict"
+
+    @staticmethod
+    async def _guards_match(reader, guards: list[CommitGuard]) -> bool:
+        for guard in guards:
+            if guard.expected is None:
+                if await reader.exists(guard.key):
+                    return False
+            elif guard.kind == 'string':
+                if await reader.get(guard.key) != guard.expected:
+                    return False
+            elif guard.kind == 'hash':
+                fields = await reader.hgetall(guard.key)
+                if any(fields.get(key) != value for key, value in guard.expected.items()):
+                    return False
+            else:
+                raise ValueError('Unknown guard kind')
+        return True
+
+    async def guards_match(self, guards: list[CommitGuard]) -> bool:
+        return await self._guards_match(self._redis_client, guards)
+
+    async def compare_and_write_batch(self, guards: list[CommitGuard],
+                                      hashes: dict[str, dict], strings: dict[str, ExpiringValue]) -> str:
+        """Commit all guarded snapshots and expiring markers together, or none."""
+        if any(type(value.ttl_seconds) is not int or value.ttl_seconds <= 0 for value in strings.values()):
+            raise ValueError('A positive integer TTL is required')
+        try:
+            async with self._redis_client.pipeline(transaction=True) as pipeline:
+                if guards:
+                    await pipeline.watch(*(guard.key for guard in guards))
+                if not await self._guards_match(pipeline, guards):
+                    return 'conflict'
+                pipeline.multi()
+                for key, mapping in hashes.items():
+                    pipeline.delete(key)
+                    if mapping:
+                        pipeline.hset(key, mapping=mapping)
+                for key, value in strings.items():
+                    pipeline.set(key, value.value, ex=value.ttl_seconds)
+                await pipeline.execute()
+                return 'saved'
+        except WatchError:
+            return 'conflict'
 
     async def incr(self: "RedisClient", key: str) -> int:
         try:

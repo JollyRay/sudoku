@@ -12,6 +12,8 @@ from .constants import (
     SUPPORTED_SIZES, SYMBOL_PRESET_DEFINITIONS,
 )
 from .storage import BoardValue, PublicBoard, StoredBoard, SudokuV2Storage, empty_board
+from .bonuses import BonusRequest
+from .bonus_service import BonusService
 from .user_context import normalize_context, valid_board_value, valid_cell_index
 
 
@@ -96,6 +98,7 @@ class SudokuV2Service:
         if data.get("boardName") != self.username:
             raise SudokuV2Error("board_access_denied", "Нельзя изменять чужую доску.")
         index, value = data.get("cellIndex"), data.get("value")
+        bonus_service, event_id = BonusService(self.storage), uuid4().hex
         for _ in range(8):
             board = await self.storage.get_board_state(self.lobby, self.username)
             if board is None or board["public"]["requiresGeneration"]:
@@ -105,16 +108,36 @@ class SudokuV2Service:
                 raise SudokuV2Error("invalid_value", "Недопустимая клетка или значение.")
             if data.get("generationId") != board["public"]["generationId"]:
                 raise SudokuV2Error("stale_generation", "Доска уже обновилась. Выберите клетку ещё раз.")
-            updated = self.apply_value(board, cast(int, index), cast(BoardValue, value), self.now_ms())
-            result = await self.storage.save_board_state(
-                self.lobby, self.username, updated,
-                (board["public"]["generationId"], board["public"]["revision"]), self.connection_id,
-            )
+            now = self.now_ms()
+            updated = self.apply_value(board, cast(int, index), cast(BoardValue, value), now)
+            public, event = board['public'], None
+            kind = public['bonuses'].get(str(index))
+            if kind and value == board['solution'].get(str(index)) and index not in public['consumedBonusCells']:
+                updated['public']['consumedBonusCells'] = sorted([*public['consumedBonusCells'], index])
+                targets, expected = await bonus_service.collect_targets(self.lobby, self.username, ['*'])
+                if targets:
+                    targets, event = bonus_service.prepare(targets, BonusRequest(kind, ['*'], {}),
+                        event_id, now, {'type': 'cell', 'name': self.username})
+                    # The consumed marker on the source is part of the same public delta.
+                    event['targets'].append(updated['public'])
+                targets[self.username] = updated
+                expected[self.username] = (public['generationId'], public['revision'], self.connection_id)
+                result = await self.storage.commit_boards(self.lobby, targets, expected)
+                if result != 'saved' and await self.storage.get_presence_token(self.lobby, self.username) != self.connection_id:
+                    result = 'replaced'
+            else:
+                result = await self.storage.save_board_state(
+                    self.lobby, self.username, updated,
+                    (public['generationId'], public['revision']), self.connection_id,
+                )
             if result == "replaced":
                 raise SudokuV2Error("connection_replaced")
             if result == "saved":
-                return {"boardName": self.username, "cellIndex": index, "value": value,
-                        "board": updated["public"], "serverNow": self.now_ms()}
+                response = {"boardName": self.username, "cellIndex": index, "value": value,
+                            "board": updated["public"], "serverNow": self.now_ms()}
+                if event:
+                    response['_bonus_event'] = event
+                return response
         raise SudokuV2Error("board_busy", "Доска обновляется. Попробуйте ещё раз.")
 
     @staticmethod

@@ -1,10 +1,12 @@
 import json
 from functools import lru_cache
+from time import time
+from uuid import uuid4
 from typing import Any, TypedDict
 from urllib.parse import quote, unquote, urlparse
 
 from django.conf import settings
-from common.redis import RedisClient, RedisConfig
+from common.redis import RedisClient, RedisConfig, CommitGuard, ExpiringValue
 
 
 @lru_cache(maxsize=1)
@@ -35,6 +37,10 @@ class PublicBoard(TypedDict):
     finishedAt: int | None
     completed: bool
     requiresGeneration: bool
+    rowOrder: list[int]
+    columnOrder: list[int]
+    consumedBonusCells: list[int]
+    activeEffects: list[dict[str, Any]]
 
 
 class StoredBoard(TypedDict):
@@ -48,6 +54,8 @@ def empty_board(name: str, size: int = 9) -> PublicBoard:
         "difficulty": None, "values": {}, "fixedCells": [], "bonuses": {},
         "wrongCells": [], "startedAt": None, "finishedAt": None,
         "completed": False, "requiresGeneration": False,
+        "rowOrder": list(range(size)), "columnOrder": list(range(size)),
+        "consumedBonusCells": [], "activeEffects": [],
     }
 
 
@@ -93,7 +101,14 @@ class SudokuV2Storage:
             self._presence_key(lobby, username),
             connection_id,
             self.PRESENCE_EXPIRY_SECONDS,
+            uuid4().hex,
         )
+
+    async def get_room_epoch(self, lobby: str) -> str | None:
+        return await self.redis.get(f'{self._lobby_prefix(lobby)}:epoch')
+
+    async def get_presence_token(self, lobby: str, name: str) -> str | None:
+        return await self.redis.get(self._presence_key(lobby, name))
 
     async def renew_presence(
         self,
@@ -173,12 +188,38 @@ class SudokuV2Storage:
             return None
         board = empty_board(name)
         if metadata.get("state"):
-            board.update(json.loads(metadata["state"]))
+            state = json.loads(metadata['state'])
+            board = {**empty_board(name, state.get('size', 9)), **state}
         else:
             board["requiresGeneration"] = True
         board["values"] = {index: json.loads(value) for index, value in values.items()}
         board["fixedCells"] = sorted(int(index) for index in fixed)
+        board['activeEffects'] = [effect for effect in board['activeEffects'] if effect['expiresAt'] > int(time()*1000)]
         return {"public": board, "solution": {index: int(value) for index, value in solution.items()}}
+
+    def _state_hashes(self, lobby: str, name: str, board: StoredBoard) -> dict[str, dict]:
+        key, public = self._board_key(lobby, name), board['public']
+        metadata = {k: v for k, v in public.items() if k not in {'values', 'fixedCells'}}
+        return {
+            key: {i: json.dumps(v) for i, v in public['values'].items()},
+            self._fixed_cells_key(lobby, name): {str(i): '1' for i in public['fixedCells']},
+            f'{key}:metadata': {'state': json.dumps(metadata), 'generationId': str(public['generationId']), 'revision': str(public['revision'])},
+            f'{key}:solution': {i: str(v) for i, v in board['solution'].items()},
+        }
+
+    async def commit_boards(self, lobby: str, boards: dict[str, StoredBoard],
+                            expected: dict[str, tuple[str, int, str]], *,
+                            guards=(), strings: dict[str, ExpiringValue] | None = None) -> str:
+        checks, hashes = list(guards), {}
+        for name, board in boards.items():
+            generation, revision, lease = expected[name]
+            checks.extend([
+                CommitGuard(self._presence_key(lobby, name), 'string', lease),
+                CommitGuard(f'{self._board_key(lobby, name)}:metadata', 'hash',
+                            {'generationId': str(generation), 'revision': str(revision)}),
+            ])
+            hashes.update(self._state_hashes(lobby, name, board))
+        return await self.redis.compare_and_write_batch(checks, hashes, strings or {})
 
     async def save_board_state(
         self, lobby: str, name: str, board: StoredBoard,
@@ -186,18 +227,10 @@ class SudokuV2Storage:
         *, context: dict[str, Any] | None = None, expected_context: dict[str, Any] | None = None,
     ) -> str:
         key = self._board_key(lobby, name)
-        public = board["public"]
-        metadata = {k: v for k, v in public.items() if k not in {"values", "fixedCells"}}
         return await self.redis.compare_and_replace_hashes(
             self._presence_key(lobby, name), connection_id, f"{key}:metadata",
             {"generationId": str(expected[0]), "revision": str(expected[1])} if expected else None,
-            {
-                key: {i: json.dumps(v) for i, v in public["values"].items()},
-                self._fixed_cells_key(lobby, name): {str(i): "1" for i in public["fixedCells"]},
-                f"{key}:metadata": {"state": json.dumps(metadata),
-                                    "generationId": str(public["generationId"]), "revision": str(public["revision"])},
-                f"{key}:solution": {i: str(v) for i, v in board["solution"].items()},
-            },
+            self._state_hashes(lobby, name, board),
             hash_updates={self._contexts_key(lobby): {name: json.dumps(context)}} if context is not None else None,
             expected_fields={self._contexts_key(lobby): {name: json.dumps(expected_context) if expected_context is not None else None}}
             if context is not None else None,
