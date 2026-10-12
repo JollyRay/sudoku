@@ -250,6 +250,6 @@ h1, h2 { margin: 5px 0 0; font-size: 30px; letter-spacing: -.8px; }
 .twitch-actions button { flex: 1 1 auto; }
 .twitch-bindings { display: grid; gap: 8px; }
 .twitch-bindings button { text-align: left; overflow-wrap: anywhere; }
-#twitch-status, #twitch-owner { overflow-wrap: anywhere; }
+#twitch-status { overflow-wrap: anywhere; }
 #twitch-cooldown { width: 100%; min-height: 44px; border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; background: #fff; }
 .channel-input { margin-bottom: 12px; }

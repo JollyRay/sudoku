@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {SudokuConfig} from '../../../sudoku_v2/static/sudoku_v2/js/config.js?v=12';
 import {createGameState} from '../../../sudoku_v2/static/sudoku_v2/js/state.js?v=12';
 import {connectWebsocket} from '../../../sudoku_v2/static/sudoku_v2/js/network.js?v=12';
-import {mountTwitchSettings} from '../../../sudoku_v2/static/sudoku_v2/js/twitch.js?v=12';
+import {mountTwitchSettings} from '../../../sudoku_v2/static/sudoku_v2/js/twitch.js?v=15';
 
 class Socket extends EventTarget {
     static instances=[]; readyState=0; sent=[];
@@ -62,7 +62,7 @@ test('Twitch timeout and offline reject separately from game requests',async t=>
 });
 
 test('successful automatic poll clears refresh error but preserves a rejected user action',async t=>{
-    const ids=['channel','cooldown','connect','disconnect','refresh','bindings','status','owner','message'];
+    const ids=['channel','cooldown','connect','disconnect','refresh','bindings','status','message'];
     const elements=Object.fromEntries(ids.map(id=>{
         const el=new EventTarget();Object.assign(el,{value:'',textContent:'',dataset:{},replaceChildren(){}});
         Object.defineProperty(el,'valueAsNumber',{get:()=>Number(el.value)});return [`twitch-${id}`,el];

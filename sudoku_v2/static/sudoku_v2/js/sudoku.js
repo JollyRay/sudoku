@@ -1,7 +1,7 @@
 import {SudokuConfig} from './config.js?v=12';
 import {createGameState} from './state.js?v=12';
 import {connectWebsocket} from './network.js?v=12';
-import {mountGame} from './ui.js?v=13';
+import {mountGame} from './ui.js?v=15';
 
 const bootstrap=JSON.parse(document.getElementById('sudoku-bootstrap').textContent);
 const config=new SudokuConfig(bootstrap);

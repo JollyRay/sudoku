@@ -113,22 +113,23 @@ export function mountTwitchSettings(root, { network, config }) {
         if (!ready) {
             status.textContent = 'Нет связи с игровым сервером';
         } else if (binding) {
-            status.textContent = `${STATUS[binding.status] ?? binding.status} · ${binding.channel} · КД ${binding.cooldownSeconds} с`;
+            status.textContent = STATUS[binding.status] ?? binding.status;
         } else {
             status.textContent = 'Канал не подключён';
         }
-        $('twitch-owner').textContent = binding ? `Подключил: ${binding.owner}${foreign ? ' · Управление доступно владельцу' : ''}` : '';
         const hint = message || refreshError || (binding ? REASON[binding.reason] : '');
         $('twitch-message').textContent = hint ?? '';
         $('twitch-message').hidden = !hint;
         const next = JSON.stringify(config.runtime.twitch.bindings);
+        const channels = $('twitch-bindings');
+        channels.hidden = config.runtime.twitch.bindings.length < 2;
         if (next !== signature) {
             signature = next;
-            $('twitch-bindings').replaceChildren(...config.runtime.twitch.bindings.map((b) => {
+            channels.replaceChildren(...config.runtime.twitch.bindings.map((b) => {
                 const button = document.createElement('button');
                 button.type = 'button';
                 button.dataset.twitchChannel = b.channel;
-                button.textContent = `${b.channel} · ${b.owner} · ${STATUS[b.status] ?? b.status} · ${b.cooldownSeconds} с`;
+                button.textContent = b.channel;
                 return button;
             }));
         }
