@@ -29,10 +29,10 @@ Files: `sudoku_v2/service.py`, `tests/sudoku_v2/test_gameplay.py`.
 Общий async `_restore_context(context, size, *, catalog=None, reset_values=False)`:
 allowlist старых данных, прежний fallback и прежние моменты чтения каталога.
 Удалить неиспользуемый `SudokuV2Service.valid_cell_index`, сохранив функцию validator.
-- [ ] Зафиксировать проверки старого context: приватные поля, invalid preferences,
+- [x] Зафиксировать проверки старого context: приватные поля, invalid preferences,
   сохранение allowedValues при чтении и сброс при генерации9/16.
-- [ ] Извлечь helper и удалить обёртку, не трогая CAS и ошибки set_context.
-- [ ] Python suite, check; независимая Astra/find-bugs; исправления; отдельный commit.
+- [x] Извлечь helper и удалить обёртку, не трогая CAS и ошибки set_context.
+- [x] Python suite, check; независимая Astra/find-bugs; исправления; отдельный commit.
 
 ### 2. Общие тестовые данные и окружение
 
@@ -40,16 +40,16 @@ Files: `tests/sudoku_v2/support.py`, существующие Python-тесты 
 Fixtures `CATALOG`, `make_stored_board`, `sized_board`; mixins для Redis/бонусов/
 Twitch setup; FakeWriter/eventually. Support не наследует TestCase и не содержит
 test-методов. Тесты больше не импортируют другие test-модули.
-- [ ] Зафиксировать test IDs и тела test-методов до изменений.
-- [ ] Перенести helpers/setup с сохранением порядка setup/cleanup и значений.
-- [ ] Сверить discovery, выполнить весь Python suite; Astra/find-bugs; commit.
+- [x] Зафиксировать test IDs и тела test-методов до изменений.
+- [x] Перенести helpers/setup с сохранением порядка setup/cleanup и значений.
+- [x] Сверить discovery, выполнить весь Python suite; Astra/find-bugs; commit.
 
 ### 3. Читаемость Python Twitch
 
 Files: `sudoku_v2/twitch/{commands,registry,service,irc,worker,types}.py`.
-- [ ] Развернуть однострочные compound statements, semicolon statements и
+- [x] Развернуть однострочные compound statements, semicolon statements и
   вложенные тернарные ветви; сохранить порядок await и прежние исключения.
-- [ ] Проверить AST для чистых преобразований; Python suite/check;
+- [x] Проверить AST для чистых преобразований; Python suite/check;
   независимая Astra/find-bugs; исправления; commit.
 
 ### 4. Обработчики DOM и читаемость клиента
@@ -58,10 +58,10 @@ Files: `sudoku_v2/static/sudoku_v2/js/{events,ui,twitch,state,network,effects,la
 board,input,geometry,config,local-context}.js`, связанные JS-тесты.
 `createEventBindings()` возвращает `{bind(target,event,handler),dispose()}`;
 три UI-монтажа используют один helper, каждый со своим набором подписок.
-- [ ] Проверить независимость групп обработчиков и снятие обработчиков.
-- [ ] Убрать три копии bind/cleanup, развернуть сложные ветвления и цепочки действий;
+- [x] Проверить независимость групп обработчиков и снятие обработчиков.
+- [x] Убрать три копии bind/cleanup, развернуть сложные ветвления и цепочки действий;
   простые getters не дробить, новые абстрактные контроллеры не вводить.
-- [ ] Node suite, Python suite/check; AST сравнение форматирования и браузерный
+- [x] Node suite, Python suite/check; AST сравнение форматирования и браузерный
   smoke при изменении DOM lifecycle; свежая Astra/find-bugs; исправления; commit.
-- [ ] Кратко обновить обзор: что применено, что осталось условной рекомендацией,
+- [x] Кратко обновить обзор: что применено, что осталось условной рекомендацией,
   фактически выполненные проверки. Итоговый review охватывает все четыре этапа.

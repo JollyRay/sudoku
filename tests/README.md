@@ -3,6 +3,9 @@
 Тесты отделены от кода приложения. Перенос 12 октября 2026 не меняет проверяемое
 поведение: 12 Python-модулей, 9 JavaScript-модулей, 108 Python- и 53 JS-проверки.
 
+После упрощения: 109 Python- и 55 JS-проверок. Общие fixtures и настройка
+Redis/Twitch находятся в `sudoku_v2/support.py`; этот модуль не содержит тестов.
+
 ```text
 tests/
   settings.py         Изолированные Django settings: SQLite in-memory, безопасные AppConfig

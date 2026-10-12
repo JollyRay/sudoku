@@ -12,16 +12,15 @@ export function createGameState(config) {
         if (!board || typeof board.name !== 'string') return false;
         const previous = boards.get(board.name);
         if (previous && board.revision < previous.revision) return false;
-        if (board.name === config.username &&
-            (previous?.generationId !== board.generationId || board.completed)) localEdits.clear();
+        if (board.name === config.username && (previous?.generationId !== board.generationId || board.completed)) localEdits.clear();
         boards.set(board.name, structuredClone(board));
         return true;
     }
     function publish() {
         const own = store.getBoard(config.username);
         if (own) {
-            config.local.loadNotes(own.generationId,own.size??9);
-            if(config.runtime.selectedCell>=(own.size??9)**2)config.runtime.selectedCell=null;
+            config.local.loadNotes(own.generationId, own.size ?? 9);
+            if (config.runtime.selectedCell >= (own.size ?? 9) ** 2) config.runtime.selectedCell = null;
             let changed = false;
             for (const index of Object.keys(config.local.notes)) {
                 if ((own.values?.[index] ?? '') !== '' || own.fixedCells?.includes(Number(index))) {
@@ -34,22 +33,25 @@ export function createGameState(config) {
         for (const listener of listeners) listener();
     }
     const store = {
-        catalog: {difficulties:[],sizes:[],bonuses:[],symbolPresets:[]},
+        catalog: { difficulties: [], sizes: [], bonuses: [], symbolPresets: [] },
         getBoard(name) {
             const board = boards.get(name);
             if (!board || name !== config.username || !localEdits.size) return board;
-            const values = {...board.values};
+            const values = { ...board.values };
             for (const [index, edit] of localEdits) values[index] = edit.value;
-            return {...board, values, wrongCells: (board.wrongCells ?? []).filter(i => !localEdits.has(i))};
+            return { ...board, values, wrongCells: (board.wrongCells ?? []).filter((i) => !localEdits.has(i)) };
         },
-        getBoards: () => [...boards.keys()].map(name => store.getBoard(name)),
+        getBoards: () => [...boards.keys()].map((name) => store.getBoard(name)),
         editCell(cellIndex, value) {
-            const edit = {cellIndex, value};
+            const edit = { cellIndex, value };
             localEdits.set(cellIndex, edit);
             publish();
             return edit;
         },
-        subscribe(listener) { listeners.add(listener); return () => listeners.delete(listener); },
+        subscribe(listener) {
+            listeners.add(listener);
+            return () => listeners.delete(listener);
+        },
         applyBoard(board) {
             if (!updateBoard(board)) return false;
             publish();
@@ -57,7 +59,7 @@ export function createGameState(config) {
         },
         applyBonusEvent(data) {
             syncClock(data.serverNow);
-            for(const board of data.targets??[])if(!activeNames||activeNames.has(board.name))updateBoard(board);
+            for (const board of data.targets ?? []) if (!activeNames || activeNames.has(board.name)) updateBoard(board);
             publish();
         },
         applySnapshot(data, acknowledgedEdit) {
@@ -68,7 +70,7 @@ export function createGameState(config) {
             syncClock(data.serverNow);
             if (Array.isArray(data.boards)) {
                 if (data.config?.username === config.username) boards.clear();
-                activeNames = new Set(data.boards.map(board=>board.name));
+                activeNames = new Set(data.boards.map((board) => board.name));
                 for (const name of boards.keys()) if (!activeNames.has(name)) boards.delete(name);
                 for (const board of data.boards) updateBoard(board);
             }
@@ -76,7 +78,7 @@ export function createGameState(config) {
             // Subscribers always see the full participant list, never a partial snapshot.
             if (data.config?.username === config.username) config.applyServerContext(data.config);
             publish();
-        },
+        }
     };
     return store;
 }
