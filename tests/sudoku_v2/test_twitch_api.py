@@ -4,16 +4,12 @@ from unittest.mock import patch
 from channels.testing import WebsocketCommunicator
 
 from sudoku_v2.consumers import SudokuV2Consumer
-from . import test_twitch_registry
 from sudoku_v2.user_context import normalize_context
-from .test_gameplay import CATALOG
+from .support import CATALOG, TwitchFixture
 
 
 @skipUnless(os.environ.get('SUDOKU_V2_TEST_REDIS_URL'),'Set an isolated test Redis URL')
-class TwitchAPITests(IsolatedAsyncioTestCase):
-    add_board=test_twitch_registry.TwitchRegistryTests.add_board
-    asyncSetUp=test_twitch_registry.TwitchRegistryTests.asyncSetUp
-    asyncTearDown=test_twitch_registry.TwitchRegistryTests.asyncTearDown
+class TwitchAPITests(TwitchFixture, IsolatedAsyncioTestCase):
 
     async def connect_player(self, name):
         token=await self.storage.get_presence_token(self.lobby,name)

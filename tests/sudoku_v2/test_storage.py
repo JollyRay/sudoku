@@ -2,36 +2,16 @@ import asyncio
 import os
 from copy import deepcopy
 from unittest import IsolatedAsyncioTestCase, skipUnless
-from uuid import uuid4
 from unittest.mock import AsyncMock, patch
 
-from redis.asyncio import Redis
 from channels.testing import WebsocketCommunicator
 from django.test import override_settings
-from common.redis import RedisClient
-from sudoku_v2.storage import SudokuV2Storage
-from .test_gameplay import make_stored_board
-from .test_gameplay import CATALOG
+from .support import CATALOG, RedisFixture, make_stored_board
 from sudoku_v2.consumers import SudokuV2Consumer
 
 
 @skipUnless(os.environ.get("SUDOKU_V2_TEST_REDIS_URL"), "Set an isolated test Redis URL")
-class StorageIntegrationTests(IsolatedAsyncioTestCase):
-    async def asyncSetUp(self):
-        self.raw = Redis.from_url(os.environ["SUDOKU_V2_TEST_REDIS_URL"], decode_responses=True)
-        client = object.__new__(RedisClient)
-        client._redis_client = self.raw
-        self.storage = SudokuV2Storage(client)
-        self.lobby = "test-ui-" + uuid4().hex
-        self.name = "Иван"
-        await self.storage.acquire_presence(self.lobby, self.name, "lease")
-
-    async def asyncTearDown(self):
-        keys = [key async for key in self.raw.scan_iter(self.storage._lobby_prefix(self.lobby) + ":*")]
-        if keys:
-            await self.raw.delete(*keys)
-        await self.raw.aclose()
-
+class StorageIntegrationTests(RedisFixture, IsolatedAsyncioTestCase):
     async def test_snapshot_conflicts_and_lease(self):
         board = make_stored_board()
         self.assertEqual(await self.storage.save_board_state(self.lobby, self.name, board, None, "lease"), "saved")

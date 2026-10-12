@@ -1,35 +1,14 @@
-from copy import deepcopy
 from unittest.mock import AsyncMock, patch
 
 from django.test import SimpleTestCase, TransactionTestCase
 
 from game.models import Difficulty, SudokuBoard, SudokuCell
 from sudoku_v2.service import SudokuV2Service, SudokuV2Error
-
-
-def make_stored_board():
-    solution = {str(r * 9 + c): (r * 3 + r // 3 + c) % 9 + 1
-                for r in range(9) for c in range(9)}
-    return {"public": {
-        "name": "Иван", "generationId": "A", "revision": 1, "size": 9,
-        "difficulty": "medium", "values": dict(solution),
-        "fixedCells": list(range(2, 81)), "bonuses": {"0": "ROLL"},
-        "wrongCells": [], "startedAt": 1000, "finishedAt": None,
-        "completed": False, "requiresGeneration": False,
-        "rowOrder": list(range(9)), "columnOrder": list(range(9)),
-        "consumedBonusCells": [], "activeEffects": [],
-    }, "solution": solution}
-
-
-CATALOG = {"difficulties": [{"value": "medium", "label": "Средняя"}],
-           "sizes": [9], "bonuses": [],
-           "symbolPresets": [{"id": "plain", "label": "Цифры", "imageUrl": None}]}
+from .support import CATALOG, make_stored_board, sized_board
 
 
 class GameplayTests(SimpleTestCase):
     async def test_saved_context_restore_preserves_read_subset_and_resets_on_generation(self):
-        from .test_sizes import sized_board
-
         for size in (9, 16):
             for invalid_preferences in (False, True):
                 with self.subTest(size=size, invalid_preferences=invalid_preferences):

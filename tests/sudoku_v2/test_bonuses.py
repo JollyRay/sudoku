@@ -14,8 +14,7 @@ from sudoku_v2.bonuses import BonusRequest, apply_bonus, normalize_bonus_params
 from sudoku_v2.bonus_service import BonusService
 from sudoku_v2.broadcast import publish_bonus
 from sudoku_v2.service import SudokuV2Service, SudokuV2Error
-from .test_sizes import sized_board
-from . import test_storage
+from .support import BonusFixture, sized_board
 
 
 class BonusTests(SimpleTestCase):
@@ -44,19 +43,7 @@ class BonusTests(SimpleTestCase):
 
 
 @skipUnless(os.environ.get('SUDOKU_V2_TEST_REDIS_URL'), 'Set an isolated test Redis URL')
-class BonusStorageTests(IsolatedAsyncioTestCase):
-    asyncSetUp = test_storage.StorageIntegrationTests.asyncSetUp
-    asyncTearDown = test_storage.StorageIntegrationTests.asyncTearDown
-
-    async def add_board(self, name, size=9, completed=False):
-        lease = 'lease' if name == self.name else name+'-lease'
-        if name != self.name:
-            await self.storage.acquire_presence(self.lobby, name, lease)
-        board = sized_board(size, name)
-        board['public'].update(values={}, fixedCells=[], completed=completed, bonuses={'0': 'SHADOW_BOX'})
-        await self.storage.save_board_state(self.lobby, name, board, None, lease)
-        return board
-
+class BonusStorageTests(BonusFixture, IsolatedAsyncioTestCase):
     async def move(self, value):
         return await SudokuV2Service(self.lobby, self.name, self.storage, 'lease').set_value({
             'boardName': self.name, 'generationId': 'A', 'cellIndex': 0, 'value': value,

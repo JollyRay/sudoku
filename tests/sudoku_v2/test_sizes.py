@@ -1,28 +1,16 @@
 import os
-from random import Random
 from unittest import IsolatedAsyncioTestCase, skipUnless
 from unittest.mock import AsyncMock, patch
 
 from channels.testing import WebsocketCommunicator
 from django.test import SimpleTestCase, TransactionTestCase, override_settings
 
-from game.generator import generate_solution
 from game.models import Difficulty, SudokuBoard, SudokuCell
 from sudoku_v2.constants import allowed_values
 from sudoku_v2.user_context import normalize_context, valid_board_value, valid_cell_index
 from sudoku_v2.service import SudokuV2Service, SudokuV2Error
-from sudoku_v2.storage import empty_board
-from . import test_storage
-from .test_gameplay import CATALOG
+from .support import CATALOG, RedisFixture, sized_board
 from sudoku_v2.consumers import SudokuV2Consumer
-
-
-def sized_board(size, name='Иван'):
-    solution = {str(r*size+c): v for r, row in enumerate(generate_solution(size, Random(42))) for c, v in enumerate(row)}
-    public = empty_board(name, size)
-    public.update(generationId='A', revision=1, values={**solution, '0': '', '1': ''},
-                  fixedCells=list(range(2, size*size)), startedAt=1000)
-    return {'public': public, 'solution': solution}
 
 
 class SizeTests(SimpleTestCase):
@@ -74,9 +62,7 @@ class DatabaseSizeTests(TransactionTestCase):
 
 
 @skipUnless(os.environ.get('SUDOKU_V2_TEST_REDIS_URL'), 'Set an isolated test Redis URL')
-class SizeStorageTests(IsolatedAsyncioTestCase):
-    asyncSetUp = test_storage.StorageIntegrationTests.asyncSetUp
-    asyncTearDown = test_storage.StorageIntegrationTests.asyncTearDown
+class SizeStorageTests(RedisFixture, IsolatedAsyncioTestCase):
 
     async def test_16_moves_validate_active_size_and_subset(self):
         board = sized_board(16)

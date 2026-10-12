@@ -6,21 +6,19 @@ from unittest import IsolatedAsyncioTestCase, skipUnless
 from unittest.mock import AsyncMock, patch
 
 from channels.testing import WebsocketCommunicator
-from . import test_twitch_registry, test_twitch_worker
 from sudoku_v2.broadcast import publish_bonus
 from sudoku_v2.consumers import SudokuV2Consumer
 from sudoku_v2.service import SudokuV2Service
-from .test_gameplay import CATALOG
+from .support import CATALOG, FakeWriter, TwitchFixture, eventually
 from sudoku_v2.twitch.irc import TwitchIRCClient
 from sudoku_v2.twitch.worker import TwitchWorker
 
 
 @skipUnless(os.environ.get('SUDOKU_V2_TEST_REDIS_URL'),'Set an isolated test Redis URL')
-class EndToEndTests(IsolatedAsyncioTestCase):
-    add_board=test_twitch_registry.TwitchRegistryTests.add_board
+class EndToEndTests(TwitchFixture, IsolatedAsyncioTestCase):
 
     async def asyncSetUp(self):
-        await test_twitch_registry.TwitchRegistryTests.asyncSetUp(self)
+        await super().asyncSetUp()
         self.sockets=[]
         self.storage_patch=patch('sudoku_v2.consumers.SudokuV2Storage',return_value=self.storage)
         self.catalog_patch=patch.object(SudokuV2Service,'get_catalog',AsyncMock(return_value={**CATALOG,'sizes':[9,16]}))
@@ -31,7 +29,7 @@ class EndToEndTests(IsolatedAsyncioTestCase):
             for socket in self.sockets: await socket.disconnect()
         finally:
             self.catalog_patch.stop();self.storage_patch.stop()
-            await test_twitch_registry.TwitchRegistryTests.asyncTearDown(self)
+            await super().asyncTearDown()
 
     async def player(self, name, lobby=None):
         lobby=lobby or self.lobby
@@ -106,7 +104,7 @@ class EndToEndTests(IsolatedAsyncioTestCase):
         self.service.publish=publish_bonus
         worker=TwitchWorker(self.registry,self.service,login='botlogin',token='fake')
         self.assertTrue(await worker.acquire())
-        reader=asyncio.StreamReader();writer=test_twitch_worker.FakeWriter()
+        reader=asyncio.StreamReader();writer=FakeWriter()
         original_write=writer.write
         def write(data):
             original_write(data)
@@ -128,25 +126,25 @@ class EndToEndTests(IsolatedAsyncioTestCase):
             timestamp=timestamp or int(time()*1000)
             reader.feed_data(f'@id={message_id};user-id=viewer;tmi-sent-ts={timestamp} :viewer!v@h PRIVMSG #{channel} :!blur * 3\r\n'.encode())
         try:
-            await test_twitch_worker.eventually(lambda:len(joined)==2)
+            await eventually(lambda:len(joined)==2)
             await self.drain(*self.sockets)
             chat('first');event=await self.receive(target,'bonus_applied');await self.receive(owner,'bonus_applied')
             self.assertEqual(event['params']['box'],2)
             await self.no_bonus(other)
             chat('first')
-            await test_twitch_worker.eventually(lambda:processed.count('first')==2)
+            await eventually(lambda:processed.count('first')==2)
             await self.no_bonus(target)
             await owner.send_json_to({'kind':'connect_twitch','data':{'requestId':'cd','channel':'channel','cooldownSeconds':15}})
             await self.receive(owner,'twitch_status','cd');await self.drain(target)
             self.assertEqual((await self.registry.get('channel'))['bindingId'],self.binding['bindingId'])
             chat('cooldown')
-            await test_twitch_worker.eventually(lambda:'cooldown' in processed)
+            await eventually(lambda:'cooldown' in processed)
             await self.no_bonus(target)
             chat('second-room','second');await self.receive(other,'bonus_applied')
             await self.no_bonus(target)
             await owner.send_json_to({'kind':'disconnect_twitch','data':{'requestId':'bye','channel':'channel'}})
             await self.receive(owner,'twitch_status','bye');await self.drain(target)
-            await test_twitch_worker.eventually(lambda:'PART #channel\r\n' in writer.lines)
+            await eventually(lambda:'PART #channel\r\n' in writer.lines)
             chat('after-part')
             await self.no_bonus(target)
         finally:

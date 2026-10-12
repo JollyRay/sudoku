@@ -1,40 +1,15 @@
 import asyncio
 import os
 from unittest import IsolatedAsyncioTestCase, skipUnless
-from unittest.mock import AsyncMock, patch
-from django.test import override_settings
-from . import test_bonuses, test_storage
-from sudoku_v2.twitch.registry import TwitchRegistry, TwitchError
+from unittest.mock import patch
+from .support import TwitchFixture
+from sudoku_v2.twitch.registry import TwitchError
 from sudoku_v2.twitch.service import TwitchService
 from sudoku_v2.twitch.types import ExternalBonusCommand
 
 
 @skipUnless(os.environ.get('SUDOKU_V2_TEST_REDIS_URL'),'Set an isolated test Redis URL')
-class TwitchRegistryTests(IsolatedAsyncioTestCase):
-    add_board=test_bonuses.BonusStorageTests.add_board
-
-    async def asyncSetUp(self):
-        await test_storage.StorageIntegrationTests.asyncSetUp(self)
-        self.settings=override_settings(SUDOKU_V2_PREFIX='test-'+self.lobby)
-        self.settings.enable()
-        # The setup presence preceded the namespace override.
-        await self.storage.acquire_presence(self.lobby,self.name,'lease')
-        self.registry=TwitchRegistry(self.storage)
-        self.publish=AsyncMock()
-        self.service=TwitchService(self.registry,bot_id='bot',publish=self.publish)
-        await self.add_board(self.name)
-        await self.add_board('Лена')
-        self.binding=await self.registry.register(self.lobby,self.name,'lease','Channel',0)
-
-    async def asyncTearDown(self):
-        keys=[key async for key in self.raw.scan_iter('test-'+self.lobby+'*')]
-        if keys:await self.raw.delete(*keys)
-        self.settings.disable()
-        await test_storage.StorageIntegrationTests.asyncTearDown(self)
-
-    def command(self,message_id='one',text='!blur',sent_at=None):
-        return ExternalBonusCommand('twitch_chat',message_id,'channel','viewer',sent_at or self.binding['registeredAt'],text)
-
+class TwitchRegistryTests(TwitchFixture, IsolatedAsyncioTestCase):
     async def test_register_updates_only_cooldown_and_preserves_last_applied(self):
         await self.service.handle(self.command())
         before=await self.registry.get('channel')

@@ -150,7 +150,7 @@ class SudokuV2LoginTests(SimpleTestCase):
         storage.get_board_state.return_value = None
         storage.get_context.return_value = None
 
-        from .test_gameplay import CATALOG
+        from .support import CATALOG
         with patch("sudoku_v2.consumers.SudokuV2Storage", return_value=storage), patch(
             "sudoku_v2.service.SudokuV2Service.get_catalog", AsyncMock(return_value=CATALOG)
         ):

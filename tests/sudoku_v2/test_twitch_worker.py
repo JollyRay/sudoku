@@ -10,7 +10,7 @@ from django.test import override_settings
 
 from sudoku_v2.twitch.irc import AuthError, RateWindow, TwitchIRCClient, parse_irc_line
 from sudoku_v2.twitch.worker import TwitchWorker, validate_token
-from . import test_twitch_registry
+from .support import FakeWriter, TwitchFixture, eventually
 
 
 class IRCParsingTests(TestCase):
@@ -42,21 +42,6 @@ class IRCParsingTests(TestCase):
             with self.assertRaisesRegex(CommandError, 'disabled'):
                 call_command('run_twitch_bot')
             run.assert_not_called()
-
-
-class FakeWriter:
-    def __init__(self): self.lines=[]; self.closed=False
-    def write(self, data): self.lines.append(data.decode())
-    async def drain(self): pass
-    def close(self): self.closed=True
-    async def wait_closed(self): pass
-
-
-async def eventually(predicate):
-    for _ in range(200):
-        if predicate(): return
-        await asyncio.sleep(.005)
-    raise AssertionError('Condition not reached')
 
 
 class IRCTransportTests(IsolatedAsyncioTestCase):
@@ -183,11 +168,7 @@ class IRCBackoffTests(IsolatedAsyncioTestCase):
 
 
 @skipUnless(os.environ.get('SUDOKU_V2_TEST_REDIS_URL'),'Set an isolated test Redis URL')
-class TwitchWorkerTests(IsolatedAsyncioTestCase):
-    add_board=test_twitch_registry.TwitchRegistryTests.add_board
-    asyncSetUp=test_twitch_registry.TwitchRegistryTests.asyncSetUp
-    asyncTearDown=test_twitch_registry.TwitchRegistryTests.asyncTearDown
-    command=test_twitch_registry.TwitchRegistryTests.command
+class TwitchWorkerTests(TwitchFixture, IsolatedAsyncioTestCase):
 
     def worker(self, **kwargs):
         return TwitchWorker(self.registry,self.service,login='botlogin',token='dummy',
