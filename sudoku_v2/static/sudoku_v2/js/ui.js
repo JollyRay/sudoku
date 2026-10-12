@@ -5,6 +5,18 @@ import { createEffectsController, effectBadges } from './effects.js?v=12';
 import { mountLayout } from './layout.js?v=13';
 import { mountTwitchSettings } from './twitch.js?v=12';
 import { createEventBindings } from './events.js?v=12';
+
+/**
+ * @typedef {object} GameUIOptions
+ * @property {import('./config.js').SudokuConfig} config
+ * @property {ReturnType<typeof import('./state.js').createGameState>} store
+ * @property {ReturnType<typeof import('./network.js').connectWebsocket>} network
+ */
+/**
+ * @param {{startedAt?: number | null, finishedAt?: number | null} | null | undefined} board
+ * @param {number} nowMs
+ * @returns {string}
+ */
 export function formatElapsed(board, nowMs) {
     if (board?.startedAt == null) return '00:00';
     const seconds = Math.max(0, Math.floor(((board.finishedAt ?? nowMs) - board.startedAt) / 1000));
@@ -13,6 +25,12 @@ export function formatElapsed(board, nowMs) {
 }
 const emptyBoard = (name) => ({ name, size: 9, values: {}, fixedCells: [], wrongCells: [], bonuses: {}, generationId: null, revision: 0 });
 const progress = (board) => `${Object.values(board?.values ?? {}).filter((v) => v !== '').length} / ${(board?.size ?? 9) ** 2}`;
+/**
+ * @param {HTMLElement} container
+ * @param {{config: import('./config.js').SudokuConfig,
+ *     input: ReturnType<typeof import('./input.js').createInputController>}} options
+ * @returns {void}
+ */
 export function renderNumberPad(container, { config, input }) {
     const values = config.allowedValues.filter((value) => value !== ''), signature = JSON.stringify(values);
     container.dataset.size = values.length > 9 ? '16' : '9';
@@ -39,6 +57,11 @@ export function renderNumberPad(container, { config, input }) {
         renderSymbol(key.firstElementChild, value, config.runtime.symbolSheet);
     }
 }
+/**
+ * @param {HTMLElement} root
+ * @param {GameUIOptions} options
+ * @returns {{dispose(): void}}
+ */
 export function mountGame(root, { store, config, network }) {
     const $ = (id) => root.querySelector(`#${id}`);
     const input = createInputController({ store, config, sendCellValue: network.sendCellValue });
@@ -195,6 +218,11 @@ export function mountGame(root, { store, config, network }) {
         disposeBindings();
     } };
 }
+/**
+ * @param {HTMLElement} root
+ * @param {Pick<GameUIOptions, 'config' | 'store'>} options
+ * @returns {() => void}
+ */
 function mountSettings(root, { config, store }) {
     const $ = (id) => root.querySelector(`#${id}`), dialog = $('settings-dialog');
     const { bind, dispose: disposeBindings } = createEventBindings();

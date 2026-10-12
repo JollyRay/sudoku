@@ -1,14 +1,37 @@
 const MEDIA = '(min-width: 900px) and (pointer: fine)';
 const ROW = 24, MARGIN = 12;
+
+/** @typedef {{x: number, y: number, w: number, h: number, minW?: number, minH?: number}} PanelGeometry */
+/** @typedef {Partial<PanelGeometry> & {id?: string}} PanelUpdate */
+/** @typedef {HTMLElement & {gridstackNode?: PanelGeometry}} LayoutPanel */
+/**
+ * The part of the vendored GridStack API used by this module.
+ * @typedef {object} LayoutGrid
+ * @property {(active?: boolean) => void} batchUpdate
+ * @property {(panel: LayoutPanel, geometry: PanelUpdate) => void} update
+ * @property {(panel: LayoutPanel, geometry: PanelUpdate) => void} makeWidget
+ * @property {(panel: LayoutPanel, removeDOM: boolean, triggerEvent: boolean) => void} removeWidget
+ * @property {(removeDOM: boolean) => void} destroy
+ * @property {(events: string, handler: () => void) => void} on
+ */
+/** @typedef {{init: (options: object, host: HTMLElement) => LayoutGrid}} GridStackFactory */
+/**
+ * @param {HTMLElement} root
+ * @param {{matchMedia?: (query: string) => MediaQueryList, GridStackClass?: GridStackFactory,
+ *     ResizeObserverClass?: typeof ResizeObserver}} [options]
+ * @returns {{refreshParticipants(value: boolean): void, dispose(): void}}
+ */
 export function mountLayout(root, {
     matchMedia = window.matchMedia.bind(window),
-    GridStackClass = window.GridStack,
+    GridStackClass = /** @type {Window & {GridStack?: GridStackFactory}} */ (window).GridStack,
     ResizeObserverClass = globalThis.ResizeObserver
 } = {}) {
-    const host = root.querySelector('#play-layout'), reset = root.querySelector('#reset-layout');
-    const panels = ['own-panel', 'controls-panel', 'opponent-panel'].map((id) => root.querySelector(`#${id}`));
+    const host = /** @type {HTMLElement} */ (root.querySelector('#play-layout'));
+    const reset = /** @type {HTMLButtonElement} */ (root.querySelector('#reset-layout'));
+    const panels = ['own-panel', 'controls-panel', 'opponent-panel'].map((id) =>
+        /** @type {LayoutPanel} */ (root.querySelector(`#${id}`)));
     const media = matchMedia(MEDIA);
-    let grid = null, disposed = false, custom = false, updating = false;
+    let grid = /** @type {LayoutGrid | null} */ (null), disposed = false, custom = false, updating = false;
     let hasOpponents = !panels[2].hidden;
     const visible = () => panels.filter((_, i) => i !== 2 || hasOpponents);
     const minWidth = () => Math.min(12, Math.ceil((320 + 32 + 2 * MARGIN) / (host.getBoundingClientRect().width / 12)));
@@ -44,7 +67,7 @@ export function mountLayout(root, {
         fit();
     }
     function clearGeometry() {
-        const focused = globalThis.document?.activeElement;
+        const focused = /** @type {HTMLElement | null} */ (globalThis.document?.activeElement);
         host.removeAttribute('style');
         host.classList.remove('grid-stack', 'layout-desktop');
         for (const panel of panels) {

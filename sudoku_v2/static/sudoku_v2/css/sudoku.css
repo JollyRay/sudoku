@@ -237,6 +237,15 @@ h1, h2 { margin: 5px 0 0; font-size: 30px; letter-spacing: -.8px; }
 .layout-desktop .board-grid[data-size='16'] .cell { font-size: clamp(9px,3cqw,22px); }
 .generation-panel { flex-wrap: wrap; }
 .controls-panel .generation-panel { margin-top: 20px; padding-top: 20px; }
+.controls-panel > .grid-stack-item-content { container: controls / inline-size; }
+@container controls (max-width: 520px) {
+    .number-pad, .number-pad[data-size='16'] { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+@container controls (max-width: 380px) {
+    .number-pad:not([data-size='16']) { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .mode-panel { grid-template-columns: 1fr; }
+    .mode-button > span { display: inline; }
+}
 .twitch-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
 .twitch-actions button { flex: 1 1 auto; }
 .twitch-bindings { display: grid; gap: 8px; }
