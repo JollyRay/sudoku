@@ -22,6 +22,10 @@ class Command(BaseCommand):
                 return await run_twitch_worker(registry,TwitchService(registry,bot_id=''),stop_event=asyncio.Event())
             finally: await storage.redis.close()
         try:
-            if asyncio.run(run())=='error': raise CommandError('Twitch worker unavailable; check Redis and network')
+            status = asyncio.run(run())
+            if status == 'auth_error':
+                raise CommandError('Twitch authentication failed; check bot login, OAuth token and chat:read scope')
+            if status == 'error':
+                raise CommandError('Twitch worker unavailable; check Redis and network')
         except KeyboardInterrupt: pass
         except ValueError as error: raise CommandError(str(error)) from None

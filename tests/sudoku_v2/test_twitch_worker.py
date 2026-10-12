@@ -1,5 +1,6 @@
 import asyncio
 import os
+from types import SimpleNamespace
 from unittest import IsolatedAsyncioTestCase, TestCase, skipUnless
 from unittest.mock import AsyncMock, patch
 
@@ -36,6 +37,35 @@ class IRCParsingTests(TestCase):
             with self.assertRaisesRegex(CommandError, 'disabled'):
                 call_command('run_twitch_bot')
             run.assert_not_called()
+
+    def test_command_reports_authentication_failure(self):
+        storage = SimpleNamespace(redis=SimpleNamespace(close=AsyncMock()))
+        with patch('sudoku_v2.management.commands.run_twitch_bot.SudokuV2Storage', return_value=storage):
+            with patch('sudoku_v2.management.commands.run_twitch_bot.run_twitch_worker',
+                       new_callable=AsyncMock, return_value='auth_error'):
+                with self.assertRaisesRegex(CommandError, 'Twitch authentication failed'):
+                    call_command('run_twitch_bot')
+
+
+class TokenValidationTests(IsolatedAsyncioTestCase):
+    async def test_valid_token_accepts_zero_or_positive_expiry(self):
+        for expires_in in (0, 3600):
+            with self.subTest(expires_in=expires_in):
+                data = {'login': 'botlogin', 'user_id': 'bot', 'scopes': ['chat:read'],
+                        'expires_in': expires_in}
+                response = SimpleNamespace(status_code=200, json=lambda: data)
+                with patch('sudoku_v2.twitch.worker.requests.get', return_value=response):
+                    self.assertEqual(await validate_token('botlogin', 'dummy'), 'bot')
+
+    async def test_valid_response_still_requires_matching_user_and_chat_scope(self):
+        for invalid in ({'login': 'anotherbot'}, {'user_id': ''}, {'scopes': []}):
+            with self.subTest(invalid=invalid):
+                data = {'login': 'botlogin', 'user_id': 'bot', 'scopes': ['chat:read'],
+                        'expires_in': 0, **invalid}
+                response = SimpleNamespace(status_code=200, json=lambda: data)
+                with patch('sudoku_v2.twitch.worker.requests.get', return_value=response):
+                    with self.assertRaises(AuthError):
+                        await validate_token('botlogin', 'dummy')
 
 
 class IRCTransportTests(IsolatedAsyncioTestCase):
@@ -239,7 +269,7 @@ class TwitchWorkerTests(TwitchFixture, IsolatedAsyncioTestCase):
     async def test_invalid_startup_token_never_starts_transport(self):
         client=AsyncMock(); worker=self.worker(client=client)
         worker.validate=AsyncMock(side_effect=AuthError())
-        await worker.run(asyncio.Event())
+        self.assertEqual(await worker.run(asyncio.Event()), 'auth_error')
         client.run.assert_not_called()
         self.assertEqual((await self.registry.get_status(self.binding))['status'],'auth_error')
 

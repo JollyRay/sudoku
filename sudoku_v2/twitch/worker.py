@@ -24,8 +24,9 @@ async def validate_token(login, token):
             if response.status_code != 200:
                 raise ConnectionError('Token validation unavailable')
             data = response.json()
+            # HTTP 200 confirms validity; legacy tokens may report expires_in=0.
             if (data.get('login') != login or not data.get('user_id') or
-                    'chat:read' not in data.get('scopes', []) or data.get('expires_in', 0) <= 0):
+                    'chat:read' not in data.get('scopes', [])):
                 raise AuthError()
             return str(data['user_id'])
         except (requests.RequestException, ValueError):
@@ -100,7 +101,7 @@ class TwitchWorker:
                 for binding in await self.registry.list_active():
                     await self.on_status(binding, 'auth_error', 'authentication', guards=[
                         CommitGuard(self.active_key, 'string', None)])
-                return
+                return 'auth_error'
             except ConnectionError:
                 for binding in await self.registry.list_active():
                     await self.on_status(binding, 'error', 'validation_unavailable', guards=[
