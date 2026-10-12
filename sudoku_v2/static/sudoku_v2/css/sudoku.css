@@ -96,7 +96,7 @@ h1, h2 { margin: 5px 0 0; font-size: 30px; letter-spacing: -.8px; }
 .cell.is-error::after { content: ''; position: absolute; left: 4px; bottom: 4px; width: 5px; height: 5px; background: var(--red); border-radius: 50%; }
 .digit { display: flex; align-items: center; justify-content: center; width: 69%; height: 69%; pointer-events: none; }
 .digit canvas, .key-symbol canvas, .symbol-preview canvas { display: block; width: 100%; height: 100%; object-fit: contain; }
-.cell-notes { position: absolute; inset: 2px; z-index: 2; display: grid; min-width: 0; min-height: 0; font: 11px/1 'Segoe UI', sans-serif; color: var(--ink); pointer-events: none; }
+.cell-notes { position: absolute; inset: 1px; z-index: 2; display: grid; min-width: 0; min-height: 0; font: clamp(12px, 2.8cqw, 18px)/1 'Segoe UI', sans-serif; color: var(--ink); pointer-events: none; }
 .cell-notes span { display: flex; align-items: center; justify-content: center; min-width: 0; min-height: 0; overflow: hidden; text-shadow: 0 0 2px white; }
 .bonus-mark { position: absolute; z-index: 1; right: 2px; top: 2px; width: 15px; height: 15px; display: grid; place-items: center; border-radius: 4px; font: 12px/1 'Segoe UI Symbol', sans-serif; color: var(--bonus); background: #efe3ff; pointer-events: none; }
 .bonus-mark:empty { display: none; }
@@ -201,7 +201,6 @@ h1, h2 { margin: 5px 0 0; font-size: 30px; letter-spacing: -.8px; }
     .generation-panel button { padding: 8px 10px; font-size: 13px; }
     .generation-panel select { padding: 8px; }
     .board-heading h1, .board-heading h2 { font-size: 26px; }
-    .cell-notes { font-size: 9px; }
     .bonus-mark { font-size: 10px; width: 12px; height: 12px; }
     .settings-drawer { padding: 22px; }
 }
@@ -210,7 +209,7 @@ h1, h2 { margin: 5px 0 0; font-size: 30px; letter-spacing: -.8px; }
 }
 .board-grid[data-size='16'] .cell { font-size: clamp(10px, 1.45vw, 22px); }
 .board-grid[data-size='16'] .digit { width: 94%; height: 94%; }
-.board-grid[data-size='16'] .cell-notes { inset: 0; font-size: 6px; }
+.board-grid[data-size='16'] .cell-notes { inset: 0; font-size: clamp(6px, 1.25cqw, 10px); }
 .board-grid[data-size='16'] .bonus-mark { width: 8px; height: 8px; font-size: 7px; right: 0; top: 0; }
 .number-pad[data-size='16'], .symbol-preview[data-size='16'] { grid-template-columns: repeat(8,minmax(0,1fr)); }
 @media (max-width: 899px) {
@@ -220,6 +219,9 @@ h1, h2 { margin: 5px 0 0; font-size: 30px; letter-spacing: -.8px; }
     .number-pad[data-size='16'] { grid-template-columns: repeat(4,minmax(0,1fr)); }
 }
 /* Layout owns only panel geometry. Board cells remain in their original DOM. */
+@media (min-width: 900px) and (pointer: fine) {
+    .app-shell { max-width: 1680px; }
+}
 .play-layout, .play-layout.is-solo { display: flex; flex-direction: column; gap: 24px; max-width: 550px; margin-inline: auto; }
 .panel-drag-handle { display: none; }
 .controls-panel h2 { font-size: 18px; margin: 0 0 12px; }

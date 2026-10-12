@@ -75,6 +75,7 @@ export function mountLayout(root, {
         grid = GridStackClass.init({
             column: 12,
             cellHeight: ROW,
+            minRow: 64,
             margin: MARGIN,
             auto: false,
             animate: false,
