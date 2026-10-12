@@ -1,6 +1,6 @@
 import { renderSymbol } from './symbols.js?v=12';
 import { blockSide, displayPosition } from './geometry.js?v=12';
-import { renderEffects } from './effects.js?v=16';
+import { renderEffects } from './effects.js?v=17';
 function makeGrid(container, size, own) {
     container.replaceChildren();
     const base = blockSide(size), grid = document.createElement('div');
@@ -33,6 +33,7 @@ function makeGrid(container, size, own) {
                 const cell = document.createElement(own ? 'button' : 'span');
                 cell.className = 'cell';
                 cell.dataset.cellIndex = r * size + c;
+                cell.style.gridArea = `${dr + 1} / ${dc + 1}`;
                 cell.setAttribute('role', 'gridcell');
                 if (own) {
                     cell.type = 'button';
@@ -62,7 +63,10 @@ export function renderBoard(container, board, { config, selectedCell = null, hig
     const own = board.name === config.username, size = board.size ?? 9;
     const base = blockSide(size), existing = container.querySelector('.board-grid');
     const table = existing?.dataset.size === String(size) && existing.dataset.own === String(own) ? existing : makeGrid(container, size, own);
+    table.classList.toggle('animate-swaps', table.dataset.boardName === board.name
+        && table.dataset.generationId === String(board.generationId));
     table.dataset.boardName = board.name;
+    table.dataset.generationId = String(board.generationId);
     table.setAttribute('aria-label', `${own ? 'Моя доска' : 'Доска игрока'} ${board.name}`);
     const fixed = new Set(board.fixedCells ?? []), wrong = new Set(board.wrongCells ?? []);
     const selectedValue = highlightValue ?? board.values?.[selectedCell] ?? '';
@@ -73,7 +77,11 @@ export function renderBoard(container, board, { config, selectedCell = null, hig
     }
     for (const cell of table.querySelectorAll('[data-cell-index]')) {
         const i = Number(cell.dataset.cellIndex), { row: r, col: c } = displayPosition(i, size, board.rowOrder, board.columnOrder), value = board.values?.[i] ?? '';
-        cell.style.gridArea = `${r % base + 1} / ${c % base + 1}`;
+        const dx = c % base - i % size % base;
+        const dy = r % base - Math.floor(i / size) % base;
+        // Grid slots stay canonical; translation includes the 1px gap between cells.
+        cell.style.setProperty('--swap-x', `calc(${dx * 100}% + ${dx}px)`);
+        cell.style.setProperty('--swap-y', `calc(${dy * 100}% + ${dy}px)`);
         cell.setAttribute('aria-rowindex', r + 1);
         cell.setAttribute('aria-colindex', c + 1);
         const selected = own && i === selectedCell;

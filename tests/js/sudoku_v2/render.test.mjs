@@ -9,7 +9,7 @@ import {createInputController} from '../../../sudoku_v2/static/sudoku_v2/js/inpu
 // The renderer only needs element creation, children, attributes and classes.
 class Element {
     constructor(tag) {
-        this.tagName=tag;this.children=[];this.dataset={};this.style={};this.attributes={};
+        this.tagName=tag;this.children=[];this.dataset={};this.style={setProperty(name,value){this[name]=value;}};this.attributes={};
         this.className='';this.disabled=false;
         this.classList={
             contains:name=>this.className.split(' ').includes(name),
@@ -127,8 +127,16 @@ test('swap moves a canonical cell with its notes and consumed marker without rep
     board.rowOrder=[1,0,2,3,4,5,6,7,8];board.columnOrder=[0,1,2,3,4,5,6,8,7];board.consumedBonusCells=[8];
     renderBoard(host,board,{config,selectedCell:8});
     assert.equal(grid.querySelectorAll('[data-cell-index]').find(c=>Number(c.dataset.cellIndex)===8),cell);
-    assert.equal(cell.style.gridArea,'2 / 2');assert.equal(cell.querySelector('.cell-notes').textContent,'29');
+    assert.equal(cell.style.gridArea,'1 / 3');
+    assert.equal(cell.style['--swap-x'],'calc(-100% + -1px)');
+    assert.equal(cell.style['--swap-y'],'calc(100% + 1px)');
+    assert.equal(grid.classList.contains('animate-swaps'),true);
+    assert.equal(cell.querySelector('.cell-notes').textContent,'29');
     assert.equal(cell.classList.contains('is-bonus-consumed'),true);
     assert.match(cell.attributes['aria-label'],/использован/);
     assert.equal(cell.querySelector('.bonus-mark').textContent,'◇');
+    renderBoard(host,{...board,generationId:'B',rowOrder:null,columnOrder:null},{config});
+    assert.equal(grid.classList.contains('animate-swaps'),false);
+    assert.equal(cell.style['--swap-x'],'calc(0% + 0px)');
+    assert.equal(cell.style['--swap-y'],'calc(0% + 0px)');
 });

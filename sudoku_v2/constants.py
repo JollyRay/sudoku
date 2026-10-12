@@ -14,7 +14,7 @@ BONUS_DEFINITIONS = (
 )
 EFFECT_DEFAULTS = {
     'SHADOW_BOX': {'blurPx': 6}, 'ROLL': {'periodMs': 4000},
-    'DANCE': {'angleDegrees': 3, 'periodMs': 800},
+    'DANCE': {'periodMs': 5000},
 }
 SYMBOL_PRESET_DEFINITIONS = (
     ("plain", "Обычные цифры", None),

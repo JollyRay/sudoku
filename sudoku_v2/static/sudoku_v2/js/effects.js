@@ -51,33 +51,50 @@ export function createEffectsController({ now = Date.now, setTimeoutFn = setTime
     };
 }
 const visualClasses = { SHADOW_BOX: 'effect-blur', ROLL: 'effect-roll', DANCE: 'effect-dance' };
+function renderLayers(target, content, instances, board, now) {
+    const key = JSON.stringify([board.name, board.generationId, instances.map((e) => e.id)]);
+    if (target.effectKey === key) return false;
+    target.effectKey = key;
+    // Ordinary moves leave the layers and their animation phases intact.
+    if (!instances.length && !target.querySelector('.effect-layer')) return false;
+    const focused = document.activeElement;
+    const restore = content.some((node) => node.contains(focused));
+    target.replaceChildren(...content);
+    let parent = target;
+    for (const effect of instances) {
+        const dancing = effect.kind === 'DANCE';
+        const layer = document.createElement(dancing ? 'span' : 'div');
+        layer.className = `effect-layer ${visualClasses[effect.kind]}`;
+        layer.dataset.effectId = effect.id;
+        layer.setAttribute('role', 'presentation');
+        if (dancing) {
+            const index = Number(target.dataset.cellIndex), base = Math.sqrt(board.size);
+            const localIndex = Math.floor(index / board.size) % base * base + index % base;
+            layer.style.setProperty('--dance-direction', localIndex % 2 ? '1' : '-1');
+        }
+        const p = effect.params;
+        layer.style.setProperty('--effect-blur', `${p.blurPx ?? 6}px`);
+        layer.style.animationDuration = `${p.periodMs ?? (dancing ? 5000 : 4000)}ms`;
+        layer.style.animationDelay = `-${Math.max(0, now - effect.startsAt)}ms`;
+        parent.append(layer);
+        parent = layer;
+    }
+    parent.append(...content);
+    if (restore && document.activeElement !== focused) focused.focus({ preventScroll: true });
+    return true;
+}
 export function renderEffects(grid, board, effects, now) {
     for (const box of grid.querySelectorAll('.board-box')) {
         const instances = effects.filter((e) => e.params.box === Number(box.dataset.boxIndex) && visualClasses[e.kind]);
-        const key = JSON.stringify([board.name, board.generationId, instances.map((e) => e.id)]);
-        if (box.effectKey === key) continue;
-        box.effectKey = key;
-        const content = box.querySelector('.box-content');
-        // Ordinary moves leave this entire chain intact. Only effect membership changes it.
-        if (!instances.length && !box.querySelector('.effect-layer')) continue;
-        const focused = document.activeElement, restore = content.contains(focused);
-        box.replaceChildren(content);
-        let parent = box;
-        for (const effect of instances) {
-            const layer = document.createElement('div');
-            layer.className = `effect-layer ${visualClasses[effect.kind]}`;
-            layer.dataset.effectId = effect.id;
-            layer.setAttribute('role', 'presentation');
-            const p = effect.params;
-            layer.style.setProperty('--effect-blur', `${p.blurPx ?? 6}px`);
-            layer.style.setProperty('--effect-angle', `${p.angleDegrees ?? 3}deg`);
-            layer.style.animationDuration = `${p.periodMs ?? 4000}ms`;
-            layer.style.animationDelay = `-${Math.max(0, now - effect.startsAt)}ms`;
-            parent.append(layer);
-            parent = layer;
+        const dances = instances.filter((e) => e.kind === 'DANCE');
+        const boxChanged = renderLayers(box, [box.querySelector('.box-content')],
+            instances.filter((e) => e.kind !== 'DANCE'), board, now);
+        for (const cell of box.querySelectorAll('[data-cell-index]')) {
+            // Moving box-content restarts CSS animations; restore each dance's current phase.
+            if (boxChanged) cell.effectKey = null;
+            const parts = ['.digit', '.cell-notes', '.bonus-mark'].map((selector) => cell.querySelector(selector));
+            renderLayers(cell, parts, dances, board, now);
         }
-        parent.append(content);
-        if (restore && document.activeElement !== focused) focused.focus({ preventScroll: true });
     }
 }
 export function effectBadges(board, effects, catalog, now) {
