@@ -7,6 +7,7 @@ from urllib.parse import quote, unquote, urlparse
 
 from django.conf import settings
 from common.redis import RedisClient, RedisConfig, CommitGuard, ExpiringValue
+from .constants import BONUS_DEFINITIONS
 
 
 @lru_cache(maxsize=1)
@@ -204,7 +205,12 @@ class SudokuV2Storage:
             board["requiresGeneration"] = True
         board["values"] = {index: json.loads(value) for index, value in values.items()}
         board["fixedCells"] = sorted(int(index) for index in fixed)
-        board['activeEffects'] = [effect for effect in board['activeEffects'] if effect['expiresAt'] > int(time()*1000)]
+        supported_bonuses = {code for code, _, _ in BONUS_DEFINITIONS}
+        board['bonuses'] = {index: kind for index, kind in board['bonuses'].items()
+                            if kind in supported_bonuses}
+        board['activeEffects'] = [effect for effect in board['activeEffects']
+                                  if effect['kind'] in supported_bonuses
+                                  and effect['expiresAt'] > int(time()*1000)]
         return {"public": board, "solution": {index: int(value) for index, value in solution.items()}}
 
     def _state_hashes(self, lobby: str, name: str, board: StoredBoard) -> dict[str, dict]:

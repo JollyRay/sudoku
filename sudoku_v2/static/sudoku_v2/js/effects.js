@@ -50,7 +50,7 @@ export function createEffectsController({ now = Date.now, setTimeoutFn = setTime
         }
     };
 }
-const visualClasses = { SHADOW_BOX: 'effect-blur', ROLL: 'effect-roll', DANCE: 'effect-dance', GRAYSCALE: 'effect-gray', PULSE: 'effect-pulse' };
+const visualClasses = { SHADOW_BOX: 'effect-blur', ROLL: 'effect-roll', DANCE: 'effect-dance' };
 export function renderEffects(grid, board, effects, now) {
     for (const box of grid.querySelectorAll('.board-box')) {
         const instances = effects.filter((e) => e.params.box === Number(box.dataset.boxIndex) && visualClasses[e.kind]);
@@ -71,8 +71,6 @@ export function renderEffects(grid, board, effects, now) {
             const p = effect.params;
             layer.style.setProperty('--effect-blur', `${p.blurPx ?? 6}px`);
             layer.style.setProperty('--effect-angle', `${p.angleDegrees ?? 3}deg`);
-            layer.style.setProperty('--effect-gray', String(p.amount ?? 1));
-            layer.style.setProperty('--effect-opacity', String(p.minOpacity ?? 0.35));
             layer.style.animationDuration = `${p.periodMs ?? 4000}ms`;
             layer.style.animationDelay = `-${Math.max(0, now - effect.startsAt)}ms`;
             parent.append(layer);

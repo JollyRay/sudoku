@@ -49,6 +49,27 @@ class BonusStorageTests(BonusFixture, IsolatedAsyncioTestCase):
             'boardName': self.name, 'generationId': 'A', 'cellIndex': 0, 'value': value,
         })
 
+    async def test_retired_bonuses_on_saved_board_do_not_block_moves(self):
+        board = await self.add_board(self.name)
+        await self.add_board('Лена')
+        board['public']['bonuses'] = {'0': 'GRAYSCALE', '1': 'PULSE', '2': 'ROLL'}
+        now = SudokuV2Service.now_ms()
+        board['public']['activeEffects'] = [
+            {'id': kind, 'kind': kind, 'params': {'box': 0},
+             'startsAt': now, 'expiresAt': now + 30000}
+            for kind in ('GRAYSCALE', 'PULSE', 'ROLL')
+        ]
+        self.assertEqual(await self.storage.save_board_state(
+            self.lobby, self.name, board, ('A', 1), 'lease'), 'saved')
+        saved = await self.storage.get_board_state(self.lobby, self.name)
+        self.assertEqual(saved['public']['bonuses'], {'2': 'ROLL'})
+        self.assertEqual([e['kind'] for e in saved['public']['activeEffects']], ['ROLL'])
+        result = await self.move(board['solution']['0'])
+        self.assertEqual(result['board']['values']['0'], board['solution']['0'])
+        self.assertNotIn('_bonus_event', result)
+        target = await self.storage.get_board_state(self.lobby, 'Лена')
+        self.assertEqual(target['public']['activeEffects'], [])
+
     async def test_first_correct_consumes_once(self):
         board = await self.add_board(self.name)
         await self.add_board('Лена')

@@ -196,4 +196,5 @@ class CatalogTests(TransactionTestCase):
         await Difficulty.objects.acreate(name="easy", top_limit=30)
         updated = await SudokuV2Service.get_catalog()
         self.assertEqual(updated["difficulties"][0]["value"], "easy")
-        self.assertEqual(len(updated["bonuses"]), 6)
+        self.assertEqual({bonus['id'] for bonus in updated['bonuses']},
+                         {'SWAP', 'ROLL', 'SHADOW_BOX', 'DANCE'})

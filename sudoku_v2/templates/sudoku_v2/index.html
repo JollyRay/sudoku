@@ -5,7 +5,7 @@
     <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
     <title>SudokuV2 · Игровая комната</title>
     <link rel="stylesheet" href="{% static 'sudoku_v2/vendor/gridstack/14.0.0/gridstack.min.css' %}">
-    <link rel="stylesheet" href="{% static 'sudoku_v2/css/sudoku.css' %}?v=15">
+    <link rel="stylesheet" href="{% static 'sudoku_v2/css/sudoku.css' %}?v=16">
 </head>
 <body>
 <div class="app-shell" id="game-app">
@@ -59,13 +59,13 @@
             <p id="twitch-status" role="status">Канал не подключён</p>
             <p id="twitch-message" class="notice" role="status" hidden></p>
             <div id="twitch-bindings" class="twitch-bindings" role="group" aria-label="Каналы этой комнаты" hidden></div>
-            <p class="settings-hint">Команды: !swap, !blur, !rotate, !dance, !gray, !pulse. Например: <code>!blur * 3</code>. По умолчанию — все игроки, включая вас.</p>
+            <p class="settings-hint">Команды: !swap, !blur, !rotate, !dance. Например: <code>!blur * 3</code>. По умолчанию — все игроки, включая вас.</p>
         </section>
         <a class="room-link" href="{% url 'sudoku_v2:join' %}">Войти в другую комнату</a>
     </dialog>
 </div>
 {{ bootstrap|json_script:"sudoku-bootstrap" }}
 <script src="{% static 'sudoku_v2/vendor/gridstack/14.0.0/gridstack-all.js' %}"></script>
-<script type="module" src="{% static 'sudoku_v2/js/sudoku.js' %}?v=15"></script>
+<script type="module" src="{% static 'sudoku_v2/js/sudoku.js' %}?v=16"></script>
 </body>
 </html>

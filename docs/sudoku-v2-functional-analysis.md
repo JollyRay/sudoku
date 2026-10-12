@@ -94,7 +94,7 @@ MRV и hidden singles, останавливая подсчёт после вто
   Меняются rowOrder/columnOrder, а решение, values и индексы остаются каноническими.
   Перестановка сохраняется до перегенерации.
 - SHADOW_BOX — размытие блока; ROLL — вращение; DANCE — движение;
-  GRAYSCALE — обесцвечивание; PULSE — пульсация прозрачности.
+  GRAYSCALE и PULSE удалены из SudokuV2.
 - Временный эффект содержит id, kind, params, startsAt, expiresAt. Длительность
   задаётся `SUDOKU_V2_EFFECT_DURATION_MS`, default30000; интенсивность —
   серверными `EFFECT_DEFAULTS` в constants.py. Параметры чата их не меняют.
@@ -163,8 +163,8 @@ worker сверяет их каждые2s. Channel связан с лобби и
 сохраняя lastAppliedAt и bindingId. КД0…86400, default0, расходуется успешным эффектом.
 Без owner команды пропускаются, но связь остаётся до очистки комнаты/disconnect.
 
-Команды `!command name args`: swap, blur/shadow, rotate/roll, dance, gray, pulse.
-Default name=`*` — оппоненты owner. Недопустимое имя/параметр получает default;
+Команды `!command name args`: swap, blur/shadow, rotate/roll, dance.
+Default name=`*` — все активные игроки, включая owner. Недопустимое имя/параметр получает default;
 имена с пробелами — в двойных кавычках, апострофы и backslash буквальные.
 Номера с1; длительность/интенсивность — только серверные. Message-id дедуплицируется
 24h атомарно с КД/эффектами; собственные сообщения бота и сообщения безid пропускаются.

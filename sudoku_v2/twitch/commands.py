@@ -4,7 +4,7 @@ from .types import ParsedBonusCommand
 
 COMMANDS = {
     'swap': 'SWAP', 'blur': 'SHADOW_BOX', 'shadow': 'SHADOW_BOX', 'rotate': 'ROLL',
-    'roll': 'ROLL', 'dance': 'DANCE', 'gray': 'GRAYSCALE', 'pulse': 'PULSE',
+    'roll': 'ROLL', 'dance': 'DANCE',
 }
 
 

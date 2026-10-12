@@ -12,13 +12,13 @@ class TwitchCommandTests(SimpleTestCase):
                (r'!blur "A\B C" 3',('SHADOW_BOX',r'A\B C',{'box':2})),
                ('!swap * col 1 9',('SWAP','*',{'axis':'col','first':0,'second':8})),
                ('!blur "сломано',('SHADOW_BOX','*',{})),
-               ('!dance * нет',('DANCE','*',{})),('!gray',('GRAYSCALE','*',{})),
-               ('!pulse * 1 99999',('PULSE','*',{'box':0}))]
+               ('!dance * нет',('DANCE','*',{})),
+               ('!dance * 1 99999',('DANCE','*',{'box':0}))]
         for text,expected in cases:
             with self.subTest(text=text):
                 command=parse_command(text)
                 self.assertEqual((command.kind,command.name,command.raw_params),expected)
-        for text in ['hi','!unknown *','!','!blurred * 1']:
+        for text in ['hi','!unknown *','!','!blurred * 1','!gray','!grey','!pulse * 1']:
             self.assertIsNone(parse_command(text))
 
     def test_channel_login_only(self):

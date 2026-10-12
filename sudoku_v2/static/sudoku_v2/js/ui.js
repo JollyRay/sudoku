@@ -1,7 +1,7 @@
-import { renderBoard } from './board.js?v=12';
+import { renderBoard } from './board.js?v=16';
 import { createInputController } from './input.js?v=12';
 import { loadSymbolSheet, renderSymbol, disposeSymbolSheet } from './symbols.js?v=12';
-import { createEffectsController, effectBadges } from './effects.js?v=12';
+import { createEffectsController, effectBadges } from './effects.js?v=16';
 import { mountLayout } from './layout.js?v=13';
 import { mountTwitchSettings } from './twitch.js?v=15';
 import { createEventBindings } from './events.js?v=12';

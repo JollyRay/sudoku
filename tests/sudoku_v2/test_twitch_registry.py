@@ -65,7 +65,7 @@ class TwitchRegistryTests(TwitchFixture, IsolatedAsyncioTestCase):
         self.assertEqual([effect['kind'] for effect in owner['public']['activeEffects']], ['SHADOW_BOX', 'ROLL'])
 
     async def test_owner_can_be_targeted_by_name(self):
-        event = await self.service.handle(self.command(text=f'!pulse "{self.name}" 1'))
+        event = await self.service.handle(self.command(text=f'!dance "{self.name}" 1'))
         self.assertEqual([board['name'] for board in event['targets']], [self.name])
         self.assertEqual((await self.storage.get_board_state(self.lobby, 'Лена'))['public']['activeEffects'], [])
 
@@ -82,7 +82,7 @@ class TwitchRegistryTests(TwitchFixture, IsolatedAsyncioTestCase):
 
     async def test_explicit_target_and_cooldown_validation(self):
         await self.add_board('Макс',16)
-        event=await self.service.handle(self.command(text='!pulse Лена 1 999999'))
+        event=await self.service.handle(self.command(text='!dance Лена 1 999999'))
         self.assertEqual([b['name'] for b in event['targets']],['Лена'])
         effect=event['targets'][0]['activeEffects'][0]
         self.assertEqual(effect['expiresAt']-effect['startsAt'],30000)

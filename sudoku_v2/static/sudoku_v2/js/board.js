@@ -1,6 +1,6 @@
 import { renderSymbol } from './symbols.js?v=12';
 import { blockSide, displayPosition } from './geometry.js?v=12';
-import { renderEffects } from './effects.js?v=12';
+import { renderEffects } from './effects.js?v=16';
 function makeGrid(container, size, own) {
     container.replaceChildren();
     const base = blockSide(size), grid = document.createElement('div');
