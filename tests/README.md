@@ -9,6 +9,7 @@ Redis/Twitch находятся в `sudoku_v2/support.py`; этот модуль
 ```text
 tests/
   settings.py         Изолированные Django settings: SQLite in-memory, безопасные AppConfig
+  preview_settings.py Настройки браузерного preview с отдельными SQLite и Redis namespace
   sudoku_v2/          Игровой сервис, WebSocket, бонусы, Twitch, Redis и интеграция
   game/               Генератор 9/16 и команда fillSudoku
   js/sudoku_v2/       Клиентские state/input/render/effects/layout/Twitch
@@ -38,6 +39,6 @@ node --test tests/js/sudoku_v2/context.test.mjs
 `sudoku_v2.test_settings` заменён на `tests.settings`, `sudoku_v2.tests` — на
 `tests.sudoku_v2.test_routes`, остальные Python-модули получили префикс `tests.`.
 `sudoku_v2/tests_js/` перенесён в `tests/js/sudoku_v2/`.
-Browser preview продолжает использовать `sudoku_v2.preview_settings`.
+Browser preview использует `tests.preview_settings`.
 Существующие тесты других приложений, например `breach_protocol/tests.py`,
 не входят в перенос SudokuV2 и запускаются отдельно.

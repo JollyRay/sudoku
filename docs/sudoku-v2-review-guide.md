@@ -45,7 +45,7 @@
 | Директория | Изменения | Что смотреть при ревью |
 |---|---|---|
 | `sudoku/` | Регистрация SudokuV2, HTTP `/sudoku-v2/`, WebSocket routing | `settings.py`, `urls.py`, `asgi.py`: преимущественно смена имени |
-| `sudoku_v2/` | Серверные доски 9/16, проверка ходов, preferences, поколения/revisions, бонусы и сессии | `service.py`, `storage.py`, `bonus_service.py`, `bonuses.py`, `consumers.py`, `user_context.py` |
+| `sudoku_v2/` | Серверные доски 9/16, проверка ходов, preferences, поколения/revisions, бонусы и сессии | `service.py`, `storage.py`, `bonus_service.py`, `bonus_rules.py`, `consumers.py`, `user_context.py` |
 | `sudoku_v2/twitch/` | Новый общий бот: команды, реестр каналов, КД, дедуп, IRC, OAuth validation, lease | Сначала `commands.py`/`types.py`, затем `registry.py`/`service.py`, потом `irc.py`/`worker.py` |
 | `common/` | Атомарная фиксация нескольких досок и guards, дополнительные данные КД/дедуп в одной транзакции | Только diff `redis.py`: +72/−3; из 717 строк 648 уже существовали |
 | `game/` | Новый генератор 9/16 с проверкой единственности; выбор доски по размеру | `generator.py`, изменения manager в `models.py`; старый game по умолчанию остаётся 9×9 |

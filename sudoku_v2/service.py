@@ -12,7 +12,7 @@ from .constants import (
     SUPPORTED_SIZES, SYMBOL_PRESET_DEFINITIONS,
 )
 from .storage import BoardValue, PublicBoard, StoredBoard, SudokuV2Storage, empty_board
-from .bonuses import BonusRequest
+from .bonus_rules import BonusRequest
 from .bonus_service import BonusService
 from .user_context import normalize_context, valid_board_value, valid_cell_index
 from .twitch.registry import TwitchRegistry

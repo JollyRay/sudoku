@@ -10,7 +10,7 @@ from channels.testing import WebsocketCommunicator
 from common.redis import CommitGuard, ExpiringValue
 from sudoku_v2.consumers import SudokuV2Consumer
 
-from sudoku_v2.bonuses import BonusRequest, apply_bonus, normalize_bonus_params
+from sudoku_v2.bonus_rules import BonusRequest, apply_bonus, normalize_bonus_params
 from sudoku_v2.bonus_service import BonusService
 from sudoku_v2.broadcast import publish_bonus
 from sudoku_v2.service import SudokuV2Service, SudokuV2Error

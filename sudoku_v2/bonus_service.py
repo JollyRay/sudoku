@@ -4,7 +4,7 @@ from time import time
 
 from django.conf import settings
 from common.redis import CommitGuard
-from .bonuses import BonusRequest, apply_bonus, normalize_bonus_params
+from .bonus_rules import apply_bonus, normalize_bonus_params
 from .storage import SudokuV2Storage
 
 

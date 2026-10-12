@@ -6,7 +6,7 @@ from uuid import uuid4
 
 from common.redis import CommitGuard, ExpiringValue
 from ..bonus_service import BonusService
-from ..bonuses import BonusRequest
+from ..bonus_rules import BonusRequest
 from ..broadcast import publish_bonus
 from .commands import normalize_channel, parse_command
 

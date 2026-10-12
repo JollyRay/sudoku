@@ -15,7 +15,7 @@ class PreviewSafetyTests(SimpleTestCase):
         prefix='preview-sudoku-v2:'+'b'*32
         with patch.dict(os.environ, {'SUDOKU_V2_PREVIEW_DB':str(settings.BASE_DIR/'.tmp/sudoku-v2-preview-test.sqlite3'),
                                      'SUDOKU_V2_PREVIEW_PREFIX':prefix,'SUDOKU_V2_PREVIEW_REDIS_URL':'redis://127.0.0.1:6379/15'}):
-            module=importlib.import_module('sudoku_v2.preview_settings')
+            module=importlib.import_module('tests.preview_settings')
             layer=module.CHANNEL_LAYERS['default']
             self.assertEqual(layer['BACKEND'],'channels_redis.core.RedisChannelLayer')
             self.assertEqual(layer['CONFIG']['prefix'],prefix+'-channels')
