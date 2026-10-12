@@ -55,7 +55,7 @@ class TwitchService:
             last = binding['lastAppliedAt']
             if last is not None and now - last < binding['cooldownSeconds'] * 1000:
                 return None
-            targets, _ = await self.bonuses.collect_targets(lobby, owner, ['*'])
+            targets, _ = await self.bonuses.collect_targets(lobby, ['*'])
             if not targets or not await self.storage.get_presence_token(lobby, owner):
                 return None
             names = [parsed.name] if parsed.name in targets else ['*']

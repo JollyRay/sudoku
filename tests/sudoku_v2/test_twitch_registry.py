@@ -49,7 +49,25 @@ class TwitchRegistryTests(TwitchFixture, IsolatedAsyncioTestCase):
         self.assertEqual(sum(r is not None for r in results),20)
         target=await self.storage.get_board_state(self.lobby,'Лена')
         self.assertEqual(len(target['public']['activeEffects']),21)
+        owner=await self.storage.get_board_state(self.lobby,self.name)
+        self.assertEqual(len(owner['public']['activeEffects']),21)
         self.assertEqual(self.publish.await_count,21)
+
+    async def test_wildcard_includes_owner_and_defaults_work_when_alone(self):
+        event = await self.service.handle(self.command('all', '!blur * 1'))
+        self.assertEqual({board['name'] for board in event['targets']}, {self.name, 'Лена'})
+        self.assertTrue(all(board['activeEffects'][0]['params'] == {'box': 0, 'blurPx': 6}
+                            for board in event['targets']))
+        await self.storage.release_presence(self.lobby, 'Лена', 'Лена-lease')
+        event = await self.service.handle(self.command('solo', '!rotate'))
+        self.assertEqual([board['name'] for board in event['targets']], [self.name])
+        owner = await self.storage.get_board_state(self.lobby, self.name)
+        self.assertEqual([effect['kind'] for effect in owner['public']['activeEffects']], ['SHADOW_BOX', 'ROLL'])
+
+    async def test_owner_can_be_targeted_by_name(self):
+        event = await self.service.handle(self.command(text=f'!pulse "{self.name}" 1'))
+        self.assertEqual([board['name'] for board in event['targets']], [self.name])
+        self.assertEqual((await self.storage.get_board_state(self.lobby, 'Лена'))['public']['activeEffects'], [])
 
     async def test_cooldown_change_during_apply_invalidates_old_candidate(self):
         await self.service.handle(self.command('first'))
@@ -85,6 +103,10 @@ class TwitchRegistryTests(TwitchFixture, IsolatedAsyncioTestCase):
                         ExternalBonusCommand('twitch_chat','botmsg','channel','bot',self.binding['registeredAt'],'!blur')]:
             self.assertIsNone(await self.service.handle(command))
         await self.storage.release_presence(self.lobby,'Лена','Лена-lease')
+        owner = await self.storage.get_board_state(self.lobby, self.name)
+        owner['public'].update(completed=True, revision=2)
+        self.assertEqual(await self.storage.save_board_state(
+            self.lobby, self.name, owner, ('A', 1), 'lease'), 'saved')
         self.assertIsNone(await self.service.handle(self.command('empty')))
         self.assertEqual((await self.registry.get('channel'))['lastAppliedAt'],None)
         await self.add_board('Лена')
@@ -93,7 +115,7 @@ class TwitchRegistryTests(TwitchFixture, IsolatedAsyncioTestCase):
     async def test_bad_name_and_args_default_once_for_mixed_targets(self):
         await self.add_board('Макс',16)
         event=await self.service.handle(self.command(text='!swap missing col 1 9'))
-        self.assertEqual({b['name'] for b in event['targets']},{'Лена','Макс'})
+        self.assertEqual({b['name'] for b in event['targets']},{self.name,'Лена','Макс'})
         self.assertEqual(event['params']['axis'],'col')
         a,b=event['params']['first'],event['params']['second']
         self.assertEqual(a//3,b//3);self.assertEqual(a//4,b//4)

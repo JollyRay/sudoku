@@ -63,6 +63,7 @@ class BonusStorageTests(BonusFixture, IsolatedAsyncioTestCase):
         self.assertNotIn('_bonus_event', second)
         target = await self.storage.get_board_state(self.lobby, 'Лена')
         self.assertEqual(len(target['public']['activeEffects']), 1)
+        self.assertEqual((await self.storage.get_board_state(self.lobby, self.name))['public']['activeEffects'], [])
 
     async def test_solo_consumes_and_later_joiner_has_no_effect(self):
         board = await self.add_board(self.name)
@@ -74,15 +75,15 @@ class BonusStorageTests(BonusFixture, IsolatedAsyncioTestCase):
         await self.move(board['solution']['0'])
         self.assertEqual((await self.storage.get_board_state(self.lobby, 'Лена'))['public']['activeEffects'], [])
 
-    async def test_only_present_unfinished_opponents_and_shared_parameters(self):
+    async def test_external_targets_present_unfinished_players_including_owner(self):
         await self.add_board(self.name)
         for name, size in [('Лена', 9), ('Макс', 16), ('Готово', 9), ('Ушёл', 9)]:
             await self.add_board(name, size, completed=name=='Готово')
         await self.storage.release_presence(self.lobby, 'Ушёл', 'Ушёл-lease')
         event = await BonusService(self.storage).apply_external(self.lobby, self.name, BonusRequest('ROLL', ['*'], {}), event_id='one', guards=[], strings={})
-        self.assertEqual({b['name'] for b in event['targets']}, {'Лена', 'Макс'})
+        self.assertEqual({b['name'] for b in event['targets']}, {self.name, 'Лена', 'Макс'})
         self.assertEqual(event['targets'][0]['activeEffects'][0]['params'], event['targets'][1]['activeEffects'][0]['params'])
-        self.assertEqual((await self.storage.get_board_state(self.lobby, self.name))['public']['activeEffects'], [])
+        self.assertEqual(len((await self.storage.get_board_state(self.lobby, self.name))['public']['activeEffects']), 1)
 
     async def test_concurrent_correct_moves_emit_one_bonus(self):
         board = await self.add_board(self.name)

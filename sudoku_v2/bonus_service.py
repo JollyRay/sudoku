@@ -13,10 +13,12 @@ class BonusService:
         self.storage = storage
         self.rng = rng or Random()
 
-    async def collect_targets(self, lobby, owner_name, target_names):
+    async def collect_targets(self, lobby, target_names, *, exclude_name: str | None = None):
         boards, expected = {}, {}
         names = await self.storage.get_active_usernames(lobby)
-        for name in sorted(names - {owner_name}):
+        for name in sorted(names):
+            if name == exclude_name:
+                continue
             if '*' not in target_names and name not in target_names:
                 continue
             board = await self.storage.get_board_state(lobby, name)
@@ -49,7 +51,7 @@ class BonusService:
             owner_lease = await self.storage.get_presence_token(lobby, owner_name)
             if not owner_lease:
                 return None
-            boards, expected = await self.collect_targets(lobby, owner_name, request.target_names)
+            boards, expected = await self.collect_targets(lobby, request.target_names)
             if not boards:
                 return None
             updated, event = self.prepare(boards, request, event_id, int(time()*1000),

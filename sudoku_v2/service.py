@@ -150,7 +150,7 @@ class SudokuV2Service:
             kind = public['bonuses'].get(str(index))
             if kind and value == board['solution'].get(str(index)) and index not in public['consumedBonusCells']:
                 updated['public']['consumedBonusCells'] = sorted([*public['consumedBonusCells'], index])
-                targets, expected = await bonus_service.collect_targets(self.lobby, self.username, ['*'])
+                targets, expected = await bonus_service.collect_targets(self.lobby, ['*'], exclude_name=self.username)
                 if targets:
                     targets, event = bonus_service.prepare(targets, BonusRequest(kind, ['*'], {}),
                         event_id, now, {'type': 'cell', 'name': self.username})

@@ -130,6 +130,8 @@ class EndToEndTests(TwitchFixture, IsolatedAsyncioTestCase):
             await self.drain(*self.sockets)
             chat('first');event=await self.receive(target,'bonus_applied');await self.receive(owner,'bonus_applied')
             self.assertEqual(event['params']['box'],2)
+            self.assertEqual({board['name'] for board in event['targets']}, {self.name, 'Лена'})
+            self.assertEqual((await self.storage.get_board_state(first_lobby, self.name))['public']['activeEffects'][0]['params']['box'], 2)
             await self.no_bonus(other)
             chat('first')
             await eventually(lambda:processed.count('first')==2)
