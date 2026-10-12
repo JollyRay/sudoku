@@ -27,6 +27,42 @@ CATALOG = {"difficulties": [{"value": "medium", "label": "Средняя"}],
 
 
 class GameplayTests(SimpleTestCase):
+    async def test_saved_context_restore_preserves_read_subset_and_resets_on_generation(self):
+        from .test_sizes import sized_board
+
+        for size in (9, 16):
+            for invalid_preferences in (False, True):
+                with self.subTest(size=size, invalid_preferences=invalid_preferences):
+                    preferences = {'showErrors': 'invalid' if invalid_preferences else True}
+                    saved = {'username': 'Другой', 'allowedValues': ['', 1],
+                             'preferences': preferences, 'private': 'never expose'}
+                    storage = AsyncMock()
+                    storage.get_context.return_value = saved
+                    storage.get_active_usernames.return_value = {'Иван'}
+                    storage.get_board_state.return_value = sized_board(size)
+                    storage.save_board_state.return_value = 'saved'
+                    service = SudokuV2Service('room', 'Иван', storage, 'lease')
+                    catalog = AsyncMock(return_value={**CATALOG, 'sizes': [9, 16]})
+                    with patch.object(service, 'get_catalog', catalog), patch.object(
+                        service, 'get_random_board', AsyncMock(return_value=sized_board(size))
+                    ):
+                        snapshot = await service.get_board_data({})
+                        self.assertEqual(catalog.await_count, 1)
+                        expected_values = ['', *range(1, size + 1)] if invalid_preferences else ['', 1]
+                        self.assertEqual(snapshot['config']['allowedValues'], expected_values)
+                        self.assertEqual(snapshot['config']['preferences']['showErrors'], not invalid_preferences)
+                        self.assertEqual(snapshot['config']['username'], 'Иван')
+                        self.assertNotIn('private', snapshot['config'])
+                        catalog.reset_mock()
+                        generated = await service.generate_board({'size': size, 'difficulty': 'medium'})
+                        self.assertEqual(catalog.await_count, 2 if invalid_preferences else 1)
+                    self.assertEqual(generated['config']['allowedValues'], ['', *range(1, size + 1)])
+                    self.assertEqual(generated['config']['preferences']['size'], size)
+                    self.assertEqual(generated['config']['preferences']['showErrors'], not invalid_preferences)
+                    self.assertNotIn('private', generated['config'])
+                    self.assertEqual(storage.save_board_state.call_args.kwargs['expected_context'], saved)
+                    self.assertEqual(saved['preferences'], preferences)
+
     def test_digit_limit_counts_all_values_and_erase_restores_capacity(self):
         board = make_stored_board()
         board["public"]["fixedCells"] = [1]

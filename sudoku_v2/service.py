@@ -81,15 +81,26 @@ class SudokuV2Service:
         context = await self.storage.get_context(self.lobby, self.username)
         boards = await self.get_participant_boards()
         own_board = next(b for b in boards if b['name'] == self.username)
-        # Legacy contexts could contain arbitrary fields. Never echo private data.
-        safe_context = {k: v for k, v in (context or {}).items()
-                        if k in {"username", "allowedValues", "preferences"}}
-        try:
-            context = normalize_context(safe_context, self.username, catalog, board_size=own_board['size'])
-        except ValueError:
-            context = normalize_context({}, self.username, catalog, board_size=own_board['size'])
+        context = await self._restore_context(context, own_board['size'], catalog=catalog)
         return {"board": own_board,
                 "boards": boards, "config": context, "catalog": catalog, "serverNow": self.now_ms()}
+
+    async def _restore_context(self, context, size, *, catalog=None, reset_values=False):
+        # Legacy contexts could contain arbitrary fields. Never echo private data.
+        fields = {'username', 'preferences'}
+        if not reset_values:
+            fields.add('allowedValues')
+        safe_context = {key: value for key, value in (context or {}).items() if key in fields}
+
+        async def normalize(candidate):
+            # Generation reads the catalog again on fallback, as it did before.
+            current_catalog = catalog if catalog is not None else await self.get_catalog()
+            return normalize_context(candidate, self.username, current_catalog, board_size=size)
+
+        try:
+            return await normalize(safe_context)
+        except ValueError:
+            return await normalize({})
 
     async def get_participant_boards(self) -> list[PublicBoard]:
         names = await self.storage.get_active_usernames(self.lobby)
@@ -208,11 +219,7 @@ class SudokuV2Service:
             public["revision"] = previous["revision"] + 1
             expected = (previous["generationId"], previous["revision"]) if previous["generationId"] else None
             old_context = await self.storage.get_context(self.lobby, self.username)
-            safe_context = {k: v for k, v in (old_context or {}).items() if k in {'username', 'preferences'}}
-            try:
-                context = normalize_context(safe_context, self.username, await self.get_catalog(), board_size=size)
-            except ValueError:
-                context = normalize_context({}, self.username, await self.get_catalog(), board_size=size)
+            context = await self._restore_context(old_context, size, reset_values=True)
             context['preferences'].update(size=size, difficulty=difficulty)
             result = await self.storage.save_board_state(self.lobby, self.username, board, expected, self.connection_id,
                                                         context=context, expected_context=old_context)
@@ -221,10 +228,6 @@ class SudokuV2Service:
             if result == "saved":
                 return {"board": public, "config": context, "serverNow": self.now_ms()}
         raise SudokuV2Error("board_busy", "Доска обновляется. Попробуйте ещё раз.")
-
-    @staticmethod
-    def valid_cell_index(index: Any, size: int = 9) -> bool:
-        return valid_cell_index(index, size)
 
     async def valid_value(self, value: Any, size: int = 9) -> bool:
         if not valid_board_value(value, size):
