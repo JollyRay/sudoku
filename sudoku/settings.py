@@ -56,7 +56,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'bunker.apps.BunkerConfig',
     'game.apps.GameConfig',
-    'sudoku_vibe.apps.SudokuVibeConfig',
+    'sudoku_v2.apps.SudokuV2Config',
     'voice.apps.VoiceConfig',
     'breach_protocol.apps.BreachProtocolConfig',
 ]
