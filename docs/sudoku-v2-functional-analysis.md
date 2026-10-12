@@ -180,12 +180,14 @@ reconnect; автоматической регистрации нет. Токе�
 
 ```powershell
 $env:SUDOKU_V2_TEST_REDIS_URL = 'redis://127.0.0.1:6379/15'
-.venv\Scripts\python.exe manage.py check --settings=sudoku_v2.test_settings
-.venv\Scripts\python.exe manage.py test sudoku_v2 game.test_generation --settings=sudoku_v2.test_settings
-node --test sudoku_v2/tests_js/*.test.mjs
+.venv\Scripts\python.exe manage.py check --settings=tests.settings
+.venv\Scripts\python.exe manage.py test tests --settings=tests.settings
+node --test tests/js/sudoku_v2/*.test.mjs
 ```
 
 Тесты используют SQLite, InMemoryChannelLayer и уникальные Redis-префиксы DB15.
+Код тестов вынесен в корневой `tests/`; структура и отдельные команды —
+в [tests/README.md](../tests/README.md).
 Browser preview: localhost8765, отдельная SQLite `.tmp/sudoku-v2-preview.sqlite3`,
 уникальный prefix `preview-sudoku-v2:<uuid>`, RedisChannelLayer с отдельным prefix.
 Seed содержит шесть фиксированных уникальных задач; runtime-генерация проверяется

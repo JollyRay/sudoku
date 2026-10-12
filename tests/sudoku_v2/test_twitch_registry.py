@@ -4,9 +4,9 @@ from unittest import IsolatedAsyncioTestCase, skipUnless
 from unittest.mock import AsyncMock, patch
 from django.test import override_settings
 from . import test_bonuses, test_storage
-from .twitch.registry import TwitchRegistry, TwitchError
-from .twitch.service import TwitchService
-from .twitch.types import ExternalBonusCommand
+from sudoku_v2.twitch.registry import TwitchRegistry, TwitchError
+from sudoku_v2.twitch.service import TwitchService
+from sudoku_v2.twitch.types import ExternalBonusCommand
 
 
 @skipUnless(os.environ.get('SUDOKU_V2_TEST_REDIS_URL'),'Set an isolated test Redis URL')

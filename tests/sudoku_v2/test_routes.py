@@ -9,9 +9,9 @@ from django.core.handlers.asgi import ASGIHandler
 from django.test import SimpleTestCase, override_settings
 from django.urls import reverse
 
-from .consumers import SudokuV2Consumer
-from .service import SudokuV2Error
-from .routing import websocket_urlpatterns
+from sudoku_v2.consumers import SudokuV2Consumer
+from sudoku_v2.service import SudokuV2Error
+from sudoku_v2.routing import websocket_urlpatterns
 
 
 @override_settings(

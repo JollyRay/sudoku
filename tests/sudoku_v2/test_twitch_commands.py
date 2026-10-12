@@ -1,5 +1,5 @@
 from django.test import SimpleTestCase
-from .twitch.commands import parse_command, normalize_channel
+from sudoku_v2.twitch.commands import parse_command, normalize_channel
 
 
 class TwitchCommandTests(SimpleTestCase):

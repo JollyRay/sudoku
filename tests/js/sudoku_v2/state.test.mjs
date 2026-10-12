@@ -1,9 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {SudokuConfig} from '../static/sudoku_v2/js/config.js?v=12';
-import {createGameState} from '../static/sudoku_v2/js/state.js?v=12';
-import {getNoteLayout} from '../static/sudoku_v2/js/board.js?v=12';
-import {createEffectsController} from '../static/sudoku_v2/js/effects.js?v=12';
+import {SudokuConfig} from '../../../sudoku_v2/static/sudoku_v2/js/config.js?v=12';
+import {createGameState} from '../../../sudoku_v2/static/sudoku_v2/js/state.js?v=12';
+import {getNoteLayout} from '../../../sudoku_v2/static/sudoku_v2/js/board.js?v=12';
+import {createEffectsController} from '../../../sudoku_v2/static/sudoku_v2/js/effects.js?v=12';
 
 test('late ordinary snapshots cannot extend a newer bonus effect',t=>{
     t.mock.timers.enable({apis:['Date','setTimeout'],now:100000});

@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, patch
 from django.test import SimpleTestCase, TransactionTestCase
 
 from game.models import Difficulty, SudokuBoard, SudokuCell
-from .service import SudokuV2Service, SudokuV2Error
+from sudoku_v2.service import SudokuV2Service, SudokuV2Error
 
 
 def make_stored_board():
@@ -41,7 +41,7 @@ class GameplayTests(SimpleTestCase):
         self.assertEqual(sum(v == 1 for v in restored["public"]["values"].values()), 9)
 
     def test_digit_first_preference_is_validated_and_preserved(self):
-        from .user_context import normalize_context
+        from sudoku_v2.user_context import normalize_context
         self.assertFalse(normalize_context({}, "Иван", CATALOG)["preferences"]["digitFirstMode"])
         context = normalize_context({"preferences": {"digitFirstMode": True}}, "Иван", CATALOG)
         self.assertTrue(context["preferences"]["digitFirstMode"])
@@ -117,7 +117,7 @@ class GameplayTests(SimpleTestCase):
                     await service.set_context(data)
 
     async def test_zero_is_removed_from_legacy_context_and_rejected_as_move(self):
-        from .user_context import normalize_context
+        from sudoku_v2.user_context import normalize_context
         context = normalize_context({"allowedValues": ["", 0, 1, 9]}, "Иван", CATALOG)
         self.assertEqual(context["allowedValues"], ["", 1, 9])
         self.assertNotIn(0, normalize_context({}, "Иван", CATALOG)["allowedValues"])

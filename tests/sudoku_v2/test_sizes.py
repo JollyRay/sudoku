@@ -8,13 +8,13 @@ from django.test import SimpleTestCase, TransactionTestCase, override_settings
 
 from game.generator import generate_solution
 from game.models import Difficulty, SudokuBoard, SudokuCell
-from .constants import allowed_values
-from .user_context import normalize_context, valid_board_value, valid_cell_index
-from .service import SudokuV2Service, SudokuV2Error
-from .storage import empty_board
+from sudoku_v2.constants import allowed_values
+from sudoku_v2.user_context import normalize_context, valid_board_value, valid_cell_index
+from sudoku_v2.service import SudokuV2Service, SudokuV2Error
+from sudoku_v2.storage import empty_board
 from . import test_storage
 from .test_gameplay import CATALOG
-from .consumers import SudokuV2Consumer
+from sudoku_v2.consumers import SudokuV2Consumer
 
 
 def sized_board(size, name='Иван'):

@@ -1,9 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {SudokuConfig} from '../static/sudoku_v2/js/config.js?v=12';
-import {createGameState} from '../static/sudoku_v2/js/state.js?v=12';
-import {createInputController} from '../static/sudoku_v2/js/input.js?v=12';
-import {formatElapsed} from '../static/sudoku_v2/js/ui.js?v=12';
+import {SudokuConfig} from '../../../sudoku_v2/static/sudoku_v2/js/config.js?v=12';
+import {createGameState} from '../../../sudoku_v2/static/sudoku_v2/js/state.js?v=12';
+import {createInputController} from '../../../sudoku_v2/static/sudoku_v2/js/input.js?v=12';
+import {formatElapsed} from '../../../sudoku_v2/static/sudoku_v2/js/ui.js?v=12';
 function setup(){
     const config=new SudokuConfig({username:'me',allowedValues:['',1,2],storage:null});
     config.runtime.ready=true;

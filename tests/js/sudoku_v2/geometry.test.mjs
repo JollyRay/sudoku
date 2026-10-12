@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {blockSide,canonicalIndex,displayPosition} from '../static/sudoku_v2/js/geometry.js?v=12';
+import {blockSide,canonicalIndex,displayPosition} from '../../../sudoku_v2/static/sudoku_v2/js/geometry.js?v=12';
 
 test('geometry is reversible on both sizes with row and column permutations',()=>{
     for(const size of [9,16]){

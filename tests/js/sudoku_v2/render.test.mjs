@@ -1,10 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {renderNumberPad} from '../static/sudoku_v2/js/ui.js?v=12';
-import {renderBoard} from '../static/sudoku_v2/js/board.js?v=12';
-import {SudokuConfig} from '../static/sudoku_v2/js/config.js?v=12';
-import {createGameState} from '../static/sudoku_v2/js/state.js?v=12';
-import {createInputController} from '../static/sudoku_v2/js/input.js?v=12';
+import {renderNumberPad} from '../../../sudoku_v2/static/sudoku_v2/js/ui.js?v=12';
+import {renderBoard} from '../../../sudoku_v2/static/sudoku_v2/js/board.js?v=12';
+import {SudokuConfig} from '../../../sudoku_v2/static/sudoku_v2/js/config.js?v=12';
+import {createGameState} from '../../../sudoku_v2/static/sudoku_v2/js/state.js?v=12';
+import {createInputController} from '../../../sudoku_v2/static/sudoku_v2/js/input.js?v=12';
 
 // The renderer only needs element creation, children, attributes and classes.
 class Element {

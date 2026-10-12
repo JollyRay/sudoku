@@ -1,9 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {SudokuConfig} from '../static/sudoku_v2/js/config.js?v=12';
-import {createGameState} from '../static/sudoku_v2/js/state.js?v=12';
-import {connectWebsocket} from '../static/sudoku_v2/js/network.js?v=12';
-import {mountTwitchSettings} from '../static/sudoku_v2/js/twitch.js?v=12';
+import {SudokuConfig} from '../../../sudoku_v2/static/sudoku_v2/js/config.js?v=12';
+import {createGameState} from '../../../sudoku_v2/static/sudoku_v2/js/state.js?v=12';
+import {connectWebsocket} from '../../../sudoku_v2/static/sudoku_v2/js/network.js?v=12';
+import {mountTwitchSettings} from '../../../sudoku_v2/static/sudoku_v2/js/twitch.js?v=12';
 
 class Socket extends EventTarget {
     static instances=[]; readyState=0; sent=[];

@@ -8,8 +8,8 @@ from django.core.management import call_command
 from django.core.management.base import CommandError
 from django.test import override_settings
 
-from .twitch.irc import AuthError, RateWindow, TwitchIRCClient, parse_irc_line
-from .twitch.worker import TwitchWorker, validate_token
+from sudoku_v2.twitch.irc import AuthError, RateWindow, TwitchIRCClient, parse_irc_line
+from sudoku_v2.twitch.worker import TwitchWorker, validate_token
 from . import test_twitch_registry
 
 
@@ -230,7 +230,7 @@ class TwitchWorkerTests(IsolatedAsyncioTestCase):
         await self.add_board('host'); await self.add_board('opponent')
         second=await self.registry.register(other,'host','host-lease','second',0)
         self.lobby=original
-        from .twitch.types import ExternalBonusCommand
+        from sudoku_v2.twitch.types import ExternalBonusCommand
         await worker.on_message(self.command(),self.binding)
         await worker.on_message(ExternalBonusCommand('twitch_chat','two','second','viewer',second['registeredAt'],'!rotate'),second)
         self.assertEqual([c.args[0] for c in self.publish.call_args_list],[original,other])

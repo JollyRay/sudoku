@@ -8,12 +8,12 @@ from unittest.mock import AsyncMock, patch
 from django.test import SimpleTestCase, override_settings
 from channels.testing import WebsocketCommunicator
 from common.redis import CommitGuard, ExpiringValue
-from .consumers import SudokuV2Consumer
+from sudoku_v2.consumers import SudokuV2Consumer
 
-from .bonuses import BonusRequest, apply_bonus, normalize_bonus_params
-from .bonus_service import BonusService
-from .broadcast import publish_bonus
-from .service import SudokuV2Service, SudokuV2Error
+from sudoku_v2.bonuses import BonusRequest, apply_bonus, normalize_bonus_params
+from sudoku_v2.bonus_service import BonusService
+from sudoku_v2.broadcast import publish_bonus
+from sudoku_v2.service import SudokuV2Service, SudokuV2Error
 from .test_sizes import sized_board
 from . import test_storage
 

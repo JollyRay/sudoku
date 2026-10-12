@@ -3,9 +3,9 @@ from unittest import IsolatedAsyncioTestCase, skipUnless
 from unittest.mock import patch
 from channels.testing import WebsocketCommunicator
 
-from .consumers import SudokuV2Consumer
+from sudoku_v2.consumers import SudokuV2Consumer
 from . import test_twitch_registry
-from .user_context import normalize_context
+from sudoku_v2.user_context import normalize_context
 from .test_gameplay import CATALOG
 
 
@@ -70,7 +70,7 @@ class TwitchAPITests(IsolatedAsyncioTestCase):
         self.assertEqual((await self.registry.get('channel'))['cooldownSeconds'],0)
 
     async def test_active_worker_without_join_ack_is_connecting(self):
-        from .service import SudokuV2Service
+        from sudoku_v2.service import SudokuV2Service
         await self.raw.set(self.registry.prefix+':active-worker','worker',ex=30)
         response=await SudokuV2Service(self.lobby,self.name,self.storage,'lease').get_twitch_status({})
         self.assertEqual(response['bindings'][0]['status'],'connecting')

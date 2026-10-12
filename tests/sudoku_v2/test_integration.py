@@ -7,12 +7,12 @@ from unittest.mock import AsyncMock, patch
 
 from channels.testing import WebsocketCommunicator
 from . import test_twitch_registry, test_twitch_worker
-from .broadcast import publish_bonus
-from .consumers import SudokuV2Consumer
-from .service import SudokuV2Service
+from sudoku_v2.broadcast import publish_bonus
+from sudoku_v2.consumers import SudokuV2Consumer
+from sudoku_v2.service import SudokuV2Service
 from .test_gameplay import CATALOG
-from .twitch.irc import TwitchIRCClient
-from .twitch.worker import TwitchWorker
+from sudoku_v2.twitch.irc import TwitchIRCClient
+from sudoku_v2.twitch.worker import TwitchWorker
 
 
 @skipUnless(os.environ.get('SUDOKU_V2_TEST_REDIS_URL'),'Set an isolated test Redis URL')
@@ -160,7 +160,7 @@ class EndToEndTests(IsolatedAsyncioTestCase):
         await self.add_board(self.name);await self.add_board('Лена')
         new_binding=await self.registry.register(first_lobby,self.name,'lease','channel',0)
         self.assertNotEqual(new_binding['roomEpoch'],old_epoch)
-        from .twitch.types import ExternalBonusCommand
+        from sudoku_v2.twitch.types import ExternalBonusCommand
         result=await self.service.handle(ExternalBonusCommand('twitch_chat','never-applied','channel','viewer',self.binding['registeredAt']-1,'!blur'))
         self.assertIsNone(result)
         self.assertEqual((await self.storage.get_board_state(first_lobby,'Лена'))['public']['activeEffects'],[])

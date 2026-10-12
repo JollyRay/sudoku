@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {createEffectsController} from '../static/sudoku_v2/js/effects.js?v=12';
+import {createEffectsController} from '../../../sudoku_v2/static/sudoku_v2/js/effects.js?v=12';
 
 function setup(){
     let now=0,next=0,changes=0;const tasks=new Map();

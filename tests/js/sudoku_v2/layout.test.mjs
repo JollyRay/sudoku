@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {mountLayout} from '../static/sudoku_v2/js/layout.js?v=12';
+import {mountLayout} from '../../../sudoku_v2/static/sudoku_v2/js/layout.js?v=12';
 
 function setup(matches){
     const writes=[],calls=[],listeners=new Map();

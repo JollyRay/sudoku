@@ -9,10 +9,10 @@ from redis.asyncio import Redis
 from channels.testing import WebsocketCommunicator
 from django.test import override_settings
 from common.redis import RedisClient
-from .storage import SudokuV2Storage
+from sudoku_v2.storage import SudokuV2Storage
 from .test_gameplay import make_stored_board
 from .test_gameplay import CATALOG
-from .consumers import SudokuV2Consumer
+from sudoku_v2.consumers import SudokuV2Consumer
 
 
 @skipUnless(os.environ.get("SUDOKU_V2_TEST_REDIS_URL"), "Set an isolated test Redis URL")

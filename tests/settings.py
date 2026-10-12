@@ -15,8 +15,8 @@ class TestVoiceConfig(AppConfig):
 
 
 _TEST_APP_CONFIGS = {
-    "game.apps.GameConfig": "sudoku_v2.test_settings.TestGameConfig",
-    "voice.apps.VoiceConfig": "sudoku_v2.test_settings.TestVoiceConfig",
+    "game.apps.GameConfig": "tests.settings.TestGameConfig",
+    "voice.apps.VoiceConfig": "tests.settings.TestVoiceConfig",
 }
 INSTALLED_APPS = [
     _TEST_APP_CONFIGS.get(app, app)

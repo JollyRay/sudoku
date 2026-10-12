@@ -4,7 +4,7 @@ import re
 from pathlib import Path
 from urllib.parse import urlparse
 from django.core.exceptions import ImproperlyConfigured
-from .test_settings import *  # noqa: F403
+from tests.settings import *  # noqa: F403
 
 _database = Path(os.environ.get('SUDOKU_V2_PREVIEW_DB', '')).resolve()
 _scratch = (BASE_DIR / '.tmp').resolve()  # noqa: F405

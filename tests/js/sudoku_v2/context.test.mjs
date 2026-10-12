@@ -1,9 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {SudokuConfig} from '../static/sudoku_v2/js/config.js?v=12';
-import {createGameState} from '../static/sudoku_v2/js/state.js?v=12';
-import {connectWebsocket} from '../static/sudoku_v2/js/network.js?v=12';
-import {createInputController} from '../static/sudoku_v2/js/input.js?v=12';
+import {SudokuConfig} from '../../../sudoku_v2/static/sudoku_v2/js/config.js?v=12';
+import {createGameState} from '../../../sudoku_v2/static/sudoku_v2/js/state.js?v=12';
+import {connectWebsocket} from '../../../sudoku_v2/static/sudoku_v2/js/network.js?v=12';
+import {createInputController} from '../../../sudoku_v2/static/sudoku_v2/js/input.js?v=12';
 
 const board = (overrides={}) => ({name:'Иван',generationId:'A',revision:1,size:9,
     values:{'0':'','1':2},fixedCells:[1],bonuses:{},wrongCells:[],startedAt:1000,
