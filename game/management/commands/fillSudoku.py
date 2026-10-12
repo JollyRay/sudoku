@@ -39,7 +39,11 @@ class Command(BaseCommand):
                     try:
                         generated = generate_puzzle(size, lower, upper, rng, max_seconds=budget)
                     except GenerationBudgetExceeded as exc:
-                        raise CommandError(f'{size}x{size} {difficulty.name}: generation budget exhausted') from exc
+                        raise CommandError(
+                            f'{size}x{size} {difficulty.name}: {count}/{minimum}; '
+                            f'generation budget exhausted (limit {budget:g}s). '
+                            'Saved puzzles are kept. Rerun to continue or increase --max-seconds.'
+                        ) from exc
                     with transaction.atomic():
                         board = SudokuBoard.objects.create(difficulty=difficulty)
                         SudokuCell.objects.bulk_create([

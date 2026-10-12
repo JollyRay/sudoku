@@ -39,6 +39,17 @@ class GeneratorTests(SimpleTestCase):
                 for c in range(size):
                     self.assertIn(puzzle.puzzle[r][c], (0, puzzle.solution[r][c]))
 
+    def test_hard_16_retries_difficult_deletions_and_preserves_uniqueness(self):
+        # Keep the real solver and its node/attempt limits; a slow CI machine
+        # should explore the same candidates instead of hitting a wall-clock cutoff.
+        with patch.object(generator, 'monotonic', return_value=100.0):
+            generated = generator.generate_puzzle(16, 174, 256, random.Random(1))
+        blanks = sum(value == 0 for row in generated.puzzle for value in row)
+        self.assertGreaterEqual(blanks, 174)
+        self.assertEqual(generator.count_solutions(generated.puzzle), 1)
+        for row, solution in zip(generated.puzzle, generated.solution):
+            self.assertTrue(all(value in (0, answer) for value, answer in zip(row, solution)))
+
     def test_solver_distinguishes_complete_invalid_and_multiple_without_mutation(self):
         solved = [[1, 2, 3, 4], [3, 4, 1, 2], [2, 1, 4, 3], [4, 3, 2, 1]]
         self.assertEqual(generator.count_solutions(solved), 1)
@@ -128,11 +139,14 @@ class FillSudokuTests(TestCase):
         self.fill()
         self.assertEqual(SudokuBoard.objects.count(), 8)
 
-    @patch('game.management.commands.fillSudoku.generate_puzzle', side_effect=generator.GenerationBudgetExceeded)
-    def test_budget_error_reports_size_and_difficulty(self, generate):
-        with self.assertRaisesMessage(CommandError, '9'):
-            self.fill()
-        self.assertEqual(SudokuBoard.objects.count(), 0)
+    def test_budget_error_reports_partial_progress_and_keeps_saved_boards(self):
+        first = generator.generate_puzzle(9, 8, 12, random.Random(12))
+        with patch('game.management.commands.fillSudoku.generate_puzzle',
+                   side_effect=[first, generator.GenerationBudgetExceeded]):
+            with self.assertRaisesMessage(CommandError, '9x9 easy: 1/2'):
+                call_command('fillSudoku', sizes=[9], minimum=2, stdout=StringIO())
+        self.assertEqual(SudokuBoard.objects.count(), 1)
+        self.assertEqual(SudokuCell.objects.count(), 81)
 
     def test_invalid_cli_options(self):
         with self.assertRaises(CommandError):

@@ -125,7 +125,7 @@ def count_solutions(puzzle: list[list[int]], *, limit: int = 2,
 
 
 def generate_puzzle(size: int, min_empty: int, max_empty: int, rng: Random,
-                    *, max_seconds: float = 30, max_attempts: int = 10) -> GeneratedPuzzle:
+                    *, max_seconds: float = 30, max_attempts: int = 100) -> GeneratedPuzzle:
     block_side(size)
     if (type(min_empty) is not int or type(max_empty) is not int
             or not 1 <= min_empty <= max_empty <= size * size
@@ -133,11 +133,12 @@ def generate_puzzle(size: int, min_empty: int, max_empty: int, rng: Random,
             or type(max_attempts) is not int or max_attempts < 1):
         raise ValueError('Invalid generation limits')
     deadline = monotonic() + max_seconds
+    # Reject expensive clue deletions early on large boards. A timeout restores
+    # the clue; only a completed uniqueness proof permits its removal.
+    node_budget = 2 * size * size if size >= 16 else 100000
     for attempt in range(max_attempts):
-        now = monotonic()
-        if now >= deadline:
+        if monotonic() >= deadline:
             break
-        attempt_deadline = now + (deadline - now) / (max_attempts - attempt)
         solution = generate_solution(size, rng)
         puzzle = [row[:] for row in solution]
         empty = 0
@@ -151,12 +152,12 @@ def generate_puzzle(size: int, min_empty: int, max_empty: int, rng: Random,
             # randomized solution, keeping the same uniqueness proof per clue.
             indices.sort(key=lambda i: (i % size, i // size) if attempt % 2 == 0 else (i // size, i % size))
         for index in indices:
-            if monotonic() >= attempt_deadline:
+            if monotonic() >= deadline:
                 break
             r, c = divmod(index, size)
             backup, puzzle[r][c] = puzzle[r][c], 0
             try:
-                unique = count_solutions(puzzle, deadline=attempt_deadline) == 1
+                unique = count_solutions(puzzle, deadline=deadline, node_budget=node_budget) == 1
             except GenerationBudgetExceeded:
                 unique = False
             if not unique:
