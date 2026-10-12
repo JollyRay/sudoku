@@ -21,11 +21,15 @@ Login должен совпадать с владельцем токена. То
 
 Нужны переменные `SUDOKU_V2_TWITCH_LOGIN` и `SUDOKU_V2_TWITCH_TOKEN`.
 Не передавайте токен аргументом команды и не сохраняйте в репозитории.
-Worker settings используют production DB/Channels, но исключают старые
-`GameConfig.ready` / `VoiceConfig.ready`, очищавшие комнаты при запуске.
+Worker settings используют общие настройки Redis/Channels и подключают только
+`sudoku_v2`. SQL-база и проверки URL сайта отключены; `game`, `voice` и другие
+приложения сайта не загружаются, поэтому их startup-очистка не запускается.
 **Указывайте эти settings сразу при запуске Django.** Проверка внутри команды
 не может отменить уже выполненный startup hook при ошибочном выборе settings.
 Preview settings запрещают запуск бота до чтения токена/сетевых вызовов.
+
+Для `fillSudoku` используются отдельные `sudoku_v2.generator_settings`: база
+проекта и модели `game` без его `ready()`. Команда генерации в worker недоступна.
 
 Пример Linux service: [sudoku-v2-twitch.service.example](../config/sudoku-v2-twitch.service.example).
 Замените пути/user; отдельный `/etc/sudoku/twitch.env` с правами600 содержит

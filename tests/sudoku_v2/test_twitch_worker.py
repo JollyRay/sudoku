@@ -1,5 +1,4 @@
 import asyncio
-import importlib
 import os
 from unittest import IsolatedAsyncioTestCase, TestCase, skipUnless
 from unittest.mock import AsyncMock, patch
@@ -30,11 +29,6 @@ class IRCParsingTests(TestCase):
         self.assertFalse(limit.take())
         now[0] = 10
         self.assertTrue(limit.take())
-
-    def test_worker_settings_do_not_load_destructive_ready_hooks(self):
-        module = importlib.import_module('sudoku_v2.worker_settings')
-        self.assertNotIn('game.apps.GameConfig', module.INSTALLED_APPS)
-        self.assertNotIn('voice.apps.VoiceConfig', module.INSTALLED_APPS)
 
     @override_settings(TWITCH_BOT_ENABLED=False)
     def test_disabled_command_refuses_before_token_or_transport(self):

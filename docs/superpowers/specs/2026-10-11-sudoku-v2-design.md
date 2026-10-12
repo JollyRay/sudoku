@@ -226,9 +226,10 @@ Worker один на bot user id: lease 30 s, renew 10 s, при утрате le
 сообщения с registeredAt и актуальный bindingId. Пишущих в чат ответов нет: статусы
 подключения и ошибок отображаются на сайте.
 
-Фоновый процесс использует отдельные worker_settings без `GameConfig.ready` /
-`VoiceConfig.ready`, иначе запуск Django может очистить старые игровые комнаты.
-Это же безопасное окружение применяется для офлайн fillSudoku.
+Фоновый процесс использует `sudoku_v2.worker_settings`: только `sudoku_v2`,
+общие Redis/Channels, без SQL и URL сайта. `game` и `voice` не загружаются.
+Для офлайн fillSudoku используются `sudoku_v2.generator_settings`: база проекта
+и модели `game` через конфиг без startup-очистки; остальные приложения исключены.
 
 ## Проверяемые ограничения и источники
 

@@ -74,12 +74,14 @@ MRV и hidden singles, останавливая подсчёт после вто
 полноту/валидность решения, диапазон и единственность; испорченные не засчитываются.
 
 ```powershell
-.venv\Scripts\python.exe manage.py fillSudoku --sizes 9 16 --minimum 10 --max-seconds 30 --settings=sudoku_v2.worker_settings
+.venv\Scripts\python.exe manage.py fillSudoku --sizes 9 16 --minimum 10 --max-seconds 30 --settings=sudoku_v2.generator_settings
 ```
 
 `--minimum` применяется отдельно к каждой паре размер/сложность, `--seed` делает
-генерацию воспроизводимой в пределах времени выполнения. Worker settings убирают
-старые startup hooks очистки комнат; для production наполнения указывать их явно.
+генерацию воспроизводимой в пределах времени выполнения. Generator settings
+подключают только модели `game` к базе проекта через конфиг без startup-очистки.
+`voice` и остальные приложения сайта не загружаются. Для production наполнения
+указывать эти настройки явно; `worker_settings` предназначены только для Twitch.
 
 ## Серверные бонусы
 

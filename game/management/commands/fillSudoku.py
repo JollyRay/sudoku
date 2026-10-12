@@ -11,7 +11,7 @@ from game.models import Difficulty, SudokuBoard, SudokuCell
 
 
 class Command(BaseCommand):
-    help = 'Generate Sudoku (use --settings=sudoku_v2.worker_settings outside tests).'
+    help = 'Generate Sudoku (use --settings=sudoku_v2.generator_settings outside tests).'
 
     def add_arguments(self, parser):
         parser.add_argument('--sizes', nargs='+', type=int, default=[9, 16])

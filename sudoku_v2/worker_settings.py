@@ -1,24 +1,10 @@
-"""Production DB/channel settings without destructive legacy AppConfig.ready hooks."""
-from django.apps import AppConfig
-
+"""Redis/Channels worker without the website apps, URL checks or SQL database."""
 from sudoku.settings import *  # noqa: F403
 
 
-class WorkerGameConfig(AppConfig):
-    name = 'game'
-    default_auto_field = 'django.db.models.BigAutoField'
-
-
-class WorkerVoiceConfig(AppConfig):
-    name = 'voice'
-    default_auto_field = 'django.db.models.BigAutoField'
-
-
-_WORKER_APPS = {
-    'game.apps.GameConfig': 'sudoku_v2.worker_settings.WorkerGameConfig',
-    'voice.apps.VoiceConfig': 'sudoku_v2.worker_settings.WorkerVoiceConfig',
-}
-INSTALLED_APPS = [_WORKER_APPS.get(app, app) for app in INSTALLED_APPS]  # noqa: F405
+INSTALLED_APPS = ['sudoku_v2.apps.SudokuV2Config']
+ROOT_URLCONF = None
+DATABASES = {}
 
 # Conservative limits for one shared Twitch account; no moderator exceptions.
 TWITCH_BOT_ENABLED = True

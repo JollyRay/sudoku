@@ -3,7 +3,7 @@
 Тесты отделены от кода приложения. Перенос 12 октября 2026 не меняет проверяемое
 поведение: 12 Python-модулей, 9 JavaScript-модулей, 108 Python- и 53 JS-проверки.
 
-После упрощения: 109 Python- и 55 JS-проверок. Общие fixtures и настройка
+После разделения настроек: 110 Python- и 55 JS-проверок. Общие fixtures и настройка
 Redis/Twitch находятся в `sudoku_v2/support.py`; этот модуль не содержит тестов.
 
 ```text
@@ -40,5 +40,7 @@ node --test tests/js/sudoku_v2/context.test.mjs
 `tests.sudoku_v2.test_routes`, остальные Python-модули получили префикс `tests.`.
 `sudoku_v2/tests_js/` перенесён в `tests/js/sudoku_v2/`.
 Browser preview использует `tests.preview_settings`.
+Проверки `tests.sudoku_v2.test_settings` запускают worker и генератор в отдельных
+процессах с недоступными посторонними приложениями и запретом SQL при старте.
 Существующие тесты других приложений, например `breach_protocol/tests.py`,
 не входят в перенос SudokuV2 и запускаются отдельно.
