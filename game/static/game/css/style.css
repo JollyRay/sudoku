@@ -121,7 +121,7 @@ a:visited {
 footer {
     height: 4vh;
 }
-@media screen and (min-width: 1858px) {
+@media screen and (min-width: 1700px) {
     main {
         display: flex;
         justify-content: center;
@@ -498,7 +498,7 @@ header {
     color: var(--select-blue);
 }
 .hidden-option {
-    position: absolute;
+    position: relative;
     bottom: 0;
     transition-duration: 1000ms;
     transition-property: bottom;
