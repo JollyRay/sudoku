@@ -1,0 +1,175 @@
+from unittest.mock import AsyncMock, patch
+
+from asgiref.sync import async_to_sync
+from channels.auth import AuthMiddlewareStack
+from channels.routing import URLRouter
+from channels.testing import WebsocketCommunicator
+from django.conf import settings
+from django.core.handlers.asgi import ASGIHandler
+from django.test import SimpleTestCase, override_settings
+from django.urls import reverse
+
+from sudoku_v2.consumers import SudokuV2Consumer
+from sudoku_v2.service import SudokuV2Error
+from sudoku_v2.routing import websocket_urlpatterns
+
+
+@override_settings(
+    SESSION_ENGINE="django.contrib.sessions.backends.signed_cookies",
+    CHANNEL_LAYERS={"default": {"BACKEND": "channels.layers.InMemoryChannelLayer"}},
+    STATICFILES_STORAGE="django.contrib.staticfiles.storage.StaticFilesStorage",
+)
+class SudokuV2LoginTests(SimpleTestCase):
+    async def test_game_errors_identify_the_request_that_failed(self) -> None:
+        storage = AsyncMock()
+        storage.PRESENCE_EXPIRY_SECONDS = 90
+        storage.acquire_presence.return_value = True
+        storage.renew_presence.return_value = True
+        service = AsyncMock()
+        for kind in ('set_context', 'set_value', 'generate_board'):
+            getattr(service, kind).side_effect = SudokuV2Error('board_busy')
+        with patch('sudoku_v2.consumers.SudokuV2Storage', return_value=storage), patch(
+            'sudoku_v2.consumers.SudokuV2Service', return_value=service
+        ):
+            socket = WebsocketCommunicator(SudokuV2Consumer.as_asgi(), '/ws/sudoku-v2/')
+            socket.scope['session'] = {'sudoku_v2_room': 'error-routing', 'sudoku_v2_username': 'Иван'}
+            self.assertTrue((await socket.connect())[0])
+            try:
+                for kind in ('set_context', 'set_value', 'generate_board'):
+                    await socket.send_json_to({'kind': kind, 'data': {}})
+                    reply = await socket.receive_json_from()
+                    self.assertEqual(reply['kind'], 'error')
+                    self.assertEqual(reply['data']['code'], 'board_busy')
+                    self.assertEqual(reply['data'].get('requestKind'), kind)
+            finally:
+                await socket.disconnect()
+
+    def test_v2_routes_and_bootstrap(self) -> None:
+        response = self.client.get('/sudoku-v2/')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(reverse('sudoku_v2:join'), '/sudoku-v2/')
+        self.assertContains(response, 'SudokuV2')
+        self.assertContains(response, '/static/sudoku_v2/css/sudoku.css')
+
+    async def test_replaced_connection_closes_without_an_error_message(self) -> None:
+        for renewed in (False, True):
+            with self.subTest(replaced_during_write=renewed):
+                storage = AsyncMock()
+                storage.PRESENCE_EXPIRY_SECONDS = 90
+                storage.acquire_presence.return_value = True
+                storage.renew_presence.return_value = renewed
+                service = AsyncMock()
+                service.set_value.side_effect = SudokuV2Error("connection_replaced")
+                with patch("sudoku_v2.consumers.SudokuV2Storage", return_value=storage), patch(
+                    "sudoku_v2.consumers.SudokuV2Service", return_value=service
+                ):
+                    websocket = WebsocketCommunicator(SudokuV2Consumer.as_asgi(), "/ws/sudoku-v2/")
+                    websocket.scope["session"] = {"sudoku_v2_room": "test-room", "sudoku_v2_username": "Иван"}
+                    connected, _ = await websocket.connect()
+                    self.assertTrue(connected)
+                    await websocket.send_json_to({"kind": "set_value", "data": {}})
+                    self.assertEqual(await websocket.receive_output(), {"type": "websocket.close", "code": 4409})
+                    await websocket.disconnect()
+
+    async def test_rejection_sends_browser_visible_close_code(self) -> None:
+        for session, code in (
+            ({}, 4401),
+            ({"sudoku_v2_room": "test-room", "sudoku_v2_username": "Иван"}, 4409),
+        ):
+            with self.subTest(code=code):
+                storage = AsyncMock()
+                storage.acquire_presence.return_value = False
+                with patch("sudoku_v2.consumers.SudokuV2Storage", return_value=storage):
+                    websocket = WebsocketCommunicator(
+                        SudokuV2Consumer.as_asgi(), "/ws/sudoku-v2/"
+                    )
+                    websocket.scope["session"] = session
+                    connected, _ = await websocket.connect()
+                    self.assertTrue(connected)
+                    self.assertEqual(await websocket.receive_output(),
+                                     {"type": "websocket.close", "code": code})
+                    await websocket.disconnect()
+                    storage.release_presence.assert_not_awaited()
+
+    def test_login_preserves_name_through_http_and_websocket(self) -> None:
+        for username in ("Иван", "Игрок 🧩", "Alice", "player%20name"):
+            with self.subTest(username=username):
+                self.client.cookies["nick"] = "previous-player"
+                with patch(
+                    "sudoku_v2.forms.SudokuV2Storage.is_username_active",
+                    return_value=False,
+                ) as is_active:
+                    response = self.client.post(
+                        reverse("sudoku_v2:join"),
+                        {"username": username, "room_name": "test-room"},
+                    )
+
+                self.assertEqual(response.status_code, 302)
+                is_active.assert_called_once_with("test-room", username)
+                # The test client alone does not serialize Set-Cookie as ASGI does.
+                async_to_sync(ASGIHandler().send_response)(response, AsyncMock())
+
+                lobby = self.client.get(reverse("sudoku_v2:lobby"))
+                self.assertEqual(lobby.context["bootstrap"]["username"], username)
+                form = self.client.get(reverse("sudoku_v2:join"))
+                self.assertEqual(form.context["form"].initial["username"], username)
+                async_to_sync(self.assert_websocket_username)(username)
+
+    def test_legacy_session_requires_new_login(self) -> None:
+        username = "legacy%20name"
+        self.client.cookies["nick"] = username
+        session = self.client.session
+        session["room_code"] = "test-room"
+        session.save()
+        self.client.cookies[settings.SESSION_COOKIE_NAME] = session.session_key
+
+        lobby = self.client.get(reverse("sudoku_v2:lobby"))
+        self.assertRedirects(lobby, reverse("sudoku_v2:join"), fetch_redirect_response=False)
+        form = self.client.get(reverse("sudoku_v2:join"))
+        self.assertEqual(form.context["form"].initial["username"], "")
+
+    async def test_legacy_websocket_session_is_rejected(self) -> None:
+        for session in ({"room_code": "old-room"}, {"sudoku_v2_room": "new-room"}):
+            websocket = WebsocketCommunicator(SudokuV2Consumer.as_asgi(), '/ws/sudoku-v2/')
+            websocket.scope['session'] = session
+            websocket.scope['cookies'] = {'nick': 'old-player'}
+            await websocket.connect()
+            self.assertEqual(await websocket.receive_output(), {'type': 'websocket.close', 'code': 4401})
+            await websocket.disconnect()
+
+    async def assert_websocket_username(self, username: str) -> None:
+        cookie_header = "; ".join(
+            f"{name}={cookie.coded_value}"
+            for name, cookie in self.client.cookies.items()
+        ).encode("ascii")
+        storage = AsyncMock()
+        storage.PRESENCE_EXPIRY_SECONDS = 90
+        storage.acquire_presence.return_value = True
+        storage.renew_presence.return_value = True
+        storage.get_active_usernames.return_value = set()
+        storage.get_board_state.return_value = None
+        storage.get_context.return_value = None
+
+        from .support import CATALOG
+        with patch("sudoku_v2.consumers.SudokuV2Storage", return_value=storage), patch(
+            "sudoku_v2.service.SudokuV2Service.get_catalog", AsyncMock(return_value=CATALOG)
+        ):
+            websocket = WebsocketCommunicator(
+                AuthMiddlewareStack(URLRouter(websocket_urlpatterns)),
+                "/ws/sudoku-v2/",
+                headers=[(b"cookie", cookie_header)],
+            )
+            connected, _ = await websocket.connect()
+            self.assertTrue(connected)
+            try:
+                await websocket.send_json_to({"kind": "get_board_data", "data": {}})
+                message = await websocket.receive_json_from()
+                self.assertEqual(message["kind"], "board_data")
+                self.assertEqual(message["data"]["board"]["name"], username)
+                self.assertEqual(message["data"]["config"]["username"], username)
+                self.assertEqual(
+                    storage.acquire_presence.call_args.args[:2],
+                    ("test-room", username),
+                )
+            finally:
+                await websocket.disconnect()

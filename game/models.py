@@ -48,12 +48,16 @@ class UserSetting(Model):
 from .stubs import BorderIdDict
 
 class SudokuBoardManager(Manager['SudokuBoard']):
-    def random(self, filter: dict[str, Any] = {}, exclude: dict[str, Any] = {}) -> QuerySet['SudokuCell'] | None:
-        query = self.filter(**filter).exclude(**exclude).values('id')
+    def for_size(self, size: int) -> QuerySet['SudokuBoard']:
+        return self.annotate(cell_count=Count('sudokucell', distinct=True)).filter(cell_count=size * size)
+
+    def random(self, filter: dict[str, Any] | None = None, exclude: dict[str, Any] | None = None,
+               size: int = 9) -> QuerySet['SudokuCell'] | None:
+        query = self.for_size(size).filter(**(filter or {})).exclude(**(exclude or {})).values('id')
         
         return self._collect_cell_by_id(query)
     
-    def random_for_user(self, room_code: str, nick: str, difficulty_name: str) -> QuerySet['SudokuCell'] | None: 
+    def random_for_user(self, room_code: str, nick: str, difficulty_name: str, size: int = 9) -> QuerySet['SudokuCell'] | None:
         """
         Get 81 (or other by the number of cells on the board) cells
 
@@ -67,7 +71,7 @@ class SudokuBoardManager(Manager['SudokuBoard']):
             filter = {'difficulty__name' = difficulty_name},
             exclude = {'usersetting__nick': nick, 'usersetting__lobby__code' = room_code)}
         """
-        query = self.filter(difficulty__name = difficulty_name).exclude(usersetting__nick = nick, usersetting__lobby__code = room_code).values('id')
+        query = self.for_size(size).filter(difficulty__name = difficulty_name).exclude(usersetting__nick = nick, usersetting__lobby__code = room_code).values('id')
 
         return self._collect_cell_by_id(query)
 
